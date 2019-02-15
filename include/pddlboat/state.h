@@ -3,16 +3,14 @@
 
 #include <memory>
 
-#define PDDLBOAT_CLASS_FORWARD(C)               \
-    class C;                                    \
-    typedef std::shared_ptr<C> C##Ptr;          \
-    typedef std::shared_ptr<const C> C##ConstPtr;
+#define PDDLBOAT_CLASS_FORWARD(C)    \
+  class C;                           \
+  typedef std::shared_ptr<C> C##Ptr; \
+  typedef std::shared_ptr<const C> C##ConstPtr;
 
-namespace pddlboat
-{
-    PDDLBOAT_CLASS_FORWARD(State)
-      class State {
-    }
+namespace pddlboat {
+PDDLBOAT_CLASS_FORWARD(State)
+class State {}
 }  // namespace pddlboat
 
 #endif
