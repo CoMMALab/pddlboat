@@ -1,5 +1,5 @@
-#ifndef PDDLBOAT_EXPRESSIONS_
-#define PDDLBOAT_EXPRESSIONS_
+#ifndef PDDLBOAT_ACTION_
+#define PDDLBOAT_ACTION_
 
 #include <memory>
 

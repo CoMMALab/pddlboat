@@ -1,11 +1,11 @@
-#ifndef PDDLBOAT_EXPRESSIONS_
-#define PDDLBOAT_EXPRESSIONS_
+#ifndef PDDLBOAT_STATE_
+#define PDDLBOAT_STATE_
 
 #include <memory>
 
-#define PDDLBOAT_CLASS_FORWARD(C)                                                                                      \
-    class C;                                                                                                           \
-    typedef std::shared_ptr<C> C##Ptr;                                                                                 \
+#define PDDLBOAT_CLASS_FORWARD(C)               \
+    class C;                                    \
+    typedef std::shared_ptr<C> C##Ptr;          \
     typedef std::shared_ptr<const C> C##ConstPtr;
 
 namespace pddlboat
