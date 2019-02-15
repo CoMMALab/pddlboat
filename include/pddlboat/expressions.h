@@ -3,29 +3,30 @@
 
 #include <memory>
 
-#define PDDLBOAT_CLASS_FORWARD(C)    \
-  class C;                           \
-  typedef std::shared_ptr<C> C##Ptr; \
+#define PDDLBOAT_CLASS_FORWARD(C)                                              \
+  class C;                                                                     \
+  typedef std::shared_ptr<C> C##Ptr;                                           \
   typedef std::shared_ptr<const C> C##ConstPtr;
 
 namespace pddlboat {
 PDDLBOAT_CLASS_FORWARD(Expression)
-class Expression {
- public:
-  virtual bool evaluate(const StatePtr &state) const = 0;
-};
-
 PDDLBOAT_CLASS_FORWARD(Predicate)
 PDDLBOAT_CLASS_FORWARD(Function)
 PDDLBOAT_CLASS_FORWARD(State)
+
+class Expression {
+public:
+  virtual bool evaluate(const StatePtr &state) const = 0;
+};
+
 class State {
- public:
+public:
   virtual isTrue(const Predicate &predicate) const = 0;
   virtual evalFun(const Function &function) const = 0;
 };
 
 class Predicate : public Expression {
- public:
+public:
   const std::string name;
   const std::vector<std::string> variables;
   const std::vector<std::string> types;
@@ -33,36 +34,44 @@ class Predicate : public Expression {
   bool evaluate(const StatePtr &state) const { return state->isTrue(*this); }
 };
 
-class Function : public Expression {
- public:
+class Function {
+public:
   const std::string name;
   const std::vector<std::string> variables;
   const std::vector<std::string> types;
 
-  std::string evaluate(const StatePtr &state) const {
+  const std::string evaluate(const StatePtr &state) const {
     return state->evalFun(*this);
   }
 };
 
+class Action {
+public:
+  const std::string name;
+  const Expression &preconditions;
+  const Expression &effects;
+};
+
 PDDLBOAT_CLASS_FORWARD(VariadicExpression)
 class VariadicExpression : public Expression {
- public:
+public:
   VariadicExpression() {}
 
   VariadicExpression(const std::initializer_list<const ExpressionPtr> &terms) {
-    for (auto &term : terms) addTerm(term);
+    for (auto &term : terms)
+      addTerm(term);
   }
 
   void addTerm(const ExpressionPtr &expression) {
     terms_.emplace_back(expression);
   }
 
- protected:
+protected:
   std::vector<const ExpressionPtr> terms_;
 };
 
 class And : public VariadicExpression {
- public:
+public:
   And(const std::initializer_list<const ExpressionPtr> terms)
       : VariadicExpression(terms);
   {}
@@ -77,7 +86,7 @@ class And : public VariadicExpression {
 };
 
 class Or : public VariadicExpression {
- public:
+public:
   Or(const std::initializer_list<const ExpressionPtr> terms)
       : VariadicExpression(terms);
   {}
@@ -92,19 +101,19 @@ class Or : public VariadicExpression {
 };
 
 class Not : public Expression {
- public:
+public:
   Not(const ExpressionPtr &term) : term_(term) {}
 
   bool evaluate(const StatePtr &state) const override {
     return not term_->evaluate(state);
   }
 
- private:
+private:
   const ExpressionPtr term_;
 };
 
 class Equals : public VariadicExpression {
- public:
+public:
   Equals(const std::initializer_list<const ExpressionPtr> terms)
       : VariadicExpression(terms);
   {}
@@ -124,7 +133,7 @@ class Equals : public VariadicExpression {
 };
 
 class Imply : public Expression {
- public:
+public:
   Imply(const ExpressionPtr &left, const ExpressionPtr &right)
       : left_(left), right_(right) {}
 
@@ -132,7 +141,7 @@ class Imply : public Expression {
     return (not left_->evaluate(state)) or right_->evaluate(state);
   }
 
- private:
+private:
   const ExpressionPtr left_, right_;
 };
 
@@ -159,6 +168,7 @@ class Imply : public Expression {
 //     {
 //     }
 // };
-}  // namespace pddlboat
+
+} // namespace pddlboat
 
 #endif
