@@ -2,6 +2,8 @@
 #define PDDLBOAT_EXPRESSIONS_
 
 #include <memory>
+#include <string>
+#include <vector>
 
 #define PDDLBOAT_CLASS_FORWARD(C)                                              \
   class C;                                                                     \
@@ -21,8 +23,8 @@ public:
 
 class State {
 public:
-  virtual isTrue(const Predicate &predicate) const = 0;
-  virtual evalFun(const Function &function) const = 0;
+  virtual const bool isTrue(const Predicate &predicate) const = 0;
+  virtual const std::string evalFun(const Function &function) const = 0;
 };
 
 class Predicate : public Expression {
@@ -48,8 +50,8 @@ public:
 class Action {
 public:
   const std::string name;
-  const Expression &preconditions;
-  const Expression &effects;
+  ExpressionPtr preconditions;
+  ExpressionPtr effects;
 };
 
 PDDLBOAT_CLASS_FORWARD(VariadicExpression)
@@ -67,14 +69,13 @@ public:
   }
 
 protected:
-  std::vector<const ExpressionPtr> terms_;
+  std::vector<ExpressionPtr> terms_;
 };
 
 class And : public VariadicExpression {
 public:
   And(const std::initializer_list<const ExpressionPtr> terms)
-      : VariadicExpression(terms);
-  {}
+      : VariadicExpression(terms) {}
 
   bool evaluate(const StatePtr &state) const override {
     bool ret = true;
@@ -88,8 +89,7 @@ public:
 class Or : public VariadicExpression {
 public:
   Or(const std::initializer_list<const ExpressionPtr> terms)
-      : VariadicExpression(terms);
-  {}
+      : VariadicExpression(terms) {}
 
   bool evaluate(const StatePtr &state) const override {
     bool ret = false;
@@ -115,8 +115,7 @@ private:
 class Equals : public VariadicExpression {
 public:
   Equals(const std::initializer_list<const ExpressionPtr> terms)
-      : VariadicExpression(terms);
-  {}
+      : VariadicExpression(terms) {}
 
   bool evaluate(const StatePtr &state) const override {
     bool allTrue = true;
