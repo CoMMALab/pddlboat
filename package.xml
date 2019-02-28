@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>pddlboat</name>
+  <version>0.0.1</version>
+  <description>Something Something PDDL</description>
+  <maintainer email="zak@rice.edu">Zachary Kingston</maintainer>
+  <author email="zak@rice.edu">Zachary Kingston</author>
+  <author email="bryce.steven.willey@gmail.com">Bryce Willey</author>
+
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+</package>

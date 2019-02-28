@@ -4,6 +4,8 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <unordered_map>
+
 
 #define PDDLBOAT_CLASS_FORWARD(C)                                              \
   class C;                                                                     \
@@ -23,8 +25,13 @@ public:
 
 class State {
 public:
+  State():
+    assignments() {}
+
   virtual const bool isTrue(const Predicate &predicate) const = 0;
   virtual const std::string evalFun(const Function &function) const = 0;
+
+  std::unordered_map<std::string, bool> assignments;
 };
 
 class Predicate : public Expression {
@@ -70,6 +77,16 @@ public:
 
 protected:
   std::vector<ExpressionPtr> terms_;
+};
+
+class Atom : public Expression {
+public:
+  Atom(const std::string name):
+    name(name) { }
+  const std::string name;
+  bool evaluate(const StatePtr &state) const override {
+    return state->assignments[name];
+  }
 };
 
 class And : public VariadicExpression {
@@ -160,7 +177,7 @@ private:
 //     }
 // };
 
-// class Is : public Expression
+// class Is : public Expmession
 // {
 // public:
 //     bool evaluate(const StatePtr &state) const override
