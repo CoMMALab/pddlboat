@@ -23,3 +23,4 @@ include_directories(${INCLUDES})
 link_directories(${Boost_LIBRARY_DIRS})
 
 add_executable(pddlboat_test scripts/test.cpp)
+add_executable(pddlboat_test_smt scripts/test_smt.cpp)
