@@ -24,23 +24,23 @@ int main(int argc, char **argv)
 {
     std::cout << "Hello world" << std::endl;
 
-    auto aptr = std::make_shared<pddlboat::Atom>("atom_a");
-    auto bptr = std::make_shared<pddlboat::Atom>("atom_b");
-    auto cptr = std::make_shared<pddlboat::Atom>("atom_c");
-    auto dptr = std::make_shared<pddlboat::Atom>("atom_d");
+    auto aptr = pddlboat::makeAtom("atom_a");
+    auto bptr = pddlboat::makeAtom("atom_b");
+    auto cptr = pddlboat::makeAtom("atom_c");
+    auto dptr = pddlboat::makeAtom("atom_d");
 
-    pddlboat::And my_pre({aptr, bptr});
     pddlboat::Not my_eff(cptr);
 
-    auto preconditions_ptr = std::make_shared<pddlboat::And>(my_pre);
-    auto effects_ptr = std::make_shared<pddlboat::Not>(my_eff);
+    auto preconditions_ptr = pddlboat::makeAnd({aptr, bptr});
+    auto effects_ptr = pddlboat::makeNot(cptr);
+
     pddlboat::Action my_action("my_action", preconditions_ptr, effects_ptr);
 
     auto my_state = std::make_shared<SimpleState>(0);
-    my_state->assignments.emplace(std::make_pair("atom_a", true));
-    my_state->assignments.emplace(std::make_pair("atom_b", true));
-    my_state->assignments.emplace(std::make_pair("atom_c", false));
-    my_state->assignments.emplace(std::make_pair("atom_d", false));
+    my_state->assignments.emplace("atom_a", true);
+    my_state->assignments.emplace("atom_b", true);
+    my_state->assignments.emplace("atom_c", false);
+    my_state->assignments.emplace("atom_d", false);
 
     // std::cout<<"The expression evaluates to: "<<my_expr.evaluate(my_state)<<std::endl;
 

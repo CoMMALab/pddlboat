@@ -99,10 +99,15 @@ namespace pddlboat
         std::vector<ExpressionPtr> terms_;
     };
 
+    ///
+    /// Atom
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(Atom)
     class Atom : public Expression
     {
     public:
-        Atom(const std::string name) : name(name)
+        Atom(const std::string &name) : name(name)
         {
         }
         const std::string name;
@@ -112,10 +117,20 @@ namespace pddlboat
         }
     };
 
+    static AtomPtr makeAtom(const std::string &name)
+    {
+        return std::make_shared<Atom>(name);
+    }
+
+    ///
+    /// And
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(And)
     class And : public VariadicExpression
     {
     public:
-        And(const std::initializer_list<const ExpressionPtr> terms) : VariadicExpression(terms)
+        And(const std::initializer_list<const ExpressionPtr> &terms) : VariadicExpression(terms)
         {
         }
 
@@ -129,10 +144,20 @@ namespace pddlboat
         }
     };
 
+    static AndPtr makeAnd(const std::initializer_list<const ExpressionPtr> &terms)
+    {
+        return std::make_shared<And>(std::forward<const std::initializer_list<const ExpressionPtr>>(terms));
+    }
+
+    ///
+    /// Or
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(Or)
     class Or : public VariadicExpression
     {
     public:
-        Or(const std::initializer_list<const ExpressionPtr> terms) : VariadicExpression(terms)
+        Or(const std::initializer_list<const ExpressionPtr> &terms) : VariadicExpression(terms)
         {
         }
 
@@ -146,6 +171,16 @@ namespace pddlboat
         }
     };
 
+    static OrPtr makeOr(const std::initializer_list<const ExpressionPtr> &terms)
+    {
+        return std::make_shared<Or>(std::forward<const std::initializer_list<const ExpressionPtr>>(terms));
+    }
+
+    ///
+    /// Not
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(Not)
     class Not : public Expression
     {
     public:
@@ -161,6 +196,11 @@ namespace pddlboat
     private:
         const ExpressionPtr term_;
     };
+
+    static NotPtr makeNot(const ExpressionPtr &term)
+    {
+        return std::make_shared<Not>(std::forward<const ExpressionPtr>(term));
+    }
 
     class Equals : public VariadicExpression
     {
