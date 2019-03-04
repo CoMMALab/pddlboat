@@ -56,6 +56,11 @@ public:
 
 class Action {
 public:
+  Action(std::string name, ExpressionPtr preconditions, ExpressionPtr effects):
+  name(name),
+    preconditions(preconditions),
+    effects(effects) {}
+
   const std::string name;
   ExpressionPtr preconditions;
   ExpressionPtr effects;
