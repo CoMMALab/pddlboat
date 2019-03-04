@@ -9,12 +9,12 @@ public:
     {
     }
 
-    const bool isTrue(const pddlboat::Predicate &predicate) const override
+    bool isTrue(const pddlboat::Predicate &predicate) const override
     {
         return false;
     }
 
-    const std::string evalFun(const pddlboat::Function &function) const override
+    std::string evalFun(const pddlboat::Function &function) const override
     {
         return "";
     }

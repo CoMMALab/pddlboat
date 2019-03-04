@@ -31,8 +31,8 @@ namespace pddlboat
         {
         }
 
-        virtual const bool isTrue(const Predicate &predicate) const = 0;
-        virtual const std::string evalFun(const Function &function) const = 0;
+        virtual bool isTrue(const Predicate &predicate) const = 0;
+        virtual std::string evalFun(const Function &function) const = 0;
 
         std::unordered_map<std::string, bool> assignments;
     };
@@ -202,6 +202,11 @@ namespace pddlboat
         return std::make_shared<Not>(std::forward<const ExpressionPtr>(term));
     }
 
+    ///
+    /// Equals
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(Equals)
     class Equals : public VariadicExpression
     {
     public:
@@ -225,6 +230,17 @@ namespace pddlboat
         };
     };
 
+    static EqualsPtr makeEquals(const std::initializer_list<const ExpressionPtr> &terms)
+    {
+        return std::make_shared<Equals>(
+            std::forward<const std::initializer_list<const ExpressionPtr>>(terms));
+    }
+
+    ///
+    /// Imply
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(Imply)
     class Imply : public Expression
     {
     public:
@@ -240,6 +256,12 @@ namespace pddlboat
     private:
         const ExpressionPtr left_, right_;
     };
+
+    static ImplyPtr makeImply(const ExpressionPtr &left, const ExpressionPtr &right)
+    {
+        return std::make_shared<Imply>(std::forward<const ExpressionPtr>(left),
+                                       std::forward<const ExpressionPtr>(right));
+    }
 
     // class Forall : public Expression
     // {
