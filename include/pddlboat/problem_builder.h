@@ -34,12 +34,82 @@ namespace pddlboat
         return std::string("time_") + std::to_string(time_step) + std::string("_action_") + action;
     }
 
+    bool statePropAppearsInExpr(std::string state_proposition, const ExpressionPtr expression)
+    {
+        if (expression->getExprType() == ATOM)
+        {
+            const auto atom_expr = std::static_pointer_cast<Atom>(expression);
+            return state_proposition == atom_expr->name;
+        }
+        else if (expression->getExprType() == AND)
+        {
+            const auto and_expr = std::static_pointer_cast<And>(expression);
+            for (ExpressionPtr e : and_expr->getTerms())
+            {
+                if (statePropAppearsInExpr(state_proposition, e))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+        else if (expression->getExprType() == OR)
+        {
+            const auto or_expr = std::static_pointer_cast<Or>(expression);
+            for (ExpressionPtr e : or_expr->getTerms())
+            {
+                if (statePropAppearsInExpr(state_proposition, e))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+        else if (expression->getExprType() == NOT)
+        {
+            const auto not_expr = std::static_pointer_cast<Not>(expression);
+            return statePropAppearsInExpr(state_proposition, not_expr->getTerm());
+        }
+        else if (expression->getExprType() == EQUALS)
+        {
+            const auto equals_expr = std::static_pointer_cast<Equals>(expression);
+            for (ExpressionPtr e : equals_expr->getTerms())
+            {
+                if (statePropAppearsInExpr(state_proposition, e))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+        else if (expression->getExprType() == IMPLY)
+        {
+            const auto imply_expr = std::static_pointer_cast<Imply>(expression);
+            return statePropAppearsInExpr(state_proposition, imply_expr->getLeft()) ||
+                   statePropAppearsInExpr(state_proposition, imply_expr->getRight());
+        }
+        else
+        {
+            std::cout << "Error in searching for state proposition in subexpressions" << std::endl;
+            return false;
+        }
+    }
+
     // For frame axioms, we need to know all actions that could change a proposition
     // the time step is when the action is executed, so the change will be at the next time step
     z3::expr getPossibleChangeActions(std::string state_proposition, const std::vector<Action> &actions,
                                       z3::context *context_ptr, const size_t time_step_before)
     {
-        return context_ptr->bool_const(actionAtTime("my_action", time_step_before).c_str());
+        z3::expr changeActions = context_ptr->bool_val(false);
+        for(Action a : actions) {
+          //We assume this is time-step agnostic
+          if(statePropAppearsInExpr(state_proposition, a.effects)) {
+            changeActions = changeActions || context_ptr->bool_const(actionAtTime(a.name, time_step_before).c_str());
+          } else {
+            std::cout<<"Action " << a.effects << " does not contain prop "<< state_proposition<<std::endl;
+          }
+        }
+        return changeActions;
     }
 
     // Recurses down the tree and builds a z3::expr for the expression, replacing atoms with their
@@ -171,7 +241,7 @@ namespace pddlboat
             {
                 std::string curr_prop_str = propAtTime(prop_assgn.first, time_step);
                 z3::expr curr_prop = c.bool_const(curr_prop_str.c_str());
-                std::string next_prop_str = propAtTime(prop_assgn.first, time_step+1);
+                std::string next_prop_str = propAtTime(prop_assgn.first, time_step + 1);
                 z3::expr next_prop = c.bool_const(next_prop_str.c_str());
 
                 // if the prop changed, then an action changed it. it doesn't matter what the value changes

@@ -327,6 +327,16 @@ namespace pddlboat
             return ExpressionType::IMPLY;
         }
 
+        const ExpressionPtr getLeft()
+        {
+            return left_;
+        }
+
+        const ExpressionPtr getRight()
+        {
+            return right_;
+        }
+
     private:
         const ExpressionPtr left_, right_;
     };
