@@ -1,24 +1,25 @@
 #include <iostream>
 #include <pddlboat/expressions.h>
+#include <pddlboat/problem_builder.h>
 #include <z3++.h>
 
-class SimpleState : public pddlboat::State
-{
-public:
-    SimpleState(size_t id) : State()
-    {
-    }
+// class SimpleState : public pddlboat::State
+// {
+// public:
+//     SimpleState(size_t id) : State()
+//     {
+//     }
 
-    bool isTrue(const pddlboat::Predicate &predicate) const override
-    {
-        return false;
-    }
+//     bool isTrue(const pddlboat::Predicate &predicate) const override
+//     {
+//         return false;
+//     }
 
-    std::string evalFun(const pddlboat::Function &function) const override
-    {
-        return "";
-    }
-};
+//     std::string evalFun(const pddlboat::Function &function) const override
+//     {
+//         return "";
+//     }
+// };
 
 int main(int argc, char **argv)
 {
@@ -36,7 +37,7 @@ int main(int argc, char **argv)
 
     pddlboat::Action my_action("my_action", preconditions_ptr, effects_ptr);
 
-    auto my_state = std::make_shared<SimpleState>(0);
+    auto my_state = std::make_shared<pddlboat::SimpleState>(0);
     my_state->assignments.emplace("atom_a", true);
     my_state->assignments.emplace("atom_b", true);
     my_state->assignments.emplace("atom_c", false);
@@ -68,4 +69,5 @@ int main(int argc, char **argv)
             std::cout << "unknown\n";
             break;
     }
+    return 0;
 }

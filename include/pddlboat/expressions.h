@@ -18,10 +18,26 @@ namespace pddlboat
     PDDLBOAT_CLASS_FORWARD(Function)
     PDDLBOAT_CLASS_FORWARD(State)
 
+    enum ExpressionType
+    {
+        EXPRESSION,
+        PREDICATE,
+        FUNCTION,
+        VARIADIC,
+        ATOM,
+        AND,
+        OR,
+        NOT,
+        EQUALS,
+        IMPLY
+    };
+
     class Expression
     {
     public:
         virtual bool evaluate(const StatePtr &state) const = 0;
+
+        virtual ExpressionType getExprType() const = 0;
     };
 
     class State
@@ -48,6 +64,10 @@ namespace pddlboat
         {
             return state->isTrue(*this);
         }
+        virtual ExpressionType getExprType() const
+        {
+            return ExpressionType::PREDICATE;
+        }
     };
 
     class Function
@@ -60,6 +80,11 @@ namespace pddlboat
         const std::string evaluate(const StatePtr &state) const
         {
             return state->evalFun(*this);
+        }
+
+        virtual ExpressionType getExprType() const
+        {
+            return ExpressionType::FUNCTION;
         }
     };
 
@@ -94,6 +119,15 @@ namespace pddlboat
         {
             terms_.emplace_back(expression);
         }
+        virtual ExpressionType getExprType() const
+        {
+            return ExpressionType::VARIADIC;
+        }
+
+        std::vector<ExpressionPtr> getTerms()
+        {
+            return terms_;
+        }
 
     protected:
         std::vector<ExpressionPtr> terms_;
@@ -115,6 +149,13 @@ namespace pddlboat
         {
             return state->assignments[name];
         }
+
+        virtual ExpressionType getExprType() const
+        {
+            return ExpressionType::ATOM;
+        }
+
+        inline static const ExpressionType expr_type = ATOM;
     };
 
     static AtomPtr makeAtom(const std::string &name)
@@ -142,6 +183,13 @@ namespace pddlboat
 
             return ret;
         }
+
+        virtual ExpressionType getExprType() const
+        {
+            return ExpressionType::AND;
+        }
+
+        inline static const ExpressionType expr_type = AND;
     };
 
     static AndPtr makeAnd(const std::initializer_list<const ExpressionPtr> &terms)
@@ -169,6 +217,13 @@ namespace pddlboat
 
             return ret;
         }
+
+        virtual ExpressionType getExprType() const
+        {
+            return ExpressionType::OR;
+        }
+
+        inline static const ExpressionType expr_type = OR;
     };
 
     static OrPtr makeOr(const std::initializer_list<const ExpressionPtr> &terms)
@@ -191,6 +246,15 @@ namespace pddlboat
         bool evaluate(const StatePtr &state) const override
         {
             return not term_->evaluate(state);
+        }
+        virtual ExpressionType getExprType() const
+        {
+            return ExpressionType::NOT;
+        }
+
+        const ExpressionPtr getTerm()
+        {
+            return term_;
         }
 
     private:
@@ -227,7 +291,12 @@ namespace pddlboat
             }
 
             return allTrue || allFalse;
-        };
+        }
+
+        virtual ExpressionType getExprType() const
+        {
+            return ExpressionType::EQUALS;
+        }
     };
 
     static EqualsPtr makeEquals(const std::initializer_list<const ExpressionPtr> &terms)
@@ -251,6 +320,11 @@ namespace pddlboat
         bool evaluate(const StatePtr &state) const override
         {
             return (not left_->evaluate(state)) or right_->evaluate(state);
+        }
+
+        virtual ExpressionType getExprType() const
+        {
+            return ExpressionType::IMPLY;
         }
 
     private:

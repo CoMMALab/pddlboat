@@ -8,7 +8,7 @@ set(CMAKE_MODULE_PATH
   "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules")
 include(CompilerSettings)
 
-find_package(Boost REQUIRED)
+find_package(Boost REQUIRED COMPONENTS system)
 find_package(Z3 REQUIRED)
 
 list(APPEND INCLUDES
@@ -18,7 +18,7 @@ list(APPEND INCLUDES
   )
 
 list(APPEND LIBRARIES
-  ${Boost_LIBRARY_DIRS}
+  ${Boost_LIBRARY}
   ${Z3_LIBRARY}
   )
 
@@ -28,6 +28,8 @@ list(APPEND LIBRARIES
 include_directories(${INCLUDES})
 
 add_executable(pddlboat_test scripts/test.cpp)
-
 add_executable(pddlboat_test_smt scripts/test_smt.cpp)
+add_executable(pddlboat_test_planning scripts/test_planning.cpp)
+
 target_link_libraries(pddlboat_test_smt ${LIBRARIES})
+target_link_libraries(pddlboat_test_planning ${LIBRARIES})
