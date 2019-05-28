@@ -5,6 +5,9 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <type_traits>
+
+#include "utility.h"
 
 #define PDDLBOAT_CLASS_FORWARD(C)                                                                            \
     class C;                                                                                                 \
@@ -17,6 +20,18 @@ namespace pddlboat
     PDDLBOAT_CLASS_FORWARD(Predicate)
     PDDLBOAT_CLASS_FORWARD(Function)
     PDDLBOAT_CLASS_FORWARD(State)
+
+    using Time = std::size_t;
+
+    std::string propAtTime(const std::string &name, const Time step)
+    {
+        return log::format("t:%1$03u,p:%2%", step, name);
+    }
+
+    std::string actionAtTime(const std::string &name, const Time step)
+    {
+        return log::format("t:%1$03u,a:%2%", step, name);
+    }
 
     enum ExpressionType
     {
@@ -36,8 +51,13 @@ namespace pddlboat
     {
     public:
         virtual bool evaluate(const StatePtr &state) const = 0;
-
         virtual ExpressionType getExprType() const = 0;
+
+        virtual bool containsProposition(const std::string &prop) const
+        {
+            std::cerr << log::format("Failed to find proposition \"%1%\" in expression.", prop) << std::endl;
+            return false;
+        }
     };
 
     class State
@@ -48,7 +68,7 @@ namespace pddlboat
         }
 
         virtual bool isTrue(const Predicate &predicate) const = 0;
-        virtual std::string evalFun(const Function &function) const = 0;
+        virtual ExpressionPtr function(const Function &function) const = 0;
 
         std::unordered_map<std::string, bool> assignments;
     };
@@ -64,25 +84,26 @@ namespace pddlboat
         {
             return state->isTrue(*this);
         }
-        virtual ExpressionType getExprType() const
+
+        ExpressionType getExprType() const override
         {
             return ExpressionType::PREDICATE;
         }
     };
 
-    class Function
+    class Function : public Expression
     {
     public:
         const std::string name;
         const std::vector<std::string> variables;
         const std::vector<std::string> types;
 
-        const std::string evaluate(const StatePtr &state) const
-        {
-            return state->evalFun(*this);
-        }
+        // bool evaluate(const StatePtr &state) const override
+        // {
+        //     return state->function(*this)->evaluate(state);
+        // }
 
-        virtual ExpressionType getExprType() const
+        ExpressionType getExprType() const override
         {
             return ExpressionType::FUNCTION;
         }
@@ -91,14 +112,19 @@ namespace pddlboat
     class Action
     {
     public:
+        const std::string name;
+        ExpressionPtr preconditions;
+        ExpressionPtr effects;
+
         Action(std::string name, ExpressionPtr preconditions, ExpressionPtr effects)
           : name(name), preconditions(preconditions), effects(effects)
         {
         }
 
-        const std::string name;
-        ExpressionPtr preconditions;
-        ExpressionPtr effects;
+        std::string atTime(Time step) const
+        {
+            return actionAtTime(name, step);
+        }
     };
 
     PDDLBOAT_CLASS_FORWARD(VariadicExpression)
@@ -111,7 +137,7 @@ namespace pddlboat
 
         VariadicExpression(const std::initializer_list<const ExpressionPtr> &terms)
         {
-            for (auto &term : terms)
+            for (const auto &term : terms)
                 addTerm(term);
         }
 
@@ -119,7 +145,8 @@ namespace pddlboat
         {
             terms_.emplace_back(expression);
         }
-        virtual ExpressionType getExprType() const
+
+        ExpressionType getExprType() const override
         {
             return ExpressionType::VARIADIC;
         }
@@ -129,9 +156,47 @@ namespace pddlboat
             return terms_;
         }
 
+        bool containsProposition(const std::string &prop) const override
+        {
+            for (const auto &e : terms_)
+                if (e->containsProposition(prop))
+                    return true;
+
+            return false;
+        }
+
     protected:
         std::vector<ExpressionPtr> terms_;
     };
+
+    template <typename T>
+    ExpressionPtr makeCAR(const std::shared_ptr<T> &expr)
+    {
+        static_assert(std::is_base_of<VariadicExpression, T>::value, "T must be a descendant of "
+                                                                     "VariadicExpression");
+
+        return expr->getTerms().front();
+    }
+
+    template <typename T>
+    std::shared_ptr<T> makeCDR(const std::shared_ptr<T> &expr)
+    {
+        static_assert(std::is_base_of<VariadicExpression, T>::value, "T must be a descendant of "
+                                                                     "VariadicExpression");
+
+        const auto &terms = expr->getTerms();
+
+        if (terms.size() > 1)
+        {
+            auto cdr = std::make_shared<T>();
+            for (unsigned int i = 1; i < terms.size(); ++i)
+                cdr->addTerm(terms[i]);
+
+            return cdr;
+        }
+
+        return nullptr;
+    }
 
     ///
     /// Atom
@@ -141,21 +206,31 @@ namespace pddlboat
     class Atom : public Expression
     {
     public:
+        const std::string name;
+
         Atom(const std::string &name) : name(name)
         {
         }
-        const std::string name;
+
         bool evaluate(const StatePtr &state) const override
         {
             return state->assignments[name];
         }
 
-        virtual ExpressionType getExprType() const
+        ExpressionType getExprType() const override
         {
             return ExpressionType::ATOM;
         }
 
-        inline static const ExpressionType expr_type = ATOM;
+        std::string atTime(Time step) const
+        {
+            return propAtTime(name, step);
+        }
+
+        bool containsProposition(const std::string &prop) const override
+        {
+            return prop == name;
+        }
     };
 
     static AtomPtr makeAtom(const std::string &name)
@@ -171,25 +246,23 @@ namespace pddlboat
     class And : public VariadicExpression
     {
     public:
-        And(const std::initializer_list<const ExpressionPtr> &terms) : VariadicExpression(terms)
+        And(const std::initializer_list<const ExpressionPtr> &terms = {}) : VariadicExpression(terms)
         {
         }
 
         bool evaluate(const StatePtr &state) const override
         {
             bool ret = true;
-            for (unsigned int i = 0; i < terms_.size() && ret; ++i)
+            for (unsigned int i = 0; i < terms_.size() and ret; ++i)
                 ret &= terms_[i]->evaluate(state);
 
             return ret;
         }
 
-        virtual ExpressionType getExprType() const
+        ExpressionType getExprType() const override
         {
             return ExpressionType::AND;
         }
-
-        inline static const ExpressionType expr_type = AND;
     };
 
     static AndPtr makeAnd(const std::initializer_list<const ExpressionPtr> &terms)
@@ -205,25 +278,23 @@ namespace pddlboat
     class Or : public VariadicExpression
     {
     public:
-        Or(const std::initializer_list<const ExpressionPtr> &terms) : VariadicExpression(terms)
+        Or(const std::initializer_list<const ExpressionPtr> &terms = {}) : VariadicExpression(terms)
         {
         }
 
         bool evaluate(const StatePtr &state) const override
         {
             bool ret = false;
-            for (unsigned int i = 0; i < terms_.size() && !ret; ++i)
+            for (unsigned int i = 0; i < terms_.size() and not ret; ++i)
                 ret |= terms_[i]->evaluate(state);
 
             return ret;
         }
 
-        virtual ExpressionType getExprType() const
+        ExpressionType getExprType() const override
         {
             return ExpressionType::OR;
         }
-
-        inline static const ExpressionType expr_type = OR;
     };
 
     static OrPtr makeOr(const std::initializer_list<const ExpressionPtr> &terms)
@@ -247,7 +318,8 @@ namespace pddlboat
         {
             return not term_->evaluate(state);
         }
-        virtual ExpressionType getExprType() const
+
+        ExpressionType getExprType() const override
         {
             return ExpressionType::NOT;
         }
@@ -255,6 +327,11 @@ namespace pddlboat
         const ExpressionPtr getTerm()
         {
             return term_;
+        }
+
+        bool containsProposition(const std::string &prop) const override
+        {
+            return term_->containsProposition(prop);
         }
 
     private:
@@ -274,7 +351,7 @@ namespace pddlboat
     class Equals : public VariadicExpression
     {
     public:
-        Equals(const std::initializer_list<const ExpressionPtr> terms) : VariadicExpression(terms)
+        Equals(const std::initializer_list<const ExpressionPtr> terms = {}) : VariadicExpression(terms)
         {
         }
 
@@ -283,17 +360,17 @@ namespace pddlboat
             bool allTrue = true;
             bool allFalse = true;
 
-            for (unsigned int i = 0; i < terms_.size() && (allTrue || allFalse); ++i)
+            for (unsigned int i = 0; i < terms_.size() and (allTrue or allFalse); ++i)
             {
                 const bool eval = terms_[i]->evaluate(state);
                 allTrue &= eval;
                 allFalse &= not eval;
             }
 
-            return allTrue || allFalse;
+            return allTrue or allFalse;
         }
 
-        virtual ExpressionType getExprType() const
+        ExpressionType getExprType() const override
         {
             return ExpressionType::EQUALS;
         }
@@ -322,7 +399,7 @@ namespace pddlboat
             return (not left_->evaluate(state)) or right_->evaluate(state);
         }
 
-        virtual ExpressionType getExprType() const
+        ExpressionType getExprType() const override
         {
             return ExpressionType::IMPLY;
         }
@@ -335,6 +412,11 @@ namespace pddlboat
         const ExpressionPtr getRight()
         {
             return right_;
+        }
+
+        bool containsProposition(const std::string &prop) const override
+        {
+            return left_->containsProposition(prop) or right_->containsProposition(prop);
         }
 
     private:

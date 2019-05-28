@@ -12,9 +12,10 @@ public:
     {
         return false;
     }
-    std::string evalFun(const pddlboat::Function &function) const override
+
+    pddlboat::ExpressionPtr function(const pddlboat::Function &function) const override
     {
-        return "";
+        return nullptr;
     }
 };
 
