@@ -20,6 +20,7 @@ namespace pddlboat
     PDDLBOAT_CLASS_FORWARD(Predicate)
     PDDLBOAT_CLASS_FORWARD(Function)
     PDDLBOAT_CLASS_FORWARD(State)
+    PDDLBOAT_CLASS_FORWARD(Action)
 
     using Time = std::size_t;
 
@@ -67,8 +68,22 @@ namespace pddlboat
         {
         }
 
-        virtual bool isTrue(const Predicate &predicate) const = 0;
-        virtual ExpressionPtr function(const Function &function) const = 0;
+        virtual bool isTrue(const Predicate &predicate) const
+        {
+            return false;
+        }
+
+        virtual ExpressionPtr function(const Function &function) const
+        {
+            return nullptr;
+        }
+
+        virtual void assign(const std::string &name, bool value)
+        {
+            auto [it, r] = assignments.emplace(name, value);
+            if (not r)
+                it->second = value;
+        }
 
         std::unordered_map<std::string, bool> assignments;
     };
@@ -113,10 +128,10 @@ namespace pddlboat
     {
     public:
         const std::string name;
-        ExpressionPtr preconditions;
-        ExpressionPtr effects;
+        const ExpressionPtr preconditions;
+        const ExpressionPtr effects;
 
-        Action(std::string name, ExpressionPtr preconditions, ExpressionPtr effects)
+        Action(const std::string &name, const ExpressionPtr &preconditions, const ExpressionPtr &effects)
           : name(name), preconditions(preconditions), effects(effects)
         {
         }
@@ -126,6 +141,12 @@ namespace pddlboat
             return actionAtTime(name, step);
         }
     };
+
+    static ActionPtr makeAction(const std::string &name, const ExpressionPtr &preconditions,
+                                const ExpressionPtr &effects)
+    {
+        return std::make_shared<Action>(name, preconditions, effects);
+    }
 
     PDDLBOAT_CLASS_FORWARD(VariadicExpression)
     class VariadicExpression : public Expression
@@ -151,7 +172,7 @@ namespace pddlboat
             return ExpressionType::VARIADIC;
         }
 
-        std::vector<ExpressionPtr> getTerms()
+        std::vector<ExpressionPtr> getTerms() const
         {
             return terms_;
         }
