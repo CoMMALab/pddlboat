@@ -14,10 +14,9 @@ set(CMAKE_MODULE_PATH
 include(CompilerSettings)
 include(FeatureSummary)
 
-
 include_directories(${CMAKE_CURRENT_LIST_DIR}/include)
 
-find_package(Boost REQUIRED COMPONENTS system)
+find_package(Boost REQUIRED COMPONENTS system filesystem timer)
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 list(APPEND LIBRARIES ${Boost_LIBRARIES})
 
@@ -25,11 +24,25 @@ find_package(Z3 REQUIRED)
 include_directories(${Z3_INCLUDE_DIR})
 list(APPEND LIBRARIES ${Z3_LIBRARY})
 
+list(APPEND SOURCES
+    src/keywords.cpp
+    src/ast.cpp
+    src/parser.cpp
+    )
+
+add_definitions(-DPDDLBOAT_RESOURCE_DIRECTORY="${CMAKE_CURRENT_LIST_DIR}/resources")
+
+add_library(pddlboat ${SOURCES})
+set_target_properties(pddlboat PROPERTIES VERSION 0.0.1)
+target_link_libraries(pddlboat ${LIBRARIES})
+
 add_executable(pddlboat_test scripts/test.cpp)
+add_executable(pddlboat_parser scripts/parser_test.cpp)
 add_executable(pddlboat_test_smt scripts/test_smt.cpp)
 add_executable(pddlboat_test_planning scripts/test_planning.cpp)
 
 target_link_libraries(pddlboat_test ${LIBRARIES})
+target_link_libraries(pddlboat_parser pddlboat ${LIBRARIES})
 target_link_libraries(pddlboat_test_smt ${LIBRARIES})
 target_link_libraries(pddlboat_test_planning ${LIBRARIES})
 

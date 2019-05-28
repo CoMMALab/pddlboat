@@ -1,0 +1,85 @@
+/** Author: Zachary Kingston */
+
+#ifndef PDDLBOAT_KEYWORDS_
+#define PDDLBOAT_KEYWORDS_
+
+#include <string>
+
+#include <boost/bimap.hpp>
+
+namespace pddlboat
+{
+    ///
+    /// Requirements Flags
+    ///
+
+    struct Requirements
+    {
+        enum Keyword
+        {
+            STRIPS,
+            TYPING,
+            NEGATIVE_PRECONDITIONS,
+            DISJUNCTIVE_PRECONDITIONS,
+            EQUALITY,
+            EXISTENTIAL_PRECONDITIONS,
+            UNIVERSAL_PRECONDITIONS,
+            QUANTIFIED_PRECONDITIONS,
+            CONDITIONAL_EFFECTS,
+            FLUENTS,
+            ADL,
+            DURATIVE_ACTIONS,
+            DERIVED_PREDICATES,
+            TIMED_INITIAL_LITERALS,
+            PREFERENCES,
+            CONSTRAINTS,
+            DOMAIN_AXIOMS
+        };
+
+        typedef boost::bimap<std::string, Keyword> bimap;
+        static const bimap map;
+
+        static const std::string &toString(Keyword req);
+    };
+
+    ///
+    /// Operators
+    ///
+
+    struct Operators
+    {
+        enum Keyword
+        {
+            LITERAL,
+            AND,
+            OR,
+            NOT,
+            FORALL,
+            IMPLY,
+            EXISTS,
+            PREFERENCE,
+            MINUS,
+            DIVIDE,
+            MULTIPLY,
+            PLUS,
+            GREATER,
+            LESS,
+            EQUAL,
+            GREATER_OR_EQUAL,
+            LESS_OR_EQUAL,
+            WHEN,
+            ASSIGN,
+            SCALE_UP,
+            SCALE_DOWN,
+            INCREASE,
+            DECREASE
+        };
+
+        typedef boost::bimap<std::string, Keyword> bimap;
+        static const bimap map;
+
+        static const std::string &toString(Keyword op);
+    };
+}  // namespace pddlboat
+
+#endif

@@ -1,0 +1,27 @@
+(define (domain rover-domain)
+    (:requirements :fluents)
+    
+    (:predicates
+        (can-move ?from-waypoint ?to-waypoint)
+        (is-visible ?objective ?waypoint)                       
+        (is-in ?sample ?waypoint)
+        (been-at ?rover ?waypoint)
+        (carry ?rover ?sample)  
+        (at ?rover ?waypoint)
+        (is-recharging-dock ?waypoint)
+        (is-dropping-dock ?waypoint)
+        (taken-image ?objective)
+        (stored-sample ?sample)
+        (objective ?objective)
+        (waypoint ?waypoint)    
+        (sample ?sample) 
+        (rover ?rover)                             
+    )
+    
+    (:functions
+        (battery-amount ?rover)
+        (sample-amount ?rover)
+        (battery-capacity)
+        (sample-capacity)
+    )
+  )

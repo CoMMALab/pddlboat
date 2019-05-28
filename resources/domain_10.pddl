@@ -1,0 +1,5 @@
+(define (domain gripper-typed)
+  (:requirements :typing)
+  (:types room ball gripper)
+  (:constants left right - gripper)
+)

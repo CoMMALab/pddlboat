@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include <type_traits>
 
-#include "utility.h"
+#include <pddlboat/utility.h>
 
 #define PDDLBOAT_CLASS_FORWARD(C)                                                                            \
     class C;                                                                                                 \

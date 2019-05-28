@@ -1,23 +1,5 @@
 #include <iostream>
-#include "../include/pddlboat/expressions.h"
-
-class SimpleState : public pddlboat::State
-{
-public:
-    SimpleState(size_t id) : State()
-    {
-    }
-
-    bool isTrue(const pddlboat::Predicate &predicate) const override
-    {
-        return false;
-    }
-
-    pddlboat::ExpressionPtr function(const pddlboat::Function &function) const override
-    {
-        return nullptr;
-    }
-};
+#include <pddlboat/solver/expressions.h>
 
 int main(int argc, char **argv)
 {
@@ -28,9 +10,9 @@ int main(int argc, char **argv)
 
     auto my_expr = pddlboat::makeAnd({vptr, wptr});
 
-    auto my_state = std::make_shared<SimpleState>(0);
-    my_state->assignments.emplace("atom_v", true);
-    my_state->assignments.emplace("atom_w", true);
+    auto my_state = std::make_shared<pddlboat::State>();
+    my_state->assign("atom_v", true);
+    my_state->assign("atom_w", true);
 
     std::cout << "The expression evaluates to: " << my_expr->evaluate(my_state) << std::endl;
 }

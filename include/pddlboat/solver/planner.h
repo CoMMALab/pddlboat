@@ -3,8 +3,8 @@
 
 #include <z3++.h>
 
-#include "utility.h"
-#include "expressions.h"
+#include <pddlboat/utility.h>
+#include <pddlboat/solver/expressions.h>
 
 namespace pddlboat
 {

@@ -1,0 +1,5 @@
+(define (domain hanoi-domain)
+  (:requirements :equality)
+  ;; (:predicates (disk ?x) (smaller ?x ?y) (on ?x ?y) (clear ?x))
+  (:predicates (disk ?x))
+)

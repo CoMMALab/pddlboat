@@ -1,6 +1,6 @@
 #include <iostream>
-#include <pddlboat/expressions.h>
-#include <pddlboat/problem_builder.h>
+#include <pddlboat/solver/expressions.h>
+#include <pddlboat/solver/planner.h>
 #include <z3++.h>
 
 int main(int argc, char **argv)

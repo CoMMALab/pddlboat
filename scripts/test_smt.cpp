@@ -1,25 +1,7 @@
 #include <iostream>
-#include <pddlboat/expressions.h>
-#include <pddlboat/problem_builder.h>
+#include <pddlboat/solver/expressions.h>
+#include <pddlboat/solver/planner.h>
 #include <z3++.h>
-
-// class SimpleState : public pddlboat::State
-// {
-// public:
-//     SimpleState(size_t id) : State()
-//     {
-//     }
-
-//     bool isTrue(const pddlboat::Predicate &predicate) const override
-//     {
-//         return false;
-//     }
-
-//     std::string evalFun(const pddlboat::Function &function) const override
-//     {
-//         return "";
-//     }
-// };
 
 int main(int argc, char **argv)
 {
