@@ -6,8 +6,13 @@
 #include <string>
 #include <vector>
 
+#include <boost/fusion/include/adapt_struct.hpp>
+#include <boost/fusion/include/io.hpp>
+
 #include <boost/spirit/home/x3.hpp>
 #include <boost/spirit/home/x3/support/ast/position_tagged.hpp>
+#include <boost/spirit/home/x3/support/utility/error_reporting.hpp>
+#include <boost/spirit/home/x3/support/utility/annotate_on_success.hpp>
 
 #include <pddlboat/parser/keywords.h>
 
@@ -105,6 +110,8 @@ namespace pddlboat
 
             std::string toString() const;
         };
+
+        using boost::fusion::operator<<;
     }  // namespace ast
 }  // namespace pddlboat
 

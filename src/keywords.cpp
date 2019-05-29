@@ -35,13 +35,13 @@ void Requirements::initialize()
     map.insert(bimap::value_type(":preferences", PREFERENCES));                              //
     map.insert(bimap::value_type(":constraints", CONSTRAINTS));                              //
     map.insert(bimap::value_type(":domain-axioms", DOMAIN_AXIOMS));                          //
+    map.insert(bimap::value_type(":action-costs", ACTION_COSTS));                            //
 }
 
 const std::string &Operators::toString(Keyword op)
 {
     return getMap().right.at(op);
 }
-
 
 Operators::bimap &Operators::getMap()
 {

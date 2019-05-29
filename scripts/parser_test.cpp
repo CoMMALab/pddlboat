@@ -39,5 +39,7 @@ int main(int argc, char **argv)
     test("domain_18.pddl", true);
     test("domain_19.pddl", true);
     test("domain_20.pddl", true);
+    test("domain_21.pddl", true);
+    test("domain_22.pddl", true);
     return 0;
 }

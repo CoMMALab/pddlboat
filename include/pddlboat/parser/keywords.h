@@ -33,11 +33,12 @@ namespace pddlboat
             TIMED_INITIAL_LITERALS,
             PREFERENCES,
             CONSTRAINTS,
-            DOMAIN_AXIOMS
+            DOMAIN_AXIOMS,
+            ACTION_COSTS
         };
 
         typedef boost::bimap<std::string, Keyword> bimap;
-        static bimap& getMap();
+        static bimap &getMap();
         static const std::string &toString(Keyword req);
         static void initialize();
     };
@@ -76,7 +77,7 @@ namespace pddlboat
         };
 
         typedef boost::bimap<std::string, Keyword> bimap;
-        static bimap& getMap();
+        static bimap &getMap();
         static const std::string &toString(Keyword op);
         static void initialize();
     };
