@@ -3,6 +3,7 @@
 #ifndef PDDLBOAT_AST_
 #define PDDLBOAT_AST_
 
+#include <variant>
 #include <string>
 #include <vector>
 
@@ -95,6 +96,54 @@ namespace pddlboat
         };
 
         ///
+        /// Actions
+        ///
+
+        struct ExpressionOperator : x3::variant<std::string, Operators::Keyword>
+        {
+            using base_type::base_type;
+            using base_type::operator=;
+
+            std::string toString() const;
+            Operators::Keyword toOp() const;
+        };
+
+        class Expression : x3::position_tagged
+        {
+        public:
+            Expression() : op(Operators::NONE)
+            {
+            }
+
+            Expression(const std::string &string) : op(string)
+            {
+            }
+
+            Expression(const ExpressionOperator &op, const std::vector<Expression> &terms)
+              : op(op), terms(terms)
+            {
+            }
+
+            // Operators::Keyword type;
+            // std::string literal{""};
+            ExpressionOperator op;
+            std::vector<Expression> terms{};
+
+            std::string toString() const;
+        };
+
+        class Action : x3::position_tagged
+        {
+        public:
+            std::string name;
+            std::vector<TypedList> parameters;
+            Expression precondition{};
+            Expression effect{};
+
+            std::string toString() const;
+        };
+
+        ///
         /// Domain
         ///
 
@@ -107,6 +156,7 @@ namespace pddlboat
             std::vector<TypedList> constants;
             std::vector<AtomicFormula> predicates;
             std::vector<AtomicFormulaList> functions;
+            std::vector<Action> actions;
 
             std::string toString() const;
         };

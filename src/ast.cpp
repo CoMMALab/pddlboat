@@ -70,6 +70,85 @@ std::string AtomicFormulaList::toString() const
     return ss.str();
 }
 
+std::string ExpressionOperator::toString() const
+{
+    struct StringVisitor
+    {
+        std::string operator()(const Operators::Keyword &v) const
+        {
+            if (v == Operators::NONE)
+                return "";
+            return Operators::toString(v);
+        }
+
+        std::string operator()(const std::string &v) const
+        {
+            return v;
+        }
+    };
+
+    StringVisitor v;
+    return boost::apply_visitor(v, *this);
+}
+
+pddlboat::Operators::Keyword ExpressionOperator::toOp() const
+{
+    struct OperatorVisitor
+    {
+        Operators::Keyword operator()(const Operators::Keyword &v) const
+        {
+            return v;
+        }
+
+        Operators::Keyword operator()(const std::string &v) const
+        {
+            return Operators::LITERAL;
+        }
+    };
+
+    OperatorVisitor v;
+    return boost::apply_visitor(v, *this);
+}
+
+std::string Expression::toString() const
+{
+    std::stringstream ss;
+    if (!terms.empty())
+        ss << "(";
+
+    ss << op.toString();
+
+    if (!terms.empty())
+    {
+        ss << " ";
+        for (auto it = terms.begin(), end = terms.end(); it != end;)
+            ss << it->toString() << ((++it != end) ? " " : "");
+    }
+
+    if (!terms.empty())
+        ss << ')';
+
+    return ss.str();
+}
+
+std::string Action::toString() const
+{
+    std::stringstream ss;
+    ss << "(";
+    ss << name;
+    if (!parameters.empty())
+    {
+        ss << " - ";
+        for (auto it = parameters.begin(), end = parameters.end(); it != end;)
+            ss << it->toString() << ((++it != end) ? ", " : "");
+    }
+    ss << " (precondition: " << precondition.toString() << ')';
+    ss << " (effect: " << effect.toString() << ')';
+    ss << ')';
+
+    return ss.str();
+}
+
 std::string Domain::toString() const
 {
     std::stringstream ss;
@@ -121,6 +200,14 @@ std::string Domain::toString() const
         for (auto it = functions.begin(), end = functions.end(); it != end;)
             ss << it->toString() << ((++it != end) ? ", " : "");
         ss << ")" << std::endl;
+    }
+
+    // Actions
+    if (!actions.empty())
+    {
+        ss << "       actions:" << std::endl;
+        for (auto it = actions.begin(), end = actions.end(); it != end;)
+            ss << "               " << it++->toString() << std::endl;
     }
 
     // End

@@ -181,6 +181,30 @@ namespace parser
     /// Actions
     ///
 
+    struct expression_class;
+    const x3::rule<expression_class, ast::Expression> expression = "expression";
+    const auto expression_def =                                         //
+        ('(' > (ast::OperatorsKeywords | name) > (variablelist | *expression) > ')')  //
+        ;
+    PARSE(expression)
+    struct expression_class : error_handler
+    {
+    };
+
+    struct action_class;
+    const x3::rule<action_class, ast::Action> action = "action";
+    const auto action_def =                                             //
+        '(' > x3::lit(":action") > name >                            //
+        x3::lit(":parameters") > '(' >> *typedlist_variable >> ')' >>  //
+        -(x3::lit(":precondition") > expression) >>                    //
+        -(x3::lit(":effect") > expression) >>                          //
+        ')'                                                             //
+        ;
+    PARSE(action)
+    struct action_class : error_handler
+    {
+    };
+
 
     ///
     /// Domain
@@ -196,6 +220,7 @@ namespace parser
         -constants >                            //
         -predicates >                           //
         -functions >                            //
+        *action >                               //
         ')'                                     //
         ;
     PARSE(domain);

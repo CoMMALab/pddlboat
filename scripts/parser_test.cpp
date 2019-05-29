@@ -41,5 +41,9 @@ int main(int argc, char **argv)
     test("domain_20.pddl", true);
     test("domain_21.pddl", true);
     test("domain_22.pddl", true);
+    test("domain_23.pddl", true);
+    test("domain_24.pddl", true);
+    test("domain_25.pddl", true);
+    test("domain_26.pddl", true);
     return 0;
 }

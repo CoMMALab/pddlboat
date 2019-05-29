@@ -51,6 +51,7 @@ namespace pddlboat
     {
         enum Keyword
         {
+            NONE,
             LITERAL,
             AND,
             OR,
