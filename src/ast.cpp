@@ -113,7 +113,9 @@ pddlboat::Operators::Keyword ExpressionOperator::toOp() const
 std::string Expression::toString() const
 {
     std::stringstream ss;
-    if (!terms.empty())
+
+    bool brace = !terms.empty();
+    if (brace)
         ss << "(";
 
     ss << op.toString();
@@ -125,7 +127,7 @@ std::string Expression::toString() const
             ss << it->toString() << ((++it != end) ? " " : "");
     }
 
-    if (!terms.empty())
+    if (brace)
         ss << ')';
 
     return ss.str();

@@ -124,8 +124,6 @@ namespace pddlboat
             {
             }
 
-            // Operators::Keyword type;
-            // std::string literal{""};
             ExpressionOperator op;
             std::vector<Expression> terms{};
 
@@ -136,7 +134,7 @@ namespace pddlboat
         {
         public:
             std::string name;
-            std::vector<TypedList> parameters;
+            std::vector<TypedList> parameters{};
             Expression precondition{};
             Expression effect{};
 

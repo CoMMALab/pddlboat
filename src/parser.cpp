@@ -183,7 +183,7 @@ namespace parser
 
     struct expression_class;
     const x3::rule<expression_class, ast::Expression> expression = "expression";
-    const auto expression_def =                                         //
+    const auto expression_def =                                                       //
         ('(' > (ast::OperatorsKeywords | name) > (variablelist | *expression) > ')')  //
         ;
     PARSE(expression)
@@ -193,18 +193,17 @@ namespace parser
 
     struct action_class;
     const x3::rule<action_class, ast::Action> action = "action";
-    const auto action_def =                                             //
-        '(' > x3::lit(":action") > name >                            //
-        x3::lit(":parameters") > '(' >> *typedlist_variable >> ')' >>  //
-        -(x3::lit(":precondition") > expression) >>                    //
-        -(x3::lit(":effect") > expression) >>                          //
-        ')'                                                             //
+    const auto action_def =                                               //
+        '(' > x3::lit(":action") > name >                                 //
+        -(x3::lit(":parameters") > '(' >> *typedlist_variable >> ')') >>  //
+        -(x3::lit(":precondition") > expression) >>                       //
+        -(x3::lit(":effect") > expression) >>                             //
+        ')'                                                               //
         ;
     PARSE(action)
     struct action_class : error_handler
     {
     };
-
 
     ///
     /// Domain
@@ -235,7 +234,7 @@ bool pddlboat::parseFile(const std::string &file, ast::Domain &domain)
 
     std::cout << log::format("Reading file `%1%`", file) << std::endl;
     const std::string text = io::loadFileToString(file);
-    std::cout << text << std::endl;
+    // std::cout << text << std::endl;
 
     iterator_type iter = text.begin();
     const iterator_type end = text.end();
