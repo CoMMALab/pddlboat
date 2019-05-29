@@ -28,12 +28,12 @@ OperatorsKeywords_::OperatorsKeywords_()
         add(it.first, it.second);
 }
 
-std::string TypedList::toString() const
+std::string TypedList::toString(bool isVariable) const
 {
     std::stringstream ss;
     ss << "[";
     for (auto it = types.begin(), end = types.end(); it != end;)
-        ss << *it << ((++it != end) ? ", " : "");
+        ss << ((isVariable) ? "?" : "") << *it << ((++it != end) ? ", " : "");
     if (!parent.empty())
         ss << " - " << parent;
     ss << "]";
@@ -110,21 +110,22 @@ pddlboat::Operators::Keyword ExpressionOperator::toOp() const
     return boost::apply_visitor(v, *this);
 }
 
-std::string Expression::toString() const
+std::string Expression::toString(bool literal) const
 {
     std::stringstream ss;
 
-    bool brace = !terms.empty();
+    bool brace = not literal;
+    bool isLiteral = op.toOp() == Operators::LITERAL;
     if (brace)
         ss << "(";
 
-    ss << op.toString();
+    ss << ((literal && isLiteral) ? "?" : "") << op.toString();
 
     if (!terms.empty())
     {
         ss << " ";
         for (auto it = terms.begin(), end = terms.end(); it != end;)
-            ss << it->toString() << ((++it != end) ? " " : "");
+            ss << it->toString(isLiteral) << ((++it != end) ? " " : "");
     }
 
     if (brace)
@@ -173,7 +174,7 @@ std::string Domain::toString() const
     {
         ss << "         types: (";
         for (auto it = types.begin(), end = types.end(); it != end;)
-            ss << it->toString() << ((++it != end) ? ", " : "");
+            ss << it->toString(false) << ((++it != end) ? ", " : "");
         ss << ")" << std::endl;
     }
 
@@ -207,9 +208,10 @@ std::string Domain::toString() const
     // Actions
     if (!actions.empty())
     {
-        ss << "       actions:" << std::endl;
+        ss << "       actions: (" << std::endl;
         for (auto it = actions.begin(), end = actions.end(); it != end;)
-            ss << "               " << it++->toString() << std::endl;
+            ss << "                  " << it++->toString() << std::endl;
+        ss << "                )" << std::endl;
     }
 
     // End

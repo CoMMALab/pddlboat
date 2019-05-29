@@ -45,5 +45,6 @@ int main(int argc, char **argv)
     test("domain_24.pddl", true);
     test("domain_25.pddl", true);
     test("domain_26.pddl", true);
+    test("blocks/blockworld.pddl", true);
     return 0;
 }
