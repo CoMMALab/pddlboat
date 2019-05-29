@@ -9,6 +9,8 @@
 
 #include <pddlboat/utility.h>
 
+#define PDDLBOAT_OBJECT_CLASS "object"
+
 #define PDDLBOAT_CLASS_FORWARD(C)                                                                            \
     class C;                                                                                                 \
     typedef std::shared_ptr<C> C##Ptr;                                                                       \
@@ -16,114 +18,172 @@
 
 namespace pddlboat
 {
-    PDDLBOAT_CLASS_FORWARD(Expression)
-    PDDLBOAT_CLASS_FORWARD(Predicate)
-    PDDLBOAT_CLASS_FORWARD(Function)
-    PDDLBOAT_CLASS_FORWARD(State)
-    PDDLBOAT_CLASS_FORWARD(Action)
-
     using Time = std::size_t;
 
-    std::string propAtTime(const std::string &name, const Time step)
-    {
-        return log::format("t:%1$03u,p:%2%", step, name);
-    }
+    std::string propAtTime(const std::string &name, const Time step);
+    std::string actionAtTime(const std::string &name, const Time step);
 
-    std::string actionAtTime(const std::string &name, const Time step)
-    {
-        return log::format("t:%1$03u,a:%2%", step, name);
-    }
+    ///
+    /// Objects
+    ///
 
-    enum ExpressionType
-    {
-        EXPRESSION,
-        PREDICATE,
-        FUNCTION,
-        VARIADIC,
-        ATOM,
-        AND,
-        OR,
-        NOT,
-        EQUALS,
-        IMPLY
-    };
-
-    class Expression
+    PDDLBOAT_CLASS_FORWARD(Object)
+    class Object
     {
     public:
-        virtual bool evaluate(const StatePtr &state) const = 0;
-        virtual ExpressionType getExprType() const = 0;
-
-        virtual bool containsProposition(const std::string &prop) const
-        {
-            std::cerr << log::format("Failed to find proposition \"%1%\" in expression.", prop) << std::endl;
-            return false;
-        }
+        std::string name;
+        std::string type{PDDLBOAT_OBJECT_CLASS};
     };
 
-    class State
+    using Objects = std::set<ObjectPtr>;
+
+    static ObjectPtr makeObj(const std::string &name, const std::string &type = PDDLBOAT_OBJECT_CLASS);
+
+    ///
+    /// Variables
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(Variable)
+    class Variable
     {
     public:
-        State() : assignments()
-        {
-        }
-
-        virtual bool isTrue(const Predicate &predicate) const
-        {
-            return false;
-        }
-
-        virtual ExpressionPtr function(const Function &function) const
-        {
-            return nullptr;
-        }
-
-        virtual void assign(const std::string &name, bool value)
-        {
-            auto [it, r] = assignments.emplace(name, value);
-            if (not r)
-                it->second = value;
-        }
-
-        std::unordered_map<std::string, bool> assignments;
+        std::string variable;
+        std::string type{PDDLBOAT_OBJECT_CLASS};
     };
 
+    class Variables : public std::set<VariablePtr>
+    {
+    public:
+        std::set<std::string> getNames();
+        VariablePtr getVariable(const std::string &name);
+    };
+
+    static VariablePtr makeVar(const std::string &variable, const std::string &type = PDDLBOAT_OBJECT_CLASS);
+
+    ///
+    /// Assignment
+    ///
+
+    class Assignment : public std::map<std::string, std::string>
+    {
+    public:
+        std::set<std::string> getVariables();
+    }
+
+    ///
+    /// Expressions
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(Expression) class Expression
+    {
+    public:
+        enum Type
+        {
+            EXPRESSION,
+            PREDICATE,
+            VARIADIC,
+            ATOM,
+            AND,
+            OR,
+            NOT,
+            EQUALS,
+            IMPLY
+        };
+
+        virtual bool evaluate(const StatePtr &state, const Assignment &vars) const = 0;
+        virtual Type type() const;
+        virtual void variables(Variables &vars) const;
+        virtual bool containsVariable(const std::string &variable) const;
+        virtual bool containsProposition(const std::string &proposition) const;
+    };
+
+    ///
+    /// Predicates
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(Predicate)
     class Predicate : public Expression
     {
     public:
         const std::string name;
-        const std::vector<std::string> variables;
-        const std::vector<std::string> types;
+        const Variables variables;
 
-        bool evaluate(const StatePtr &state) const
-        {
-            return state->isTrue(*this);
-        }
+        Predicate(const std::string &name, const Variables &vars);
 
-        ExpressionType getExprType() const override
-        {
-            return ExpressionType::PREDICATE;
-        }
+        unsigned int arity() const;
+
+        bool evaluate(const StatePtr &state, const Assignment &vars) const override;
+        Expression::Type type() const override;
+        void variables(Variables &vars) const override;
+        bool containsVariable(const std::string &variable) const override;
+        bool containsProposition(const std::string &proposition) const override;
     };
 
-    class Function : public Expression
+    static PredicatePtr makePred(const std::string &name, const Variables &variables = {});
+
+    ///
+    /// Domain
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(Domain)
+    class Domain
     {
     public:
         const std::string name;
-        const std::vector<std::string> variables;
-        const std::vector<std::string> types;
+        std::map<std::string, std::string> types;  // type -> parent
+        std::vector<ObjectPtr> objects;
+        std::map<std::string, PredicatePtr> predicates;
 
-        // bool evaluate(const StatePtr &state) const override
-        // {
-        //     return state->function(*this)->evaluate(state);
-        // }
+        Domain(const std::string &name);
 
-        ExpressionType getExprType() const override
-        {
-            return ExpressionType::FUNCTION;
-        }
+        void addType(const std::string &type, const std::string &parent = PDDLBOAT_OBJECT_CLASS);
+        std::vector<std::string> getTypes() const;
+        bool isType(const std::string &type) const;
+        bool isTypeOf(const std::string &type, const std::string &other) const;
+        const std::vector<ObjectPtr> objectsOfType(const std::string &type) const;
+
+        void addPredicate(const PredicatePtr &predicate);
+        const PredicatePtr getPredicate(const std::string &name);
     };
 
+    ///
+    /// State
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(State)
+    class State
+    {
+    public:
+        struct Key
+        {
+            std::string predicate;
+            Assignment assignment;
+        };
+
+        State(const DomainPtr &domain);
+
+        virtual bool isTrue(const std::string &predicate, const Assignment &assignment) const;
+
+        // Assign 0-ary pred.
+        void assign(const std::string &predicate, bool value);
+
+        // Assign 1-ary pred.
+        void assign(const std::string &predicate, const std::string &object, bool value);
+
+        // Assign n-ary pred.
+        virtual void assign(const std::string &predicate, const Assignment &assignment, bool value);
+
+        std::unordered_map<Key, bool> assignments;
+
+    private:
+        const DomainPtr domain_;
+    };
+
+    ///
+    /// Action
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(VariadicExpression)
     class Action
     {
     public:
@@ -131,60 +191,31 @@ namespace pddlboat
         const ExpressionPtr preconditions;
         const ExpressionPtr effects;
 
-        Action(const std::string &name, const ExpressionPtr &preconditions, const ExpressionPtr &effects)
-          : name(name), preconditions(preconditions), effects(effects)
-        {
-        }
-
-        std::string atTime(Time step) const
-        {
-            return actionAtTime(name, step);
-        }
+        Action(const std::string &name, const ExpressionPtr &preconditions, const ExpressionPtr &effects);
+        std::string atTime(Time step) const;
     };
 
     static ActionPtr makeAction(const std::string &name, const ExpressionPtr &preconditions,
-                                const ExpressionPtr &effects)
-    {
-        return std::make_shared<Action>(name, preconditions, effects);
-    }
+                                const ExpressionPtr &effects);
+
+    ///
+    /// Variadic Expression
+    ///
 
     PDDLBOAT_CLASS_FORWARD(VariadicExpression)
     class VariadicExpression : public Expression
     {
     public:
-        VariadicExpression()
-        {
-        }
+        VariadicExpression();
+        VariadicExpression(const std::initializer_list<const ExpressionPtr> &terms);
 
-        VariadicExpression(const std::initializer_list<const ExpressionPtr> &terms)
-        {
-            for (const auto &term : terms)
-                addTerm(term);
-        }
+        void addTerm(const ExpressionPtr &expression);
+        std::vector<ExpressionPtr> getTerms() const;
 
-        void addTerm(const ExpressionPtr &expression)
-        {
-            terms_.emplace_back(expression);
-        }
-
-        ExpressionType getExprType() const override
-        {
-            return ExpressionType::VARIADIC;
-        }
-
-        std::vector<ExpressionPtr> getTerms() const
-        {
-            return terms_;
-        }
-
-        bool containsProposition(const std::string &prop) const override
-        {
-            for (const auto &e : terms_)
-                if (e->containsProposition(prop))
-                    return true;
-
-            return false;
-        }
+        Expression::Type type() const override;
+        void variables(Variables &vars) const override;
+        bool containsVariable(const std::string &variable) const override;
+        bool containsProposition(const std::string &proposition) const override;
 
     protected:
         std::vector<ExpressionPtr> terms_;
