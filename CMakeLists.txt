@@ -41,9 +41,9 @@ add_executable(pddlboat_parser scripts/parser_test.cpp)
 add_executable(pddlboat_test_smt scripts/test_smt.cpp)
 add_executable(pddlboat_test_planning scripts/test_planning.cpp)
 
-target_link_libraries(pddlboat_test ${LIBRARIES})
+target_link_libraries(pddlboat_test pddlboat ${LIBRARIES})
 target_link_libraries(pddlboat_parser pddlboat ${LIBRARIES})
-target_link_libraries(pddlboat_test_smt ${LIBRARIES})
-target_link_libraries(pddlboat_test_planning ${LIBRARIES})
+target_link_libraries(pddlboat_test_smt pddlboat ${LIBRARIES})
+target_link_libraries(pddlboat_test_planning pddlboat ${LIBRARIES})
 
 feature_summary(DESCRIPTION INCLUDE_QUIET_PACKAGES WHAT ALL)

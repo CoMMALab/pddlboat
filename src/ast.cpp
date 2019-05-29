@@ -1,3 +1,5 @@
+/* Author: Zachary Kingston */
+
 #include <iostream>
 
 #include <pddlboat/parser/ast.h>
@@ -14,13 +16,15 @@ Keywords_::Keywords_()
 
 RequirementsKeywords_::RequirementsKeywords_()
 {
-    for (const auto &it : Requirements::map.left)
+    Requirements::initialize();
+    for (const auto &it : Requirements::getMap().left)
         add(it.first, it.second);
 }
 
 OperatorsKeywords_::OperatorsKeywords_()
 {
-    for (const auto &it : Operators::map.left)
+    Operators::initialize();
+    for (const auto &it : Operators::getMap().left)
         add(it.first, it.second);
 }
 

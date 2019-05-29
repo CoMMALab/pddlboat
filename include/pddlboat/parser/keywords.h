@@ -37,9 +37,9 @@ namespace pddlboat
         };
 
         typedef boost::bimap<std::string, Keyword> bimap;
-        static const bimap map;
-
+        static bimap& getMap();
         static const std::string &toString(Keyword req);
+        static void initialize();
     };
 
     ///
@@ -76,9 +76,9 @@ namespace pddlboat
         };
 
         typedef boost::bimap<std::string, Keyword> bimap;
-        static const bimap map;
-
+        static bimap& getMap();
         static const std::string &toString(Keyword op);
+        static void initialize();
     };
 }  // namespace pddlboat
 

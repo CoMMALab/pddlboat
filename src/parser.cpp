@@ -171,6 +171,7 @@ namespace parser
 
 bool pddlboat::parseFile(const std::string &file, ast::Domain &domain)
 {
+    RequirementsKeywords::initialize();
     typedef std::string::const_iterator iterator_type;
 
     std::cout << log::format("Reading file `%1%`", file) << std::endl;
