@@ -3,7 +3,6 @@
 #ifndef PDDLBOAT_AST_
 #define PDDLBOAT_AST_
 
-#include <variant>
 #include <string>
 #include <vector>
 
