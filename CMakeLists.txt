@@ -27,6 +27,7 @@ list(APPEND LIBRARIES ${Z3_LIBRARY})
 list(APPEND SOURCES
     src/utility.cpp
     src/expressions.cpp
+    src/domain.cpp
     src/keywords.cpp
     src/ast.cpp
     src/parser.cpp
