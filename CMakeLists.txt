@@ -16,9 +16,37 @@ include(FeatureSummary)
 
 include_directories(${CMAKE_CURRENT_LIST_DIR}/include)
 
-find_package(Boost REQUIRED COMPONENTS system filesystem timer)
+
+SET (BOOST_ROOT "/usr/local/")
+SET (BOOST_INCLUDEDIR "/opt/boost/boost-1.57.0/include")
+SET (BOOST_LIBRARYDIR "/opt/boost/boost-1.57.0/lib")
+
+SET (BOOST_MIN_VERSION "1.70.0")
+set (Boost_NO_BOOST_CMAKE ON)
+FIND_PACKAGE(Boost ${BOOST_MIN_VERSION} REQUIRED)
+if (NOT Boost_FOUND)
+  message(FATAL_ERROR "Fatal error: Boost (version >= 1.70) required.")
+else()
+  message(STATUS "Setting up BOOST")
+  message(STATUS " Includes - ${Boost_INCLUDE_DIRS}")
+  message(STATUS " Library  - ${Boost_LIBRARY_DIRS}")
+  include_directories(${Boost_INCLUDE_DIRS})
+  link_directories(${Boost_LIBRARY_DIRS})
+endif (NOT Boost_FOUND)
+
+find_package(Boost 1.70 REQUIRED COMPONENTS system filesystem timer)
+
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 list(APPEND LIBRARIES ${Boost_LIBRARIES})
+
+message([warning] "boost info:")
+message([warning] ${Boost_FOUND})
+message([warning] ${Boost_VERSION})
+message([warning] ${Boost_INCLUDE_DIRS})
+message([warning] ${Boost_LIBRARIES})
+message([warning] "end boost info")
+
+
 
 find_package(Z3 REQUIRED)
 include_directories(${Z3_INCLUDE_DIR})
