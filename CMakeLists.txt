@@ -25,6 +25,8 @@ include_directories(${Z3_INCLUDE_DIR})
 list(APPEND LIBRARIES ${Z3_LIBRARY})
 
 list(APPEND SOURCES
+    src/utility.cpp
+    src/expressions.cpp
     src/keywords.cpp
     src/ast.cpp
     src/parser.cpp
@@ -37,15 +39,13 @@ set_target_properties(pddlboat PROPERTIES VERSION 0.0.1)
 target_link_libraries(pddlboat ${LIBRARIES})
 
 add_executable(pddlboat_test scripts/test.cpp)
-add_executable(pddlboat_parser scripts/parser_test.cpp)
-add_executable(pddlboat_test_smt scripts/test_smt.cpp)
-add_executable(pddlboat_test_planning scripts/test_planning.cpp)
-add_executable(x3_test scripts/x3_test.cpp)
+# add_executable(pddlboat_parser scripts/parser_test.cpp)
+# add_executable(pddlboat_test_smt scripts/test_smt.cpp)
+# add_executable(pddlboat_test_planning scripts/test_planning.cpp)
 
 target_link_libraries(pddlboat_test pddlboat ${LIBRARIES})
-target_link_libraries(pddlboat_parser pddlboat ${LIBRARIES})
-target_link_libraries(pddlboat_test_smt pddlboat ${LIBRARIES})
-target_link_libraries(pddlboat_test_planning pddlboat ${LIBRARIES})
-target_link_libraries(x3_test pddlboat ${LIBRARIES})
+# target_link_libraries(pddlboat_parser pddlboat ${LIBRARIES})
+# target_link_libraries(pddlboat_test_smt pddlboat ${LIBRARIES})
+# target_link_libraries(pddlboat_test_planning pddlboat ${LIBRARIES})
 
 feature_summary(DESCRIPTION INCLUDE_QUIET_PACKAGES WHAT ALL)
