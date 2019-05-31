@@ -56,7 +56,7 @@ namespace pddlboat
     {
     public:
         VariadicExpression();
-        VariadicExpression(const std::initializer_list<const ExpressionPtr> &terms);
+        VariadicExpression(const std::vector<ExpressionPtr> &terms);
 
         void addTerm(const ExpressionPtr &expression);
         std::vector<ExpressionPtr> getTerms() const;
@@ -107,14 +107,14 @@ namespace pddlboat
     class And : public VariadicExpression
     {
     public:
-        And(const std::initializer_list<const ExpressionPtr> &terms = {});
+        And(const std::vector<ExpressionPtr> &terms = {});
 
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
         Expression::Type type() const override;
         void toPDDL(std::ostream &out, unsigned int indent = 2, unsigned int level = 0) const override;
     };
 
-    AndPtr makeAnd(const std::initializer_list<const ExpressionPtr> &terms);
+    AndPtr makeAnd(const std::vector<ExpressionPtr> &terms);
 
     ///
     /// Or
@@ -124,14 +124,14 @@ namespace pddlboat
     class Or : public VariadicExpression
     {
     public:
-        Or(const std::initializer_list<const ExpressionPtr> &terms = {});
+        Or(const std::vector<ExpressionPtr> &terms = {});
 
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
         Expression::Type type() const override;
         void toPDDL(std::ostream &out, unsigned int indent = 2, unsigned int level = 0) const override;
     };
 
-    OrPtr makeOr(const std::initializer_list<const ExpressionPtr> &terms);
+    OrPtr makeOr(const std::vector<ExpressionPtr> &terms);
 
     ///
     /// Not

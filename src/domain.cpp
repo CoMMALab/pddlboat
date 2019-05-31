@@ -650,8 +650,12 @@ Action::Action(const std::string &name, const VariableSet &parameters, const Exp
   : name(name), parameters(parameters), precondition(precondition), effect(effect)
 {
     VariableSet in;
-    precondition->getVariables(in);
-    effect->getVariables(in);
+
+    if (precondition)
+        precondition->getVariables(in);
+
+    if (effect)
+        effect->getVariables(in);
 
     if (in != parameters)
         throw std::invalid_argument(

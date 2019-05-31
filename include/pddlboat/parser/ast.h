@@ -119,7 +119,7 @@ namespace pddlboat
             }
 
             Expression(const ExpressionOperator &op, const std::vector<Expression> &terms)
-                : op(op), terms(terms)
+              : op(op), terms(terms)
             {
             }
 

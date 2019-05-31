@@ -9,6 +9,7 @@
 namespace pddlboat
 {
     bool parseFile(const std::string &file, ast::Domain &domain);
+
 }  // namespace pddlboat
 
 #endif
