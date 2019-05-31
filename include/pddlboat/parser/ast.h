@@ -69,7 +69,7 @@ namespace pddlboat
             std::vector<std::string> types;
             std::string parent{""};
 
-            std::string toString() const;
+            std::string toString(bool isVariable = true) const;
         };
 
         ///
@@ -119,14 +119,14 @@ namespace pddlboat
             }
 
             Expression(const ExpressionOperator &op, const std::vector<Expression> &terms)
-              : op(op), terms(terms)
+                : op(op), terms(terms)
             {
             }
 
             ExpressionOperator op;
             std::vector<Expression> terms{};
 
-            std::string toString() const;
+            std::string toString(bool literal = false) const;
         };
 
         class Action : x3::position_tagged
