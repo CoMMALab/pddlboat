@@ -19,6 +19,7 @@ namespace pddlboat
                                const DomainPtr &domain, const ProblemPtr &problem = nullptr);
     ActionPtr toAction(const ast::Action &action, const DomainPtr &domain);
     DomainPtr toDomain(const ast::Domain &domain);
+    ProblemPtr toProblem(const ast::Problem &problem, const DomainPtr &domain);
 }  // namespace pddlboat
 
 #endif

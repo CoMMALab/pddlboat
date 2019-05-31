@@ -50,7 +50,7 @@ pddlboat::ExpressionPtr pddlboat::toExpression(const ast::Expression &expression
                     throw std::invalid_argument(log::format("Invalid term %2% in predicate %1%!", s, name));
                 }
 
-                return pred->bind(bindings);
+                return pred->bind(bindings, problem);
             }
             else
                 throw std::invalid_argument(log::format("Invalid literal %1%!", s));
@@ -146,6 +146,35 @@ pddlboat::DomainPtr pddlboat::toDomain(const ast::Domain &domain)
 
     for (const auto &action : domain.actions)
         r->addAction(toAction(action, r));
+
+    return r;
+}
+
+pddlboat::ProblemPtr pddlboat::toProblem(const ast::Problem &problem, const DomainPtr &domain)
+{
+    auto r = std::make_shared<Problem>(problem.name, domain);
+    if (domain->name != problem.domain)
+        throw std::invalid_argument(
+            log::format("Problem domain %1% does not match %2%!", problem.domain, domain->name));
+
+    for (const auto &objectlist : problem.objects)
+    {
+        const auto &parent = (objectlist.parent != "") ? objectlist.parent : PDDLBOAT_OBJECT_CLASS;
+        for (const auto &object : objectlist.types)
+            r->addObject(object, parent);
+    }
+
+    for (const auto &formula : problem.initial)
+    {
+        std::vector<std::string> names;
+        for (const auto &types : formula.variables)
+            for (const auto &type : types.types)
+                names.emplace_back(type);
+
+        r->start->assignN(formula.name, names);
+    }
+
+    r->goal = toExpression(problem.goal, {}, domain, r);
 
     return r;
 }
