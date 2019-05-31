@@ -18,9 +18,6 @@ include_directories(${CMAKE_CURRENT_LIST_DIR}/include)
 
 
 SET (BOOST_ROOT "/usr/local/")
-SET (BOOST_INCLUDEDIR "/opt/boost/boost-1.57.0/include")
-SET (BOOST_LIBRARYDIR "/opt/boost/boost-1.57.0/lib")
-
 SET (BOOST_MIN_VERSION "1.70.0")
 set (Boost_NO_BOOST_CMAKE ON)
 FIND_PACKAGE(Boost ${BOOST_MIN_VERSION} REQUIRED)
