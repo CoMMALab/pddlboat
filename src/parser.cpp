@@ -75,6 +75,11 @@ namespace parser
     PARSE(variable);
     PARSE(variablelist);
 
+    struct nameorvarlist_class;
+    const x3::rule<nameorvarlist_class, std::vector<std::string>> nameorvarlist = "nameorvarlist";
+    const auto nameorvarlist_def = +(name | variable);
+    PARSE(nameorvarlist);
+
     /// Terms
     struct term_class;
     struct termlist_class;
@@ -114,6 +119,13 @@ namespace parser
         '(' >> name >> *typedlist_variable >> ')'  //
         ;
     PARSE(atomic_formula);
+
+    struct atomic_formula_name_class;
+    const x3::rule<atomic_formula_name_class, ast::AtomicFormula> atomic_formula_name = "atomic_formula_name";
+    const auto atomic_formula_name_def =       //
+        '(' >> name >> *typedlist_name >> ')'  //
+        ;
+    PARSE(atomic_formula_name);
 
     ///
     /// Requirements Flags
@@ -186,14 +198,14 @@ namespace parser
 
     struct bound_predicate_class;
     const x3::rule<bound_predicate_class, ast::Expression> bound_predicate = "bound_predicate";
-    const auto bound_predicate_def =        //
-        '(' >> name >> x3::attr(std::vector<ast::TypedList>{}) >> -variablelist >> ')'  //
+    const auto bound_predicate_def =                                                     //
+        '(' >> name >> x3::attr(std::vector<ast::TypedList>{}) >> -nameorvarlist >> ')'  //
         ;
     PARSE(bound_predicate)
 
     struct boolean_operator_class;
     const x3::rule<boolean_operator_class, ast::Expression> boolean_operator = "boolean_operator";
-    const auto boolean_operator_def =                              //
+    const auto boolean_operator_def =                                                                //
         '(' >> ast::OperatorsKeywords >> -('(' >> +typedlist_variable >> ')') >> +expression >> ')'  //
         ;
     PARSE(boolean_operator)
@@ -253,39 +265,27 @@ namespace parser
     /// Literal
     ///
 
-    // struct subliteral_class;
-    // const x3::rule<subliteral_class, ast::Expression> subliteral = "subliteral";
-    // const auto subliteral_def = name ;
-    // PARSE(subliteral);
+    ///
+    /// Initial
+    ///
 
-    // struct literal_class;
-    // const x3::rule<literal_class, ast::Expression> literal = "literal";
-    // const auto literal_def =      //
-    //     '(' > name > namelist > ')'  //
-    //     ;
-    // PARSE(literal);
-
-    // ///
-    // /// Initial
-    // ///
-
-    // struct initial_class;
-    // const x3::rule<initial_class, std::vector<ast::Expression>> initial = "initial";
-    // const auto initial_def =                       //
-    //     '(' > x3::lit(":init") > *literal > ')'  //
-    //     ;
-    // PARSE(initial);
+    struct initial_class;
+    const x3::rule<initial_class, std::vector<ast::AtomicFormula>> initial = "initial";
+    const auto initial_def =                                 //
+        '(' > x3::lit(":init") > +atomic_formula_name > ')'  //
+        ;
+    PARSE(initial);
 
     ///
     /// Goal
     ///
 
-    // struct goal_class;
-    // const x3::rule<goal_class, std::vector<ast::Expression>> goal = "goal";
-    // const auto goal_def =                              //
-    //     '(' >> x3::lit(":goal") >> *expression >> ')'  //
-    //     ;
-    // PARSE(goal);
+    struct goal_class;
+    const x3::rule<goal_class, ast::Expression> goal = "goal";
+    const auto goal_def =                             //
+        '(' >> x3::lit(":goal") >> expression >> ')'  //
+        ;
+    PARSE(goal);
 
     ///
     /// Problem
@@ -298,10 +298,9 @@ namespace parser
         '(' > x3::lit("problem") > name > ')' >  //
         '(' > x3::lit(":domain") > name > ')' >  //
         -objects >                               //
-        // literal >
-        // initial >                                //
-        // -goal >                                   //
-        ')'  //
+        -initial >                               //
+        -goal >                                  //
+        ')'                                      //
         ;
     PARSE(problem);
     struct problem_class : error_handler
@@ -366,6 +365,9 @@ bool pddlboat::parseFile(const std::string &file, ast::Problem &problem)
 
     // try
     // {
+    // std::vector<pddlboat::ast::Expression> test;
+    // r = x3::phrase_parse(iter, end, with<error_handler_tag>(std::ref(error_handler))[parser::initial],
+    //                      parser::skipper, test);
     r = x3::phrase_parse(iter, end, with<error_handler_tag>(std::ref(error_handler))[parser::problem],
                          parser::skipper, problem);
     // }

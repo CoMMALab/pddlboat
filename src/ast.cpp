@@ -226,3 +226,33 @@ std::string Domain::toString() const
 
     return ss.str();
 }
+
+std::string Problem::toString() const
+{
+    std::stringstream ss;
+    ss << "problem(" << std::endl;
+    ss << "          name: " << name << std::endl;
+    ss << "        domain: " << domain << std::endl;
+
+    if (!objects.empty())
+    {
+        ss << "     objects: (";
+        for (auto it = objects.begin(), end = objects.end(); it != end;)
+            ss << it->toString() << ((++it != end) ? ", " : "");
+        ss << ")" << std::endl;
+    }
+
+    // Initial
+    if (!initial.empty())
+    {
+        ss << "    initial: (";
+        for (auto it = initial.begin(), end = initial.end(); it != end;)
+            ss << it->toString() << ((++it != end) ? ", " : "");
+        ss << ")" << std::endl;
+    }
+
+    ss << "           goal: " << goal.toString() << std::endl;
+    ss << ")";
+
+    return ss.str();
+}

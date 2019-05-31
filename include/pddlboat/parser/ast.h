@@ -123,8 +123,9 @@ namespace pddlboat
             {
             }
 
-            Expression(const ExpressionOperator &op, const std::vector<TypedList> &parameters, const std::vector<Expression> &terms)
-                : op(op), parameters(parameters), terms(terms)
+            Expression(const ExpressionOperator &op, const std::vector<TypedList> &parameters,
+                       const std::vector<Expression> &terms)
+              : op(op), parameters(parameters), terms(terms)
             {
             }
 
@@ -174,10 +175,10 @@ namespace pddlboat
             std::string name;
             std::string domain;
             std::vector<TypedList> objects{};
-            std::vector<Expression> initial{};
-            // std::vector<Expression> goal{};
+            std::vector<AtomicFormula> initial{};
+            Expression goal{};
 
-            // std::string toString() const;
+            std::string toString() const;
         };
 
         using boost::fusion::operator<<;
