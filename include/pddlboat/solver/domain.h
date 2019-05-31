@@ -235,8 +235,9 @@ namespace pddlboat
 
         void toPDDL(std::ostream &out = std::cout, unsigned int indent = 0) const;
 
-    private:
         std::map<Key, bool> assignments{};
+
+   private:
         const Problem *problem_;
     };
 

@@ -31,7 +31,6 @@ namespace pddlboat
             EXPRESSION,
             PREDICATE,
             VARIADIC,
-            ATOM,
             AND,
             OR,
             NOT,
@@ -73,7 +72,7 @@ namespace pddlboat
     template <typename T>
     ExpressionPtr makeCAR(const std::shared_ptr<T> &expr)
     {
-        _assert(std::is_base_of<VariadicExpression, T>::value, "T must be a descendant of "
+        static_assert(std::is_base_of<VariadicExpression, T>::value, "T must be a descendant of "
                                                                "VariadicExpression");
 
         return expr->getTerms().front();
@@ -82,7 +81,7 @@ namespace pddlboat
     template <typename T>
     std::shared_ptr<T> makeCDR(const std::shared_ptr<T> &expr)
     {
-        _assert(std::is_base_of<VariadicExpression, T>::value, "T must be a descendant of "
+        static_assert(std::is_base_of<VariadicExpression, T>::value, "T must be a descendant of "
                                                                "VariadicExpression");
 
         const auto &terms = expr->getTerms();
