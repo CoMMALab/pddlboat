@@ -310,6 +310,22 @@ const PredicatePtr Domain::getPredicate(const std::string &name) const
     return it->second;
 }
 
+void Domain::addAction(const ActionPtr &action)
+{
+    auto [it, r] = actions.emplace(action->name, action);
+    if (not r)
+        it->second = action;
+}
+
+const ActionPtr Domain::getAction(const std::string &name) const
+{
+    auto it = actions.find(name);
+    if (it == actions.end())
+        throw std::invalid_argument(log::format("Action %1% does not exist!", name));
+
+    return it->second;
+}
+
 ///
 /// Problem
 ///
@@ -448,6 +464,12 @@ Action::Action(const std::string &name, const VariableSet &parameters, const Exp
 
     if (in != parameters)
         throw std::invalid_argument("Action parameter set does not match expressions!");
+}
+
+ActionPtr pddlboat::makeAction(const std::string &name, const std::pair<std::string, std::string> &parameter,
+                               const ExpressionPtr &preconditions, const ExpressionPtr &effects)
+{
+    return makeAction(name, {parameter}, preconditions, effects);
 }
 
 ActionPtr pddlboat::makeAction(const std::string &name, const VariableSet &parameters,

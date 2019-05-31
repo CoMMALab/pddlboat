@@ -17,6 +17,7 @@ namespace pddlboat
 {
     PDDLBOAT_CLASS_FORWARD(Problem)
     PDDLBOAT_CLASS_FORWARD(State)
+    PDDLBOAT_CLASS_FORWARD(Action)
 
     ///
     /// Objects
@@ -148,6 +149,7 @@ namespace pddlboat
         std::map<std::string, std::string> types;  // type -> parent
         std::vector<ObjectPtr> constants;
         std::map<std::string, PredicatePtr> predicates;
+        std::map<std::string, ActionPtr> actions;
 
         Domain(const std::string &name);
 
@@ -163,6 +165,9 @@ namespace pddlboat
 
         void addPredicate(const PredicatePtr &predicate);
         const PredicatePtr getPredicate(const std::string &name) const;
+
+        void addAction(const ActionPtr &action);
+        const ActionPtr getAction(const std::string &name) const;
     };
 
     ///
@@ -219,7 +224,6 @@ namespace pddlboat
     /// Action
     ///
 
-    PDDLBOAT_CLASS_FORWARD(Action)
     class Action
     {
     public:
@@ -232,6 +236,8 @@ namespace pddlboat
                const ExpressionPtr &effect);
     };
 
+    ActionPtr makeAction(const std::string &name, const std::pair<std::string, std::string> &parameter,
+                         const ExpressionPtr &preconditions, const ExpressionPtr &effects);
     ActionPtr makeAction(const std::string &name, const VariableSet &parameters,
                          const ExpressionPtr &precondition, const ExpressionPtr &effect);
 }  // namespace pddlboat

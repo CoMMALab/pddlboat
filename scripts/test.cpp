@@ -15,16 +15,16 @@ int main(int argc, char **argv)
     auto p_on = pd::makePred("on", {{"x", "block"}, {"y", "block"}});
     domain.addPredicate(p_on);
 
-    auto p_ontable = pd::makePred("ontable", {"x", "block"});
+    auto p_ontable = pd::makePred("ontable", {{"x", "block"}});
     domain.addPredicate(p_ontable);
 
-    auto p_clear = pd::makePred("clear", {"x", "block"});
+    auto p_clear = pd::makePred("clear", {{"x", "block"}});
     domain.addPredicate(p_clear);
 
     auto p_empty = pd::makePred("handempty");
     domain.addPredicate(p_empty);
 
-    auto p_holding = pd::makePred("holding", {"x", "block"});
+    auto p_holding = pd::makePred("holding", {{"x", "block"}});
     domain.addPredicate(p_holding);
 
     auto a_pickup = pd::makeAction("pick-up",
