@@ -91,6 +91,24 @@ const Variable &VariableSet::getVariable(const std::string &name) const
     throw std::invalid_argument(log::format("Variable %1% doesn't exist!", name));
 }
 
+void VariableSet::toPDDL(std::ostream &out) const
+{
+    bool first = true;
+    out << "(";
+    for (const auto &variable : variables)
+    {
+        if (not first)
+            out << " ";
+
+        out << "?" << variable.name;
+        if (variable.type != PDDLBOAT_OBJECT_CLASS)
+            out << " - " << variable.type;
+
+        first = false;
+    }
+    out << ")";
+}
+
 bool VariableSet::operator==(const VariableSet &other) const
 {
     return variables == other.variables;
@@ -174,6 +192,21 @@ unsigned int Predicate::arity() const
     return variables.size();
 }
 
+void Predicate::toPDDL(std::ostream &out) const
+{
+    out << "(";
+    out << name;
+    for (const auto &variable : variables)
+    {
+        out << " ";
+        out << "?" << variable.name;
+        if (variable.type != PDDLBOAT_OBJECT_CLASS)
+            out << " - " << variable.type;
+    }
+
+    out << ")";
+}
+
 PredicatePtr pddlboat::makePred(const std::string &name, const VariableList &variables)
 {
     return std::make_shared<Predicate>(name, variables);
@@ -216,6 +249,22 @@ bool BoundPredicate::containsVariable(const std::string &variable) const
 bool BoundPredicate::containsPredicate(const std::string &pred) const
 {
     return predicate->name == pred;
+}
+
+void BoundPredicate::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
+{
+    const std::string SPACE = std::string(indent, ' ');
+    for (unsigned int i = 0; i < level; ++i)
+        out << SPACE;
+
+    out << "(" << predicate->name;
+    for (const auto &variable : variables)
+    {
+        out << " ";
+        out << "?" << variable.name;
+    }
+
+    out << ")";
 }
 
 ///
@@ -314,6 +363,68 @@ const ActionPtr Domain::getAction(const std::string &name) const
         throw std::invalid_argument(log::format("Action %1% does not exist!", name));
 
     return it->second;
+}
+
+void Domain::toPDDL(std::ostream &out) const
+{
+    const unsigned int INDENT = 4;
+    const std::string SPACE = std::string(INDENT, ' ');
+
+    out << "(define (domain " << name << ")" << std::endl;
+    out << SPACE << "(:requirements :strips)" << std::endl;  // TODO
+    if (not types.empty())
+    {
+        out << SPACE << "(:types" << std::endl;
+        std::vector<std::string> names;
+        for (const auto &type : types)
+            names.emplace_back(type.first);
+
+        std::sort(names.begin(), names.end(), [&](const auto &a, const auto &b) { return isTypeOf(a, b); });
+
+        for (const auto &name : names)
+        {
+            out << SPACE << SPACE << name;
+
+            const auto &it = types.find(name);
+            if (it->second != PDDLBOAT_OBJECT_CLASS)
+                out << " - " << it->second;
+
+            out << std::endl;
+        }
+
+        out << SPACE << ")" << std::endl;
+    }
+
+    if (not constants.empty())
+    {
+        out << SPACE << "(:constants" << std::endl;
+        for (const auto &constant : constants)
+        {
+            out << SPACE << SPACE << constant->name;
+            if (constant->type != PDDLBOAT_OBJECT_CLASS)
+                out << " - " << constant->type;
+            out << std::endl;
+        }
+        out << SPACE << ")" << std::endl;
+    }
+
+    out << SPACE << "(:predicates " << std::endl;
+    for (const auto &key : predicates)
+    {
+        out << SPACE << SPACE;
+        key.second->toPDDL(out);
+        out << std::endl;
+    }
+    out << SPACE << ")" << std::endl;
+
+    for (const auto &key : actions)
+    {
+        // out << SPACE << SPACE;
+        key.second->toPDDL(out, INDENT);
+        out << std::endl;
+    }
+
+    out << ")";
 }
 
 ///
@@ -453,7 +564,38 @@ Action::Action(const std::string &name, const VariableSet &parameters, const Exp
     effect->getVariables(in);
 
     if (in != parameters)
-        throw std::invalid_argument("Action parameter set does not match expressions!");
+        throw std::invalid_argument(
+            log::format("Action %1%'s parameter set does not match expressions!", name));
+}
+
+void Action::toPDDL(std::ostream &out, unsigned int indent) const
+{
+    const std::string SPACE = std::string(indent, ' ');
+
+    out << SPACE << "(:action " << name << std::endl;
+
+    if (not parameters.variables.empty())
+    {
+        out << SPACE << SPACE << ":parameters ";
+        parameters.toPDDL(out);
+        out << std::endl;
+    }
+
+    if (precondition)
+    {
+        out << SPACE << SPACE << ":precondition" << std::endl;
+        precondition->toPDDL(out, indent, 3);
+        out << std::endl;
+    }
+
+    if (effect)
+    {
+        out << SPACE << SPACE << ":effect" << std::endl;
+        effect->toPDDL(out, indent, 3);
+        out << std::endl;
+    }
+
+    out << SPACE << ")";
 }
 
 ActionPtr pddlboat::makeAction(const std::string &name, const VariableList &parameters,

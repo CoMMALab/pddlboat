@@ -103,6 +103,20 @@ Expression::Type And::type() const
     return Expression::AND;
 }
 
+void And::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
+{
+    const std::string SPACE = std::string(indent * level, ' ');
+    out << SPACE;
+
+    out << "(and " << std::endl;
+    for (const auto &term : terms_)
+    {
+        term->toPDDL(out, indent, level + 1);
+        out << std::endl;
+    }
+    out << SPACE << ")";
+}
+
 AndPtr pddlboat::makeAnd(const std::initializer_list<const ExpressionPtr> &terms)
 {
     return std::make_shared<And>(std::forward<const std::initializer_list<const ExpressionPtr>>(terms));
@@ -130,42 +144,24 @@ Expression::Type Or::type() const
     return Expression::AND;
 }
 
+void Or::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
+{
+    const std::string SPACE = std::string(indent * level, ' ');
+    out << SPACE;
+
+    out << "(or " << std::endl;
+    for (const auto &term : terms_)
+    {
+        term->toPDDL(out, indent, level + 1);
+        out << std::endl;
+    }
+
+    out << SPACE << ")";
+}
+
 OrPtr pddlboat::makeOr(const std::initializer_list<const ExpressionPtr> &terms)
 {
     return std::make_shared<Or>(std::forward<const std::initializer_list<const ExpressionPtr>>(terms));
-}
-
-///
-/// Equals
-///
-
-Equals::Equals(const std::initializer_list<const ExpressionPtr> &terms) : VariadicExpression(terms)
-{
-}
-
-bool Equals::evaluate(const StatePtr &state, const Assignment &vars) const
-{
-    bool allTrue = true;
-    bool allFalse = true;
-
-    for (unsigned int i = 0; i < terms_.size() and (allTrue or allFalse); ++i)
-    {
-        const bool eval = terms_[i]->evaluate(state, vars);
-        allTrue &= eval;
-        allFalse &= not eval;
-    }
-
-    return allTrue or allFalse;
-}
-
-Expression::Type Equals::type() const
-{
-    return Expression::AND;
-}
-
-EqualsPtr pddlboat::makeEquals(const std::initializer_list<const ExpressionPtr> &terms)
-{
-    return std::make_shared<Equals>(std::forward<const std::initializer_list<const ExpressionPtr>>(terms));
 }
 
 ///
@@ -204,6 +200,16 @@ bool Not::containsVariable(const std::string &variable) const
 bool Not::containsPredicate(const std::string &predicate) const
 {
     return term_->containsPredicate(predicate);
+}
+
+void Not::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
+{
+    const std::string SPACE = std::string(indent * level, ' ');
+    out << SPACE;
+
+    out << "(not " << std::endl;
+    term_->toPDDL(out, indent, level + 1);
+    out << std::endl << SPACE << ")";
 }
 
 NotPtr pddlboat::makeNot(const ExpressionPtr &term)
@@ -253,6 +259,18 @@ bool Imply::containsVariable(const std::string &variable) const
 bool Imply::containsPredicate(const std::string &predicate) const
 {
     return left_->containsPredicate(predicate) or right_->containsPredicate(predicate);
+}
+
+void Imply::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
+{
+    const std::string SPACE = std::string(indent * level, ' ');
+    out << SPACE;
+
+    out << "(imply " << std::endl;
+    left_->toPDDL(out, indent, level + 1);
+    out << std::endl;
+    right_->toPDDL(out, indent, level + 1);
+    out << SPACE << ")";
 }
 
 ImplyPtr pddlboat::makeImply(const ExpressionPtr &left, const ExpressionPtr &right)

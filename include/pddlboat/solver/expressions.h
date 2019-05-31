@@ -1,6 +1,7 @@
 #ifndef PDDLBOAT_EXPRESSIONS_
 #define PDDLBOAT_EXPRESSIONS_
 
+#include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
@@ -43,6 +44,7 @@ namespace pddlboat
         virtual void getVariables(VariableSet &vars) const;
         virtual bool containsVariable(const std::string &variable) const;
         virtual bool containsPredicate(const std::string &predicate) const;
+        virtual void toPDDL(std::ostream &out, unsigned int indent = 2, unsigned int level = 0) const = 0;
     };
 
     ///
@@ -109,6 +111,7 @@ namespace pddlboat
 
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
         Expression::Type type() const override;
+        void toPDDL(std::ostream &out, unsigned int indent = 2, unsigned int level = 0) const override;
     };
 
     AndPtr makeAnd(const std::initializer_list<const ExpressionPtr> &terms);
@@ -125,25 +128,10 @@ namespace pddlboat
 
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
         Expression::Type type() const override;
+        void toPDDL(std::ostream &out, unsigned int indent = 2, unsigned int level = 0) const override;
     };
 
     OrPtr makeOr(const std::initializer_list<const ExpressionPtr> &terms);
-
-    ///
-    /// Equals
-    ///
-
-    PDDLBOAT_CLASS_FORWARD(Equals)
-    class Equals : public VariadicExpression
-    {
-    public:
-        Equals(const std::initializer_list<const ExpressionPtr> &terms = {});
-
-        bool evaluate(const StatePtr &state, const Assignment &vars) const override;
-        Expression::Type type() const override;
-    };
-
-    EqualsPtr makeEquals(const std::initializer_list<const ExpressionPtr> &terms);
 
     ///
     /// Not
@@ -162,6 +150,7 @@ namespace pddlboat
         void getVariables(VariableSet &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
+        void toPDDL(std::ostream &out, unsigned int indent = 2, unsigned int level = 0) const override;
 
     private:
         const ExpressionPtr term_;
@@ -188,6 +177,7 @@ namespace pddlboat
         void getVariables(VariableSet &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
+        void toPDDL(std::ostream &out, unsigned int indent = 2, unsigned int level = 0) const override;
 
     private:
         const ExpressionPtr left_, right_;

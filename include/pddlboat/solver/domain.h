@@ -1,6 +1,7 @@
 #ifndef PDDLBOAT_DOMAIN_
 #define PDDLBOAT_DOMAIN_
 
+#include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
@@ -69,6 +70,8 @@ namespace pddlboat
         std::set<std::string> getNames() const;
         const Variable &getVariable(const std::string &name) const;
 
+        void toPDDL(std::ostream &out = std::cout) const;
+
         bool operator==(const VariableSet &other) const;
         bool operator!=(const VariableSet &other) const;
     };
@@ -113,6 +116,8 @@ namespace pddlboat
         BoundPredicatePtr bind(const std::vector<std::string> &bound) const;
 
         unsigned int arity() const;
+
+        void toPDDL(std::ostream &out = std::cout) const;
     };
 
     PredicatePtr makePred(const std::string &name, const VariableList &variables = {});
@@ -130,6 +135,8 @@ namespace pddlboat
         void getVariables(VariableSet &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
+
+        void toPDDL(std::ostream &out, unsigned int indent = 2, unsigned int level = 0) const override;
 
     private:
         const Predicate *predicate;
@@ -166,6 +173,8 @@ namespace pddlboat
 
         void addAction(const ActionPtr &action);
         const ActionPtr getAction(const std::string &name) const;
+
+        void toPDDL(std::ostream &out = std::cout) const;
     };
 
     ///
@@ -232,6 +241,8 @@ namespace pddlboat
 
         Action(const std::string &name, const VariableSet &parameters, const ExpressionPtr &precondition,
                const ExpressionPtr &effect);
+
+        void toPDDL(std::ostream &out = std::cout, unsigned int indent = 2) const;
     };
 
     ActionPtr makeAction(const std::string &name, const VariableList &parameters,
