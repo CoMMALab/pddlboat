@@ -24,6 +24,8 @@ find_package(Z3 REQUIRED)
 include_directories(${Z3_INCLUDE_DIR})
 list(APPEND LIBRARIES ${Z3_LIBRARY})
 
+add_subdirectory(submodules)
+
 list(APPEND SOURCES
     src/translator.cpp
     src/utility.cpp
