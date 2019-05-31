@@ -110,8 +110,6 @@ namespace pddlboat
         Predicate(const std::string &name, const VariableList &variables);
 
         BoundPredicatePtr bind() const;
-        BoundPredicatePtr bind(const std::string &bound) const;
-        BoundPredicatePtr bind(const std::string &boundA, const std::string &boundB) const;
         BoundPredicatePtr bind(const std::vector<std::string> &bound) const;
 
         unsigned int arity() const;
@@ -236,9 +234,7 @@ namespace pddlboat
                const ExpressionPtr &effect);
     };
 
-    ActionPtr makeAction(const std::string &name, const std::pair<std::string, std::string> &parameter,
-                         const ExpressionPtr &preconditions, const ExpressionPtr &effects);
-    ActionPtr makeAction(const std::string &name, const VariableSet &parameters,
+    ActionPtr makeAction(const std::string &name, const VariableList &parameters,
                          const ExpressionPtr &precondition, const ExpressionPtr &effect);
 }  // namespace pddlboat
 

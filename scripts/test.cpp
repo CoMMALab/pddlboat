@@ -27,54 +27,56 @@ int main(int argc, char **argv)
     auto p_holding = pd::makePred("holding", {{"x", "block"}});
     domain.addPredicate(p_holding);
 
-    auto a_pickup = pd::makeAction("pick-up",
-                                   // Parameters
-                                   {"x", "block"},  //
-                                   // Precondition
-                                   pd::makeAnd({p_clear->bind("x"), p_ontable->bind("x"), p_empty->bind()}),
-                                   // Effect
-                                   pd::makeAnd({pd::makeNot(p_clear->bind("x")),    //
-                                                pd::makeNot(p_ontable->bind("x")),  //
-                                                pd::makeNot(p_empty->bind()),       //
-                                                p_holding->bind("x")}));
+    auto a_pickup =
+        pd::makeAction("pick-up",
+                       // Parameters
+                       {{"x", "block"}},  //
+                       // Precondition
+                       pd::makeAnd({p_clear->bind({"x"}), p_ontable->bind({"x"}), p_empty->bind()}),
+                       // Effect
+                       pd::makeAnd({pd::makeNot(p_clear->bind({"x"})),    //
+                                    pd::makeNot(p_ontable->bind({"x"})),  //
+                                    pd::makeNot(p_empty->bind()),         //
+                                    p_holding->bind({"x"})}));
     domain.addAction(a_pickup);
 
     auto a_putdown = pd::makeAction("put-down",
                                     // Parameters
-                                    {"x", "block"},  //
+                                    {{"x", "block"}},  //
                                     // Precondition
-                                    pd::makeAnd({p_holding->bind("x")}),
+                                    pd::makeAnd({p_holding->bind({"x"})}),
                                     // Effect
-                                    pd::makeAnd({p_clear->bind("x"),    //
-                                                 p_ontable->bind("x"),  //
-                                                 p_empty->bind(),       //
-                                                 pd::makeNot(p_holding->bind("x"))}));
+                                    pd::makeAnd({p_clear->bind({"x"}),    //
+                                                 p_ontable->bind({"x"}),  //
+                                                 p_empty->bind(),         //
+                                                 pd::makeNot(p_holding->bind({"x"}))}));
     domain.addAction(a_putdown);
 
     auto a_stack = pd::makeAction("stack",
                                   // Parameters
                                   {{"x", "block"}, {"y", "block"}},  //
                                   // Precondition
-                                  pd::makeAnd({p_holding->bind("x"), p_clear->bind("y")}),
+                                  pd::makeAnd({p_holding->bind({"x"}), p_clear->bind({"y"})}),
                                   // Effect
-                                  pd::makeAnd({pd::makeNot(p_holding->bind("x")),  //
-                                               pd::makeNot(p_clear->bind("y")),    //
-                                               p_clear->bind("x"),                 //
-                                               p_empty->bind(),                    //
-                                               p_on->bind("x", "y")}));
+                                  pd::makeAnd({pd::makeNot(p_holding->bind({"x"})),  //
+                                               pd::makeNot(p_clear->bind({"y"})),    //
+                                               p_clear->bind({"x"}),                 //
+                                               p_empty->bind(),                      //
+                                               p_on->bind({"x", "y"})}));
     domain.addAction(a_stack);
 
-    auto a_unstack = pd::makeAction("unstack",
-                                    // Parameters
-                                    {{"x", "block"}, {"y", "block"}},  //
-                                    // Precondition
-                                    pd::makeAnd({p_on->bind("x", "y"), p_clear->bind("x"), p_empty->bind()}),
-                                    // Effect
-                                    pd::makeAnd({p_holding->bind("x"),             //
-                                                 p_clear->bind("y"),               //
-                                                 pd::makeNot(p_clear->bind("x")),  //
-                                                 pd::makeNot(p_empty->bind()),     //
-                                                 pd::makeNot(p_on->bind("x", "y"))}));
+    auto a_unstack =
+        pd::makeAction("unstack",
+                       // Parameters
+                       {{"x", "block"}, {"y", "block"}},  //
+                       // Precondition
+                       pd::makeAnd({p_on->bind({"x", "y"}), p_clear->bind({"x"}), p_empty->bind()}),
+                       // Effect
+                       pd::makeAnd({p_holding->bind({"x"}),             //
+                                    p_clear->bind({"y"}),               //
+                                    pd::makeNot(p_clear->bind({"x"})),  //
+                                    pd::makeNot(p_empty->bind()),       //
+                                    pd::makeNot(p_on->bind({"x", "y"}))}));
     domain.addAction(a_unstack);
     // auto vptr = pd::makeAtom("atom_v");
     // auto wptr = pd::makeAtom("atom_w");

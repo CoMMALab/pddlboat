@@ -157,16 +157,6 @@ BoundPredicatePtr Predicate::bind() const
     return bind(std::vector<std::string>{});
 }
 
-BoundPredicatePtr Predicate::bind(const std::string &bound) const
-{
-    return bind({bound});
-}
-
-BoundPredicatePtr Predicate::bind(const std::string &boundA, const std::string &boundB) const
-{
-    return bind({boundA, boundB});
-}
-
 BoundPredicatePtr Predicate::bind(const std::vector<std::string> &bound) const
 {
     if (variables.size() != bound.size())
@@ -466,13 +456,7 @@ Action::Action(const std::string &name, const VariableSet &parameters, const Exp
         throw std::invalid_argument("Action parameter set does not match expressions!");
 }
 
-ActionPtr pddlboat::makeAction(const std::string &name, const std::pair<std::string, std::string> &parameter,
-                               const ExpressionPtr &preconditions, const ExpressionPtr &effects)
-{
-    return makeAction(name, {parameter}, preconditions, effects);
-}
-
-ActionPtr pddlboat::makeAction(const std::string &name, const VariableSet &parameters,
+ActionPtr pddlboat::makeAction(const std::string &name, const VariableList &parameters,
                                const ExpressionPtr &preconditions, const ExpressionPtr &effects)
 {
     return std::make_shared<Action>(name, parameters, preconditions, effects);
