@@ -123,7 +123,13 @@ namespace pddlboat
             {
             }
 
+            Expression(const ExpressionOperator &op, const std::vector<TypedList> &parameters, const std::vector<Expression> &terms)
+                : op(op), parameters(parameters), terms(terms)
+            {
+            }
+
             ExpressionOperator op;
+            std::vector<TypedList> parameters{};
             std::vector<Expression> terms{};
 
             std::string toString(bool literal = false) const;

@@ -187,14 +187,14 @@ namespace parser
     struct bound_predicate_class;
     const x3::rule<bound_predicate_class, ast::Expression> bound_predicate = "bound_predicate";
     const auto bound_predicate_def =        //
-        '(' >> name >> -variablelist >> ')'  //
+        '(' >> name >> x3::attr(std::vector<ast::TypedList>{}) >> -variablelist >> ')'  //
         ;
     PARSE(bound_predicate)
 
     struct boolean_operator_class;
     const x3::rule<boolean_operator_class, ast::Expression> boolean_operator = "boolean_operator";
     const auto boolean_operator_def =                              //
-        '(' >> ast::OperatorsKeywords >> +expression >> ')'  //
+        '(' >> ast::OperatorsKeywords >> -('(' >> +typedlist_variable >> ')') >> +expression >> ')'  //
         ;
     PARSE(boolean_operator)
 

@@ -121,7 +121,14 @@ std::string Expression::toString(bool literal) const
 
     ss << ((literal && isLiteral) ? "?" : "") << op.toString();
 
-    if (!terms.empty())
+    if (not parameters.empty())
+    {
+        ss << " - ";
+        for (auto it = parameters.begin(), end = parameters.end(); it != end;)
+            ss << it->toString() << ((++it != end) ? ", " : "");
+    }
+
+    if (not terms.empty())
     {
         ss << " ";
         for (auto it = terms.begin(), end = terms.end(); it != end;)
@@ -139,7 +146,7 @@ std::string Action::toString() const
     std::stringstream ss;
     ss << "(";
     ss << name;
-    if (!parameters.empty())
+    if (not parameters.empty())
     {
         ss << " - ";
         for (auto it = parameters.begin(), end = parameters.end(); it != end;)

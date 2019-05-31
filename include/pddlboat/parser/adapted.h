@@ -39,10 +39,11 @@ BOOST_FUSION_ADAPT_STRUCT(                                 //
     (std::string, parent)                                  //
 );
 
-BOOST_FUSION_ADAPT_STRUCT(                           //
-    pddlboat::ast::Expression,                       //
-    (pddlboat::ast::ExpressionOperator, op)          //
-    (std::vector<pddlboat::ast::Expression>, terms)  //
+BOOST_FUSION_ADAPT_STRUCT(                               //
+    pddlboat::ast::Expression,                           //
+    (pddlboat::ast::ExpressionOperator, op)              //
+    (std::vector<pddlboat::ast::TypedList>, parameters)  //
+    (std::vector<pddlboat::ast::Expression>, terms)      //
 );
 
 BOOST_FUSION_ADAPT_STRUCT(                               //
@@ -64,11 +65,11 @@ BOOST_FUSION_ADAPT_STRUCT(                                        //
     (std::vector<pddlboat::ast::Action>, actions)                 //
 );
 
-BOOST_FUSION_ADAPT_STRUCT(                             //
-    pddlboat::ast::Problem,                            //
-    (std::string, name)                                //
-    (std::string, domain)                              //
-    (std::vector<pddlboat::ast::TypedList>, objects)   //
+BOOST_FUSION_ADAPT_STRUCT(                            //
+    pddlboat::ast::Problem,                           //
+    (std::string, name)                               //
+    (std::string, domain)                             //
+    (std::vector<pddlboat::ast::TypedList>, objects)  //
     // (std::vector<pddlboat::ast::Expression>, initial)  //
     // (std::vector<pddlboat::ast::Expression>, goal)     //
 );
