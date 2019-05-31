@@ -16,9 +16,34 @@ include(FeatureSummary)
 
 include_directories(${CMAKE_CURRENT_LIST_DIR}/include)
 
-find_package(Boost REQUIRED COMPONENTS system filesystem timer)
+
+# SET (BOOST_ROOT "/usr/local/")
+# SET (BOOST_MIN_VERSION "1.70.0")
+# set (Boost_NO_BOOST_CMAKE ON)
+# FIND_PACKAGE(Boost ${BOOST_MIN_VERSION} REQUIRED)
+# if (NOT Boost_FOUND)
+#   message(FATAL_ERROR "Fatal error: Boost (version >= 1.70) required.")
+# else()
+#   message(STATUS "Setting up BOOST")
+#   message(STATUS " Includes - ${Boost_INCLUDE_DIRS}")
+#   message(STATUS " Library  - ${Boost_LIBRARY_DIRS}")
+#   include_directories(${Boost_INCLUDE_DIRS})
+#   link_directories(${Boost_LIBRARY_DIRS})
+# endif (NOT Boost_FOUND)
+
+find_package(Boost 1.60 REQUIRED COMPONENTS system filesystem timer)
+
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 list(APPEND LIBRARIES ${Boost_LIBRARIES})
+
+message([warning] "boost info:")
+message([warning] ${Boost_FOUND})
+message([warning] ${Boost_VERSION})
+message([warning] ${Boost_INCLUDE_DIRS})
+message([warning] ${Boost_LIBRARIES})
+message([warning] "end boost info")
+
+
 
 find_package(Z3 REQUIRED)
 include_directories(${Z3_INCLUDE_DIR})
@@ -45,13 +70,13 @@ target_link_libraries(pddlboat ${LIBRARIES})
 add_executable(pddlboat_test scripts/test.cpp)
 add_executable(pddlboat_parser scripts/parser_test.cpp)
 add_executable(pddlboat_load scripts/test_parsing.cpp)
-# add_executable(pddlboat_test_smt scripts/test_smt.cpp)
-# add_executable(pddlboat_test_planning scripts/test_planning.cpp)
+add_executable(pddlboat_test_smt scripts/test_smt.cpp)
+add_executable(pddlboat_test_planning scripts/test_planning.cpp)
 
 target_link_libraries(pddlboat_test pddlboat ${LIBRARIES})
 target_link_libraries(pddlboat_parser pddlboat ${LIBRARIES})
 target_link_libraries(pddlboat_load pddlboat ${LIBRARIES})
-# target_link_libraries(pddlboat_test_smt pddlboat ${LIBRARIES})
-# target_link_libraries(pddlboat_test_planning pddlboat ${LIBRARIES})
+target_link_libraries(pddlboat_test_smt pddlboat ${LIBRARIES})
+target_link_libraries(pddlboat_test_planning pddlboat ${LIBRARIES})
 
 feature_summary(DESCRIPTION INCLUDE_QUIET_PACKAGES WHAT ALL)
