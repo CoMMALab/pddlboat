@@ -183,13 +183,24 @@ namespace parser
 
     struct expression_class;
     const x3::rule<expression_class, ast::Expression> expression = "expression";
-    const auto expression_def =                                                       //
-        ('(' > (ast::OperatorsKeywords | name) > (variablelist | *expression) > ')')  //
+
+    struct bound_predicate_class;
+    const x3::rule<bound_predicate_class, ast::Expression> bound_predicate = "bound_predicate";
+    const auto bound_predicate_def =        //
+        '(' >> name >> -variablelist >> ')'  //
+        ;
+    PARSE(bound_predicate)
+
+    struct boolean_operator_class;
+    const x3::rule<boolean_operator_class, ast::Expression> boolean_operator = "boolean_operator";
+    const auto boolean_operator_def =                              //
+        '(' >> ast::OperatorsKeywords >> +expression >> ')'  //
+        ;
+    PARSE(boolean_operator)
+
+    const auto expression_def = boolean_operator | bound_predicate  //
         ;
     PARSE(expression)
-    struct expression_class : error_handler
-    {
-    };
 
     struct action_class;
     const x3::rule<action_class, ast::Action> action = "action";
@@ -226,6 +237,76 @@ namespace parser
     struct domain_class : error_handler
     {
     };
+
+    ///
+    /// Objects
+    ///
+
+    struct objects_class;
+    const x3::rule<objects_class, std::vector<ast::TypedList>> objects = "objects";
+    const auto objects_def =                               //
+        '(' > x3::lit(":objects") > *typedlist_name > ')'  //
+        ;
+    PARSE(objects);
+
+    ///
+    /// Literal
+    ///
+
+    // struct subliteral_class;
+    // const x3::rule<subliteral_class, ast::Expression> subliteral = "subliteral";
+    // const auto subliteral_def = name ;
+    // PARSE(subliteral);
+
+    // struct literal_class;
+    // const x3::rule<literal_class, ast::Expression> literal = "literal";
+    // const auto literal_def =      //
+    //     '(' > name > namelist > ')'  //
+    //     ;
+    // PARSE(literal);
+
+    // ///
+    // /// Initial
+    // ///
+
+    // struct initial_class;
+    // const x3::rule<initial_class, std::vector<ast::Expression>> initial = "initial";
+    // const auto initial_def =                       //
+    //     '(' > x3::lit(":init") > *literal > ')'  //
+    //     ;
+    // PARSE(initial);
+
+    ///
+    /// Goal
+    ///
+
+    // struct goal_class;
+    // const x3::rule<goal_class, std::vector<ast::Expression>> goal = "goal";
+    // const auto goal_def =                              //
+    //     '(' >> x3::lit(":goal") >> *expression >> ')'  //
+    //     ;
+    // PARSE(goal);
+
+    ///
+    /// Problem
+    ///
+
+    struct problem_class;
+    const x3::rule<problem_class, ast::Problem> problem = "problem";
+    const auto problem_def =                     //
+        '(' > x3::lit("define") >                //
+        '(' > x3::lit("problem") > name > ')' >  //
+        '(' > x3::lit(":domain") > name > ')' >  //
+        -objects >                               //
+        // literal >
+        // initial >                                //
+        // -goal >                                   //
+        ')'  //
+        ;
+    PARSE(problem);
+    struct problem_class : error_handler
+    {
+    };
 }  // namespace parser
 
 bool pddlboat::parseFile(const std::string &file, ast::Domain &domain)
@@ -252,6 +333,41 @@ bool pddlboat::parseFile(const std::string &file, ast::Domain &domain)
     // {
     r = x3::phrase_parse(iter, end, with<error_handler_tag>(std::ref(error_handler))[parser::domain],
                          parser::skipper, domain);
+    // }
+    // catch (const x3::expectation_failure<std::string::const_iterator> &e)
+    // {
+    //     const char needle[] = {'\n'};
+    //     auto it = std::find_first_of(e.where(), end, needle, needle + 1);
+    //     std::cout << "Expected: " << e.which() << " at '" << std::string(e.where(), it) << "'\n";
+    // }
+
+    return r && iter == end;
+}
+
+bool pddlboat::parseFile(const std::string &file, ast::Problem &problem)
+{
+    typedef std::string::const_iterator iterator_type;
+
+    std::cout << log::format("Reading file `%1%`", file) << std::endl;
+    const std::string text = io::loadFileToString(file);
+    // std::cout << text << std::endl;
+
+    iterator_type iter = text.begin();
+    const iterator_type end = text.end();
+
+    using boost::spirit::x3::error_handler_tag;
+    using boost::spirit::x3::with;
+    using error_handler_type = boost::spirit::x3::error_handler<iterator_type>;
+    error_handler_type error_handler(iter, end, std::cerr);
+
+    problem = ast::Problem();  // Reset Problem
+
+    bool r = false;
+
+    // try
+    // {
+    r = x3::phrase_parse(iter, end, with<error_handler_tag>(std::ref(error_handler))[parser::problem],
+                         parser::skipper, problem);
     // }
     // catch (const x3::expectation_failure<std::string::const_iterator> &e)
     // {

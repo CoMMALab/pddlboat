@@ -64,4 +64,13 @@ BOOST_FUSION_ADAPT_STRUCT(                                        //
     (std::vector<pddlboat::ast::Action>, actions)                 //
 );
 
+BOOST_FUSION_ADAPT_STRUCT(                             //
+    pddlboat::ast::Problem,                            //
+    (std::string, name)                                //
+    (std::string, domain)                              //
+    (std::vector<pddlboat::ast::TypedList>, objects)   //
+    // (std::vector<pddlboat::ast::Expression>, initial)  //
+    // (std::vector<pddlboat::ast::Expression>, goal)     //
+);
+
 #endif

@@ -158,6 +158,22 @@ namespace pddlboat
             std::string toString() const;
         };
 
+        ///
+        /// Problem
+        ///
+
+        class Problem : x3::position_tagged
+        {
+        public:
+            std::string name;
+            std::string domain;
+            std::vector<TypedList> objects{};
+            std::vector<Expression> initial{};
+            // std::vector<Expression> goal{};
+
+            // std::string toString() const;
+        };
+
         using boost::fusion::operator<<;
     }  // namespace ast
 }  // namespace pddlboat
