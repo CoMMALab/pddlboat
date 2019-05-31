@@ -175,14 +175,36 @@ BoundPredicatePtr Predicate::bind() const
     return bind(std::vector<std::string>{});
 }
 
-BoundPredicatePtr Predicate::bind(const std::vector<std::string> &bound) const
+BoundPredicatePtr Predicate::bind(const std::vector<std::string> &bound, const ProblemPtr &problem) const
 {
     if (variables.size() != bound.size())
         throw std::invalid_argument("Cannot bind variables, size mismatch!");
 
-    VariableList toUse;
+    std::vector<BoundPredicate::Value> toUse;
     for (unsigned int i = 0; i < bound.size(); ++i)
-        toUse.emplace_back(bound[i], variables[i].type);
+    {
+        std::string b = bound[i];
+        std::string type = PDDLBOAT_OBJECT_CLASS;
+        bool isVar = io::isPrefix("?", b);
+        if (isVar)
+        {
+            b.erase(0, 1);
+            type = variables[i].type;
+        }
+        else
+        {
+            if (not problem)
+                throw std::invalid_argument(log::format("Cannot bind object %1% without problem!", b));
+
+            auto obj = problem->getObject(b);
+            if (not obj)
+                throw std::invalid_argument(log::format("Cannot bind object %1%, does not exist!", b));
+
+            type = obj->type;
+        }
+
+        toUse.emplace_back(isVar, b, type);
+    }
 
     return std::make_shared<BoundPredicate>(this, toUse);
 }
@@ -212,16 +234,26 @@ PredicatePtr pddlboat::makePred(const std::string &name, const VariableList &var
     return std::make_shared<Predicate>(name, variables);
 }
 
-BoundPredicate::BoundPredicate(const Predicate *predicate, const VariableList &variables)
-  : variables(variables), predicate(predicate)
+BoundPredicate::Value::Value(bool isVar, const std::string &name, const std::string &type)
+  : isVar(isVar), name(name), type(type)
+{
+}
+
+BoundPredicate::BoundPredicate(const Predicate *predicate, const std::vector<Value> &bindings)
+  : bindings(bindings), predicate(predicate)
 {
 }
 
 bool BoundPredicate::evaluate(const StatePtr &state, const Assignment &vars) const
 {
     std::vector<std::string> objects;
-    for (const auto &variable : variables)
-        objects.emplace_back(vars.assigned(variable.name)->name);
+    for (const auto &binding : bindings)
+    {
+        if (binding.isVar)
+            objects.emplace_back(vars.assigned(binding.name)->name);
+        else
+            objects.emplace_back(binding.name);
+    }
 
     return state->isTrue(predicate->name, objects);
 }
@@ -233,14 +265,15 @@ Expression::Type BoundPredicate::type() const
 
 void BoundPredicate::getVariables(VariableSet &vars) const
 {
-    for (const auto &variable : variables)
-        vars.addVariable(variable);
+    for (const auto &binding : bindings)
+        if (binding.isVar)
+            vars.addVariable({binding.name, binding.type});
 }
 
 bool BoundPredicate::containsVariable(const std::string &variable) const
 {
-    for (const auto &v : variables)
-        if (v.name == variable)
+    for (const auto &v : bindings)
+        if (v.isVar and v.name == variable)
             return true;
 
     return false;
@@ -258,10 +291,12 @@ void BoundPredicate::toPDDL(std::ostream &out, unsigned int indent, unsigned int
         out << SPACE;
 
     out << "(" << predicate->name;
-    for (const auto &variable : variables)
+    for (const auto &binding : bindings)
     {
         out << " ";
-        out << "?" << variable.name;
+        if (binding.isVar)
+            out << "?";
+        out << binding.name;
     }
 
     out << ")";
@@ -277,6 +312,9 @@ Domain::Domain(const std::string &name) : name(name)
 
 const ObjectPtr Domain::getConstant(const std::string &name) const
 {
+    if (constants.empty())
+        return nullptr;
+
     auto it = std::find_if(constants.begin(), constants.end(),
                            [&name](const ObjectPtr &other) { return name == other->name; });
 
@@ -431,7 +469,8 @@ void Domain::toPDDL(std::ostream &out) const
 /// Problem
 ///
 
-Problem::Problem(const DomainPtr &domain)
+Problem::Problem(const std::string &name, const DomainPtr &domain)
+  : name(name), domain(domain), start(makeState())
 {
 }
 
@@ -505,6 +544,42 @@ StatePtr Problem::makeState() const
     return std::make_shared<State>(this);
 }
 
+void Problem::toPDDL(std::ostream &out) const
+{
+    const unsigned int INDENT = 4;
+    const std::string SPACE = std::string(INDENT, ' ');
+
+    out << "(define (problem " << name << ")" << std::endl;
+    out << SPACE << "(:domain " << domain->name << ")" << std::endl;
+
+    if (not objects.empty())
+    {
+        out << SPACE << "(:objects" << std::endl;
+        for (const auto &object : objects)
+        {
+            out << SPACE << SPACE << object->name;
+            if (object->type != PDDLBOAT_OBJECT_CLASS)
+                out << " - " << object->type;
+            out << std::endl;
+        }
+        out << SPACE << ")" << std::endl;
+    }
+
+    out << SPACE << "(:init " << std::endl;
+    start->toPDDL(out, INDENT * 2);
+    out << SPACE << ")" << std::endl;
+
+    if (goal)
+    {
+        out << SPACE << "(:goal " << std::endl;
+        goal->toPDDL(out, INDENT, 2);
+        out << std::endl;
+        out << SPACE << ")" << std::endl;
+    }
+
+    out << ")";
+}
+
 ///
 /// State
 ///
@@ -549,6 +624,21 @@ void State::assignN(const std::string &predicate, const std::vector<std::string>
                             std::forward_as_tuple(predicate, objects), std::forward_as_tuple(value));
     if (not r)
         it->second = value;
+}
+
+void State::toPDDL(std::ostream &out, unsigned int indent) const
+{
+    const std::string SPACE = std::string(indent, ' ');
+    for (const auto &assignment : assignments)
+    {
+        if (assignment.second)
+        {
+            out << SPACE << "(" << assignment.first.first;
+            for (const auto &obj : assignment.first.second)
+                out << " " << obj;
+            out << ")" << std::endl;
+        }
+    }
 }
 
 ///

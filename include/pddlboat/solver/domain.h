@@ -113,7 +113,7 @@ namespace pddlboat
         Predicate(const std::string &name, const VariableList &variables);
 
         BoundPredicatePtr bind() const;
-        BoundPredicatePtr bind(const std::vector<std::string> &bound) const;
+        BoundPredicatePtr bind(const std::vector<std::string> &bound, const ProblemPtr &problem = nullptr) const;
 
         unsigned int arity() const;
 
@@ -125,9 +125,17 @@ namespace pddlboat
     class BoundPredicate : public Expression
     {
     public:
-        const VariableList variables;
+        struct Value
+        {
+            Value(bool isVar, const std::string &name, const std::string &type);
+            bool isVar;
+            std::string name;
+            std::string type;
+        };
 
-        BoundPredicate(const Predicate *predicate, const VariableList &variables);
+        const std::vector<Value> bindings;
+
+        BoundPredicate(const Predicate *predicate, const std::vector<Value> &bindings);
 
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
 
@@ -184,12 +192,13 @@ namespace pddlboat
     class Problem
     {
     public:
-        DomainPtr domain;
+        const std::string name;
+        const DomainPtr domain;
         std::vector<ObjectPtr> objects;
         StatePtr start;
         ExpressionPtr goal;
 
-        Problem(const DomainPtr &domain);
+        Problem(const std::string &name, const DomainPtr &domain);
 
         const ObjectPtr getObject(const std::string &name) const;
         void addObject(const ObjectPtr &object);
@@ -198,6 +207,8 @@ namespace pddlboat
         const std::vector<std::string> objectsOfType(const std::string &type) const;
 
         StatePtr makeState() const;
+
+        void toPDDL(std::ostream &out = std::cout) const;
     };
 
     ///
@@ -214,13 +225,15 @@ namespace pddlboat
         bool isTrue(const std::string &predicate, const std::vector<std::string> &objects) const;
 
         // Assign 0-ary pred.
-        void assign0(const std::string &predicate, bool value);
+        void assign0(const std::string &predicate, bool value = true);
 
         // Assign 1-ary pred.
-        void assign1(const std::string &predicate, const std::string &object, bool value);
+        void assign1(const std::string &predicate, const std::string &object, bool value = true);
 
         // Assign n-ary pred.
-        void assignN(const std::string &predicate, const std::vector<std::string> &objects, bool value);
+        void assignN(const std::string &predicate, const std::vector<std::string> &objects, bool value = true);
+
+        void toPDDL(std::ostream &out = std::cout, unsigned int indent = 0) const;
 
     private:
         std::map<Key, bool> assignments{};
