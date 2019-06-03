@@ -96,15 +96,30 @@ namespace pddlboat
     class FastDownwardPlanner : public Planner
     {
     public:
-        FastDownwardPlanner(const ProblemPtr &problem) : Planner(problem)
+        FastDownwardPlanner(const ProblemPtr &problem)
+          : Planner(problem)
+          , uuid(io::generateUUID())
+          , domain_file(log::format(domain_file_template, uuid))
+          , problem_file(log::format(problem_file_template, uuid))
+          , sas_file(log::format(sas_file_template, uuid))
+          , output_file(log::format(output_file_template, uuid))
+          , output_file_1(output_file + ".1")
         {
+            update();
+
             std::stringstream ss;
             ss << directory << "/downward";
+
+            // Output file
             ss << " --internal-plan-file " << output_file;
+
+            // Evaluators
             ss << " --evaluator \"hcea=cea(transform=adapt_costs(plusone))\"";
             ss << " --evaluator \"hcg=cg(transform=adapt_costs(one))\"";
             ss << " --evaluator \"hgc=goalcount(transform=adapt_costs(plusone))\"";
             ss << " --evaluator \"hff=ff()\"";
+
+            // Autotune Fast Downward Search
             ss << " --search ";
             ss << "\"";
             ss << "iterated([";
@@ -142,34 +157,59 @@ namespace pddlboat
             ss << "],repeat_last=true,continue_on_fail=true)";
             ss << "\"";
 
+            // Tell command what SAS file to use
+            ss << " < " << sas_file;
+
             command = ss.str();
+        }
+
+        ~FastDownwardPlanner()
+        {
+            io::deleteFile(domain_file);
+            io::deleteFile(problem_file);
+            io::deleteFile(sas_file);
+            io::deleteFile(output_file_1);
+        }
+
+        void update(bool domain = true, bool problem = true) const
+        {
+            // Serialize problem and domain
+
+            if (domain)
+            {
+                std::ofstream domain_out;
+                io::createFile(domain_out, domain_file);
+                problem_->domain->toPDDL(domain_out);
+                domain_out.close();
+            }
+
+            if (problem)
+            {
+                std::ofstream problem_out;
+                io::createFile(problem_out, problem_file);
+                problem_->toPDDL(problem_out);
+                problem_out.close();
+            }
+
+            if (domain or problem)
+            {
+                // Call fast downward
+                auto tr = io::runCommand(log::format("%1%/translate/translate.py --sas-file %2% %3% %4%",
+                                                     directory, sas_file, domain_file, problem_file));
+                if (not tr)
+                    throw std::runtime_error("Failed to translate problem and domain!");
+            }
         }
 
         bool solve(Plan &plan) override
         {
-            // Serialize problem and domain
-            std::ofstream domain_out;
-            std::ofstream problem_out;
-            io::createFile(domain_out, domain_file);
-            io::createFile(problem_out, problem_file);
-            problem_->domain->toPDDL(domain_out);
-            problem_->toPDDL(problem_out);
-            domain_out.close();
-            problem_out.close();
-
-            // Call fast downward
-            auto tr = io::runCommand(log::format("%1%/translate/translate.py --sas-file %2% %3% %4%",
-                                                 directory, sas_file, domain_file, problem_file));
-            if (not tr)
-                return false;
-
-            auto pr = io::runCommand(log::format("%1% < %2%", command, sas_file));
+            auto pr = io::runCommand(command);
             if (not pr)
                 return false;
 
             // Parse output file
             ast::Plan parsed;
-            parseFile(output_file + ".1", parsed);
+            parseFile(output_file_1, parsed);
 
             for (const auto &action : parsed.actions)
             {
@@ -186,10 +226,17 @@ namespace pddlboat
 
     private:
         const std::string directory{PDDLBOAT_FASTDOWNWARD_LOCATION};
-        const std::string domain_file{"/tmp/pddlboat_domain.pddl"};
-        const std::string problem_file{"/tmp/pddlboat_problem.pddl"};
-        const std::string sas_file{"/tmp/pddlboat_sas"};
-        const std::string output_file{"/tmp/pddlboat_out"};
+        const std::string domain_file_template{"/tmp/pddlboat_domain_%1%.pddl"};
+        const std::string problem_file_template{"/tmp/pddlboat_problem_%1%.pddl"};
+        const std::string sas_file_template{"/tmp/pddlboat_sas_%1%"};
+        const std::string output_file_template{"/tmp/pddlboat_out_%1%"};
+
+        const std::string uuid;
+        const std::string domain_file;
+        const std::string problem_file;
+        const std::string sas_file;
+        const std::string output_file;
+        const std::string output_file_1;
 
         std::string command;
     };

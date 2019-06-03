@@ -44,7 +44,9 @@ namespace pddlboat
         std::string loadFileToString(const std::string &path);
         std::optional<std::string> runCommand(const std::string &cmd);
         void createFile(std::ofstream &out, const std::string &file);
+        void deleteFile(const std::string &file);
         std::pair<bool, std::vector<std::string>> listDirectory(const std::string &directory);
+        std::string generateUUID();
     }  // namespace io
 }  // namespace pddlboat
 

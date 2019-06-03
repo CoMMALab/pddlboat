@@ -2,8 +2,12 @@
 
 #include <pddlboat/utility.h>
 
-using namespace pddlboat;
+#include <boost/lexical_cast.hpp>
+#include <boost/uuid/uuid.hpp>
+#include <boost/uuid/uuid_generators.hpp>
+#include <boost/uuid/uuid_io.hpp>
 
+using namespace pddlboat;
 
 std::string log::formatRecurse(boost::format &f)
 {
@@ -133,6 +137,15 @@ void io::createFile(std::ofstream &out, const std::string &file)
     out.open(path.string(), std::ofstream::out | std::ofstream::trunc);
 }
 
+void io::deleteFile(const std::string &file)
+{
+    boost::filesystem::path path(file);
+    path = expandHome(path);
+    path = expandSymlinks(path);
+
+    boost::filesystem::remove(path);
+}
+
 std::pair<bool, std::vector<std::string>> io::listDirectory(const std::string &directory)
 {
     std::vector<std::string> contents;
@@ -150,4 +163,12 @@ std::pair<bool, std::vector<std::string>> io::listDirectory(const std::string &d
         contents.emplace_back(expandPath(it->path()).string());
 
     return std::make_pair(true, contents);
+}
+
+std::string io::generateUUID()
+{
+    boost::uuids::random_generator gen;
+    boost::uuids::uuid u = gen();
+
+    return boost::lexical_cast<std::string>(u);
 }

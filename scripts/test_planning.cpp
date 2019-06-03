@@ -32,9 +32,10 @@ int main(int argc, char **argv)
             auto loadedProblem = pddlboat::toProblem(problem, loadedDomain);
 
             pddlboat::FastDownwardPlanner fd(loadedProblem);
-            ddlboat::Plan plan(loadedProblem);
+            pddlboat::Plan plan(loadedProblem);
             if (fd.solve(plan))
             {
+
             }
         }
     }
