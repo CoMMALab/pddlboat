@@ -36,14 +36,6 @@ find_package(Boost 1.60 REQUIRED COMPONENTS system filesystem timer)
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 list(APPEND LIBRARIES ${Boost_LIBRARIES})
 
-message([warning] "boost info:")
-message([warning] ${Boost_FOUND})
-message([warning] ${Boost_VERSION})
-message([warning] ${Boost_INCLUDE_DIRS})
-message([warning] ${Boost_LIBRARIES})
-message([warning] "end boost info")
-
-
 find_package(Z3 REQUIRED)
 include_directories(${Z3_INCLUDE_DIR})
 list(APPEND LIBRARIES ${Z3_LIBRARY})

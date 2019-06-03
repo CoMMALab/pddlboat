@@ -99,68 +99,75 @@ namespace pddlboat
         FastDownwardPlanner(const ProblemPtr &problem)
           : Planner(problem)
           , uuid(io::generateUUID())
+          , translator(io::resolvePath(log::format("%1%/translate/translate.py", directory)))
+          , solver(io::resolvePath(log::format("%1%/downward", directory)))
           , domain_file(log::format(domain_file_template, uuid))
           , problem_file(log::format(problem_file_template, uuid))
           , sas_file(log::format(sas_file_template, uuid))
           , output_file(log::format(output_file_template, uuid))
           , output_file_1(output_file + ".1")
         {
-            update();
-
-            std::stringstream ss;
-            ss << directory << "/downward";
+            std::stringstream cs;
+            cs << solver;
 
             // Output file
-            ss << " --internal-plan-file " << output_file;
+            cs << " --internal-plan-file " << output_file;
 
             // Evaluators
-            ss << " --evaluator \"hcea=cea(transform=adapt_costs(plusone))\"";
-            ss << " --evaluator \"hcg=cg(transform=adapt_costs(one))\"";
-            ss << " --evaluator \"hgc=goalcount(transform=adapt_costs(plusone))\"";
-            ss << " --evaluator \"hff=ff()\"";
+            cs << " --evaluator \"hcea=cea(transform=adapt_costs(plusone))\"";
+            cs << " --evaluator \"hcg=cg(transform=adapt_costs(one))\"";
+            cs << " --evaluator \"hgc=goalcount(transform=adapt_costs(plusone))\"";
+            cs << " --evaluator \"hff=ff()\"";
 
             // Autotune Fast Downward Search
-            ss << " --search ";
-            ss << "\"";
-            ss << "iterated([";
-            ss << "ehc(hcea,preferred=[hcea],preferred_usage=0,cost_type=normal),";
-            ss << "lazy(alt([single(sum([weight(g(),2),weight(hff,3)])),";
-            ss << "single(sum([weight(g(),2),weight(hff,3)]),pref_only=true),";
-            ss << "single(sum([weight(g(),2),weight(hcg,3)])),";
-            ss << "single(sum([weight(g(),2),weight(hcg,3)]),pref_only=true),";
-            ss << "single(sum([weight(g(),2),weight(hcea,3)])),";
-            ss << "single(sum([weight(g(),2),weight(hcea,3)]),pref_only=true),";
-            ss << "single(sum([weight(g(),2),weight(hgc,3)])),";
-            ss << "single(sum([weight(g(),2),weight(hgc,3)]),pref_only=true)],";
-            ss << "boost=200),";
-            ss << "preferred=[hcea,hgc],reopen_closed=false,cost_type=one),";
-            ss << "lazy(alt([single(sum([g(),weight(hff,5)])),";
-            ss << "single(sum([g(),weight(hff,5)]),pref_only=true),";
-            ss << "single(sum([g(),weight(hcg,5)])),";
-            ss << "single(sum([g(),weight(hcg,5)]),pref_only=true),";
-            ss << "single(sum([g(),weight(hcea,5)])),";
-            ss << "single(sum([g(),weight(hcea,5)]),pref_only=true),";
-            ss << "single(sum([g(),weight(hgc,5)])),";
-            ss << "single(sum([g(),weight(hgc,5)]),pref_only=true)],";
-            ss << "boost=5000),";
-            ss << "preferred=[hcea,hgc],reopen_closed=true,cost_type=normal),";
-            ss << "lazy(alt([single(sum([g(),weight(hff,2)])),";
-            ss << "single(sum([g(),weight(hff,2)]),pref_only=true),";
-            ss << "single(sum([g(),weight(hcg,2)])),";
-            ss << "single(sum([g(),weight(hcg,2)]),pref_only=true),";
-            ss << "single(sum([g(),weight(hcea,2)])),";
-            ss << "single(sum([g(),weight(hcea,2)]),pref_only=true),";
-            ss << "single(sum([g(),weight(hgc,2)])),";
-            ss << "single(sum([g(),weight(hgc,2)]),pref_only=true)],";
-            ss << "boost=1000),";
-            ss << "preferred=[hcea,hgc],reopen_closed=true,cost_type=one)";
-            ss << "],repeat_last=true,continue_on_fail=true)";
-            ss << "\"";
+            cs << " --search ";
+            cs << "\"";
+            cs << "iterated([";
+            cs << "ehc(hcea,preferred=[hcea],preferred_usage=0,cost_type=normal),";
+            cs << "lazy(alt([single(sum([weight(g(),2),weight(hff,3)])),";
+            cs << "single(sum([weight(g(),2),weight(hff,3)]),pref_only=true),";
+            cs << "single(sum([weight(g(),2),weight(hcg,3)])),";
+            cs << "single(sum([weight(g(),2),weight(hcg,3)]),pref_only=true),";
+            cs << "single(sum([weight(g(),2),weight(hcea,3)])),";
+            cs << "single(sum([weight(g(),2),weight(hcea,3)]),pref_only=true),";
+            cs << "single(sum([weight(g(),2),weight(hgc,3)])),";
+            cs << "single(sum([weight(g(),2),weight(hgc,3)]),pref_only=true)],";
+            cs << "boost=200),";
+            cs << "preferred=[hcea,hgc],reopen_closed=false,cost_type=one),";
+            cs << "lazy(alt([single(sum([g(),weight(hff,5)])),";
+            cs << "single(sum([g(),weight(hff,5)]),pref_only=true),";
+            cs << "single(sum([g(),weight(hcg,5)])),";
+            cs << "single(sum([g(),weight(hcg,5)]),pref_only=true),";
+            cs << "single(sum([g(),weight(hcea,5)])),";
+            cs << "single(sum([g(),weight(hcea,5)]),pref_only=true),";
+            cs << "single(sum([g(),weight(hgc,5)])),";
+            cs << "single(sum([g(),weight(hgc,5)]),pref_only=true)],";
+            cs << "boost=5000),";
+            cs << "preferred=[hcea,hgc],reopen_closed=true,cost_type=normal),";
+            cs << "lazy(alt([single(sum([g(),weight(hff,2)])),";
+            cs << "single(sum([g(),weight(hff,2)]),pref_only=true),";
+            cs << "single(sum([g(),weight(hcg,2)])),";
+            cs << "single(sum([g(),weight(hcg,2)]),pref_only=true),";
+            cs << "single(sum([g(),weight(hcea,2)])),";
+            cs << "single(sum([g(),weight(hcea,2)]),pref_only=true),";
+            cs << "single(sum([g(),weight(hgc,2)])),";
+            cs << "single(sum([g(),weight(hgc,2)]),pref_only=true)],";
+            cs << "boost=1000),";
+            cs << "preferred=[hcea,hgc],reopen_closed=true,cost_type=one)";
+            cs << "],repeat_last=true,continue_on_fail=true)";
+            cs << "\"";
 
             // Tell command what SAS file to use
-            ss << " < " << sas_file;
+            cs << " < " << sas_file;
 
-            command = ss.str();
+            solver_command = cs.str();
+
+            std::stringstream ts;
+            ts << translator;
+            ts << " --sas-file " << sas_file << " " << domain_file << " " << problem_file;
+            translator_command = ts.str();
+
+            update();
         }
 
         ~FastDownwardPlanner()
@@ -194,8 +201,7 @@ namespace pddlboat
             if (domain or problem)
             {
                 // Call fast downward
-                auto tr = io::runCommand(log::format("%1%/translate/translate.py --sas-file %2% %3% %4%",
-                                                     directory, sas_file, domain_file, problem_file));
+                auto tr = io::runCommand(translator_command);
                 if (not tr)
                     throw std::runtime_error("Failed to translate problem and domain!");
             }
@@ -203,7 +209,7 @@ namespace pddlboat
 
         bool solve(Plan &plan) override
         {
-            auto pr = io::runCommand(command);
+            auto pr = io::runCommand(solver_command);
             if (not pr)
                 return false;
 
@@ -232,13 +238,16 @@ namespace pddlboat
         const std::string output_file_template{"/tmp/pddlboat_out_%1%"};
 
         const std::string uuid;
+        const std::string translator;
+        const std::string solver;
         const std::string domain_file;
         const std::string problem_file;
         const std::string sas_file;
         const std::string output_file;
         const std::string output_file_1;
 
-        std::string command;
+        std::string solver_command;
+        std::string translator_command;
     };
 
     class Z3Planner : public Planner
