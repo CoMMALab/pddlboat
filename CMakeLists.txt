@@ -44,12 +44,12 @@ message([warning] ${Boost_LIBRARIES})
 message([warning] "end boost info")
 
 
-
 find_package(Z3 REQUIRED)
 include_directories(${Z3_INCLUDE_DIR})
 list(APPEND LIBRARIES ${Z3_LIBRARY})
 
 add_subdirectory(submodules)
+add_definitions(-DPDDLBOAT_FASTDOWNWARD_LOCATION="${CMAKE_CURRENT_BINARY_DIR}/submodules/fd/src/bin")
 
 list(APPEND SOURCES
     src/translator.cpp

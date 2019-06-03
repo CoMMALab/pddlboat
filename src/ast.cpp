@@ -256,3 +256,18 @@ std::string Problem::toString() const
 
     return ss.str();
 }
+
+std::string Plan::toString() const
+{
+    std::stringstream ss;
+    ss << "plan(" << std::endl;
+
+    if (!actions.empty())
+    {
+        ss << "    actions: (";
+        for (auto it = actions.begin(), end = actions.end(); it != end;)
+            ss << it->toString() << ((++it != end) ? ", " : "");
+        ss << ")" << std::endl;
+    }
+    return ss.str();
+}

@@ -306,6 +306,20 @@ namespace parser
     struct problem_class : error_handler
     {
     };
+
+    ///
+    /// Plan
+    ///
+
+    struct plan_class;
+    const x3::rule<plan_class, ast::Plan> plan = "plan";
+    const auto plan_def = //
+        *atomic_formula_name
+        ;
+    PARSE(plan);
+    struct plan_class : error_handler
+    {
+    };
 }  // namespace parser
 
 bool pddlboat::parseFile(const std::string &file, ast::Domain &domain)
@@ -370,6 +384,44 @@ bool pddlboat::parseFile(const std::string &file, ast::Problem &problem)
     //                      parser::skipper, test);
     r = x3::phrase_parse(iter, end, with<error_handler_tag>(std::ref(error_handler))[parser::problem],
                          parser::skipper, problem);
+    // }
+    // catch (const x3::expectation_failure<std::string::const_iterator> &e)
+    // {
+    //     const char needle[] = {'\n'};
+    //     auto it = std::find_first_of(e.where(), end, needle, needle + 1);
+    //     std::cout << "Expected: " << e.which() << " at '" << std::string(e.where(), it) << "'\n";
+    // }
+
+    return r && iter == end;
+}
+
+bool pddlboat::parseFile(const std::string &file, ast::Plan &plan)
+{
+    typedef std::string::const_iterator iterator_type;
+
+    std::cout << log::format("Reading file `%1%`", file) << std::endl;
+    const std::string text = io::loadFileToString(file);
+    // std::cout << text << std::endl;
+
+    iterator_type iter = text.begin();
+    const iterator_type end = text.end();
+
+    using boost::spirit::x3::error_handler_tag;
+    using boost::spirit::x3::with;
+    using error_handler_type = boost::spirit::x3::error_handler<iterator_type>;
+    error_handler_type error_handler(iter, end, std::cerr);
+
+    plan = ast::Plan();  // Reset Plan
+
+    bool r = false;
+
+    // try
+    // {
+    // std::vector<pddlboat::ast::Expression> test;
+    // r = x3::phrase_parse(iter, end, with<error_handler_tag>(std::ref(error_handler))[parser::initial],
+    //                      parser::skipper, test);
+    r = x3::phrase_parse(iter, end, with<error_handler_tag>(std::ref(error_handler))[parser::plan],
+                         parser::skipper, plan);
     // }
     // catch (const x3::expectation_failure<std::string::const_iterator> &e)
     // {

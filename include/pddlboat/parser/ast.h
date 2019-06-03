@@ -181,6 +181,18 @@ namespace pddlboat
             std::string toString() const;
         };
 
+        ///
+        /// Plan
+        ///
+
+        class Plan : x3::position_tagged
+        {
+        public:
+            std::vector<AtomicFormula> actions{};
+
+            std::string toString() const;
+        };
+
         using boost::fusion::operator<<;
     }  // namespace ast
 }  // namespace pddlboat

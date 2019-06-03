@@ -127,6 +127,10 @@ Assignment::Assignment(const Problem *problem) : problem(problem)
 {
 }
 
+Assignment::Assignment(const Assignment &other) : problem(other.problem), varToObj(other.varToObj)
+{
+}
+
 unsigned int Assignment::arity() const
 {
     return varToObj.size();
@@ -645,19 +649,19 @@ void State::toPDDL(std::ostream &out, unsigned int indent) const
 /// Actions
 ///
 
-Action::Action(const std::string &name, const VariableSet &parameters, const ExpressionPtr &precondition,
+Action::Action(const std::string &name, const VariableList &parameters, const ExpressionPtr &precondition,
                const ExpressionPtr &effect)
   : name(name), parameters(parameters), precondition(precondition), effect(effect)
 {
-    VariableSet in;
+    VariableSet conditions, input(parameters);
 
     if (precondition)
-        precondition->getVariables(in);
+        precondition->getVariables(conditions);
 
     if (effect)
-        effect->getVariables(in);
+        effect->getVariables(conditions);
 
-    if (in != parameters)
+    if (conditions != input)
         throw std::invalid_argument(
             log::format("Action %1%'s parameter set does not match expressions!", name));
 }
@@ -668,11 +672,19 @@ void Action::toPDDL(std::ostream &out, unsigned int indent) const
 
     out << SPACE << "(:action " << name << std::endl;
 
-    if (not parameters.variables.empty())
+    if (not parameters.empty())
     {
-        out << SPACE << SPACE << ":parameters ";
-        parameters.toPDDL(out);
-        out << std::endl;
+        out << SPACE << SPACE << ":parameters (";
+        for (unsigned int i = 0; i < parameters.size(); ++i)
+        {
+            if (i > 0)
+                out << " ";
+
+            out << "?" << parameters[i].name;
+            if (parameters[i].type != PDDLBOAT_OBJECT_CLASS)
+                out << " - " << parameters[i].type;
+        }
+        out << ")" << std::endl;
     }
 
     if (precondition)
@@ -690,6 +702,11 @@ void Action::toPDDL(std::ostream &out, unsigned int indent) const
     }
 
     out << SPACE << ")";
+}
+
+unsigned int Action::arity() const
+{
+    return parameters.size();
 }
 
 ActionPtr pddlboat::makeAction(const std::string &name, const VariableList &parameters,

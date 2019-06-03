@@ -1,33 +1,43 @@
 #include <iostream>
+#include <boost/timer/timer.hpp>
+#include <pddlboat/parser/parser.h>
+#include <pddlboat/parser/translator.h>
 #include <pddlboat/solver/expressions.h>
 #include <pddlboat/solver/planner.h>
-#include <z3++.h>
 
 int main(int argc, char **argv)
 {
-    // // list all of the scene propositions
-    // auto aptr = pddlboat::makeAtom("atom_a");
-    // auto bptr = pddlboat::makeAtom("atom_b");
-    // auto cptr = pddlboat::makeAtom("atom_c");
-    // auto dptr = pddlboat::makeAtom("atom_d");
+    boost::timer::auto_cpu_timer t;
 
-    // // make a vector of the actions
-    // auto preconditions_ptr = pddlboat::makeAnd({aptr, bptr});
-    // auto effects_ptr = pddlboat::makeAnd({cptr, dptr});
-    // auto my_action = pddlboat::makeAction("my_action", preconditions_ptr, effects_ptr);
+    if (argc < 3)
+    {
+        std::cerr << "Must provide file names!" << std::endl;
+        return 1;
+    }
 
-    // // set the scene propositions for the start state
-    // auto my_state = std::make_shared<pddlboat::State>();
-    // my_state->assign("atom_a", true);
-    // my_state->assign("atom_b", true);
-    // my_state->assign("atom_c", false);
-    // my_state->assign("atom_d", true);
+    const std::string domainfile(argv[1]);
+    pddlboat::ast::Domain domain;
+    bool r = pddlboat::parseFile(domainfile, domain);
+    std::cout << domainfile << ": " << (r ? "OK" : "FAILED") << std::endl;
+    if (r)
+    {
+        auto loadedDomain = pddlboat::toDomain(domain);
 
-    // auto goal = pddlboat::makeAnd({cptr, dptr});
-    // size_t planning_horizon = 1;
+        const std::string problemfile(argv[2]);
+        pddlboat::ast::Problem problem;
+        bool r = pddlboat::parseFile(problemfile, problem);
+        std::cout << problemfile << ": " << (r ? "OK" : "FAILED") << std::endl;
+        if (r)
+        {
+            auto loadedProblem = pddlboat::toProblem(problem, loadedDomain);
 
-    // pddlboat::Z3Planner solver(my_state, goal, {my_action}, planning_horizon);
-    // solver.solve();
+            pddlboat::FastDownwardPlanner fd(loadedProblem);
+            ddlboat::Plan plan(loadedProblem);
+            if (fd.solve(plan))
+            {
+            }
+        }
+    }
 
     return 0;
 }

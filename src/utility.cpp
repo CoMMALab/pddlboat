@@ -99,7 +99,7 @@ std::string io::loadFileToString(const std::string &path)
     return std::string(bytes.data(), size);
 }
 
-std::string io::runCommand(const std::string &cmd)
+std::optional<std::string> io::runCommand(const std::string &cmd)
 {
     std::array<char, 128> buffer;
     std::string result;
@@ -107,7 +107,7 @@ std::string io::runCommand(const std::string &cmd)
     if (!pipe)
     {
         std::cerr << log::format("Failed to run command `%1%`!", cmd) << std::endl;
-        return "";
+        return std::nullopt;
     }
 
     while (!feof(pipe.get()))
@@ -116,7 +116,7 @@ std::string io::runCommand(const std::string &cmd)
             result += buffer.data();
     }
 
-    return result;
+    return std::optional{result};
 }
 
 void io::createFile(std::ofstream &out, const std::string &file)

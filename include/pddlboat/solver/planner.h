@@ -4,12 +4,72 @@
 #include <z3++.h>
 
 #include <pddlboat/utility.h>
+#include <pddlboat/parser/parser.h>
 #include <pddlboat/solver/expressions.h>
 #include <pddlboat/solver/domain.h>
 
 namespace pddlboat
 {
     using Time = size_t;
+
+    class Plan
+    {
+    public:
+        struct Step
+        {
+            Step(const ActionPtr &action, const Assignment &assignment)
+              : action(action), assignment(assignment)
+            {
+            }
+
+            ActionPtr action;
+            Assignment assignment;
+        };
+
+        Plan(const ProblemPtr &problem) : problem_(problem)
+        {
+        }
+
+        void addStep(const std::string &action_name, const std::vector<std::string> &objects)
+        {
+            ActionPtr action = problem_->domain->getAction(action_name);
+            if (not action)
+                throw std::invalid_argument(log::format("Action %1% does not exist!", action_name));
+
+            if (action->arity() != objects.size())
+                throw std::invalid_argument(log::format("Action %1% has arity %2%, not %3%!", action_name,
+                                                        action->arity(), objects.size()));
+
+            Assignment assignment(problem_.get());
+            for (unsigned int i = 0; i < objects.size(); ++i)
+            {
+                const auto &object_name = objects[i];
+                ObjectPtr obj;
+                if (not(obj = problem_->getObject(object_name)))
+                {
+                    if (not(obj = problem_->domain->getConstant(object_name)))
+                    {
+                        throw std::invalid_argument(
+                            log::format("Cannot do action with object %1%, does not exist!", object_name));
+                    }
+                }
+
+                if (action->parameters[i].type != obj->type)
+                    throw std::invalid_argument(  //
+                        log::format("Cannot do action with object %1%, is type %2%, not %3%!", object_name,
+                                    obj->type, action->parameters[i].type));
+
+                assignment.assign(action->parameters[i].name, objects[i]);
+            }
+
+            plan.emplace_back(action, assignment);
+        }
+
+        std::vector<Step> plan;
+
+    private:
+        const ProblemPtr problem_;
+    };
 
     class Planner
     {
@@ -20,19 +80,118 @@ namespace pddlboat
         /* { */
         /* } */
 
-        Planner(const ProblemPtr problem, const Time horizon) : problem_(problem), horizon_(horizon)
+        Planner(const ProblemPtr &problem) : problem_(problem)
         {
         }
 
-        virtual bool solve() = 0;
+        virtual bool solve(Plan &plan) = 0;
 
     protected:
         /* const StatePtr start_; */
         /* const ExpressionPtr goal_; */
         /* const std::vector<ActionPtr> actions_; */
-        const Time horizon_;
-
         const ProblemPtr problem_;
+    };
+
+    class FastDownwardPlanner : public Planner
+    {
+    public:
+        FastDownwardPlanner(const ProblemPtr &problem) : Planner(problem)
+        {
+            std::stringstream ss;
+            ss << directory << "/downward";
+            ss << " --internal-plan-file " << output_file;
+            ss << " --evaluator \"hcea=cea(transform=adapt_costs(plusone))\"";
+            ss << " --evaluator \"hcg=cg(transform=adapt_costs(one))\"";
+            ss << " --evaluator \"hgc=goalcount(transform=adapt_costs(plusone))\"";
+            ss << " --evaluator \"hff=ff()\"";
+            ss << " --search ";
+            ss << "\"";
+            ss << "iterated([";
+            ss << "ehc(hcea,preferred=[hcea],preferred_usage=0,cost_type=normal),";
+            ss << "lazy(alt([single(sum([weight(g(),2),weight(hff,3)])),";
+            ss << "single(sum([weight(g(),2),weight(hff,3)]),pref_only=true),";
+            ss << "single(sum([weight(g(),2),weight(hcg,3)])),";
+            ss << "single(sum([weight(g(),2),weight(hcg,3)]),pref_only=true),";
+            ss << "single(sum([weight(g(),2),weight(hcea,3)])),";
+            ss << "single(sum([weight(g(),2),weight(hcea,3)]),pref_only=true),";
+            ss << "single(sum([weight(g(),2),weight(hgc,3)])),";
+            ss << "single(sum([weight(g(),2),weight(hgc,3)]),pref_only=true)],";
+            ss << "boost=200),";
+            ss << "preferred=[hcea,hgc],reopen_closed=false,cost_type=one),";
+            ss << "lazy(alt([single(sum([g(),weight(hff,5)])),";
+            ss << "single(sum([g(),weight(hff,5)]),pref_only=true),";
+            ss << "single(sum([g(),weight(hcg,5)])),";
+            ss << "single(sum([g(),weight(hcg,5)]),pref_only=true),";
+            ss << "single(sum([g(),weight(hcea,5)])),";
+            ss << "single(sum([g(),weight(hcea,5)]),pref_only=true),";
+            ss << "single(sum([g(),weight(hgc,5)])),";
+            ss << "single(sum([g(),weight(hgc,5)]),pref_only=true)],";
+            ss << "boost=5000),";
+            ss << "preferred=[hcea,hgc],reopen_closed=true,cost_type=normal),";
+            ss << "lazy(alt([single(sum([g(),weight(hff,2)])),";
+            ss << "single(sum([g(),weight(hff,2)]),pref_only=true),";
+            ss << "single(sum([g(),weight(hcg,2)])),";
+            ss << "single(sum([g(),weight(hcg,2)]),pref_only=true),";
+            ss << "single(sum([g(),weight(hcea,2)])),";
+            ss << "single(sum([g(),weight(hcea,2)]),pref_only=true),";
+            ss << "single(sum([g(),weight(hgc,2)])),";
+            ss << "single(sum([g(),weight(hgc,2)]),pref_only=true)],";
+            ss << "boost=1000),";
+            ss << "preferred=[hcea,hgc],reopen_closed=true,cost_type=one)";
+            ss << "],repeat_last=true,continue_on_fail=true)";
+            ss << "\"";
+
+            command = ss.str();
+        }
+
+        bool solve(Plan &plan) override
+        {
+            // Serialize problem and domain
+            std::ofstream domain_out;
+            std::ofstream problem_out;
+            io::createFile(domain_out, domain_file);
+            io::createFile(problem_out, problem_file);
+            problem_->domain->toPDDL(domain_out);
+            problem_->toPDDL(problem_out);
+            domain_out.close();
+            problem_out.close();
+
+            // Call fast downward
+            auto tr = io::runCommand(log::format("%1%/translate/translate.py --sas-file %2% %3% %4%",
+                                                 directory, sas_file, domain_file, problem_file));
+            if (not tr)
+                return false;
+
+            auto pr = io::runCommand(log::format("%1% < %2%", command, sas_file));
+            if (not pr)
+                return false;
+
+            // Parse output file
+            ast::Plan parsed;
+            parseFile(output_file + ".1", parsed);
+
+            for (const auto &action : parsed.actions)
+            {
+                std::vector<std::string> objects;
+                for (const auto &tl : action.variables)
+                    for (const auto &t : tl.types)
+                        objects.emplace_back(t);
+
+                plan.addStep(action.name, objects);
+            }
+
+            return true;
+        }
+
+    private:
+        const std::string directory{PDDLBOAT_FASTDOWNWARD_LOCATION};
+        const std::string domain_file{"/tmp/pddlboat_domain.pddl"};
+        const std::string problem_file{"/tmp/pddlboat_problem.pddl"};
+        const std::string sas_file{"/tmp/pddlboat_sas"};
+        const std::string output_file{"/tmp/pddlboat_out"};
+
+        std::string command;
     };
 
     class Z3Planner : public Planner
@@ -40,6 +199,7 @@ namespace pddlboat
         // We store a set of grounded actions and predicates (without the timestep)
         std::set<std::string> grounded_actions_;
         std::set<std::string> grounded_predicates_;
+        const Time horizon_;
 
         z3::context *ctx_{nullptr};
         z3::solver *solver_{nullptr};
@@ -52,12 +212,12 @@ namespace pddlboat
         /*     build(); */
         /* } */
 
-        Z3Planner(const ProblemPtr problem, const Time horizon) : Planner(problem, horizon)
+        Z3Planner(const ProblemPtr problem, const Time horizon) : Planner(problem), horizon_(horizon)
         {
             build();
         }
 
-        bool solve() override
+        bool solve(Plan &plan) override
         {
             if (not solver_)
                 return false;
@@ -137,11 +297,12 @@ namespace pddlboat
             return "ACTION:" + std::string(action->name) + "ARGS:" + str + "TIME:" + std::to_string(step);
         }
 
-                std::string createGroundedPredicateString(const BoundPredicatePtr predicate,
+        std::string createGroundedPredicateString(const BoundPredicatePtr predicate,
                                                   const std::vector<std::string> &args_to_pred,
-                                                          const Time step) {
-                  return "";
-                }
+                                                  const Time step)
+        {
+            return "";
+        }
 
         /**
          * For frame axioms, we need to know all actions that could change a proposition
@@ -183,7 +344,7 @@ namespace pddlboat
             {
                 case Expression::Type::PREDICATE:
                 {
-                  //TODO this should be a bound predicate
+                    // TODO this should be a bound predicate
                     const auto &predicate_expr = std::static_pointer_cast<BoundPredicate>(expr);
                     return makeBool(createGroundedPredicateString(predicate_expr, args_list, step));
                 }
@@ -307,7 +468,8 @@ namespace pddlboat
                         std::string action_string =
                             createGroundedActionString(name_actionptr.second, args_to_action, step);
                         z3::expr act = makeBool(action_string);
-                        z3::expr precond = exprAtTime(name_actionptr.second->precondition, args_to_action, step);
+                        z3::expr precond =
+                            exprAtTime(name_actionptr.second->precondition, args_to_action, step);
                         z3::expr effects = exprAtTime(name_actionptr.second->effect, args_to_action, step);
 
                         /* z3::expr precond = makeBool(precondition_string); */
@@ -355,13 +517,14 @@ namespace pddlboat
                 // Add the start state
                 for (const auto &assgn : problem_->start->assignments)
                 {
-                  z3::expr p = makeBool(createGroundedPredicateString(problem_->domain->predicates[assgn.first.first], assgn.first.second, 0));
+                    z3::expr p = makeBool(createGroundedPredicateString(
+                        problem_->domain->predicates[assgn.first.first], assgn.first.second, 0));
                     solver_->add(z3::expr((assgn.second) ? p : not p));
                 }
             }
         }
     };
 
-    }  // namespace pddlboat
+}  // namespace pddlboat
 
 #endif  // include guard
