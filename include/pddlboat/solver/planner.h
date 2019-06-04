@@ -24,6 +24,19 @@ namespace pddlboat
 
             ActionPtr action;
             Assignment assignment;
+
+            std::string toString() const
+            {
+                std::stringstream ss;
+                ss << action->name;
+                for (const auto &parameter : action->parameters)
+                {
+                    ss << " ";
+                    ss << parameter.name << "=" << assignment.assigned(parameter.name)->name;
+                }
+
+                return ss.str();
+            }
         };
 
         Plan(const ProblemPtr &problem) : problem_(problem)
@@ -71,15 +84,7 @@ namespace pddlboat
 
             ss << "Plan: " << plan.size() << " action(s):" << std::endl;
             for (const auto &step : plan)
-            {
-                ss << "  " << step.action->name;
-                for (const auto &parameter : step.action->parameters)
-                {
-                    ss << " ";
-                    ss << parameter.name << "=" << step.assignment.assigned(parameter.name)->name;
-                }
-                ss << std::endl;
-            }
+                ss << step.toString() << std::endl;
 
             return ss.str();
         }

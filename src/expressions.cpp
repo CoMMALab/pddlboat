@@ -1,6 +1,7 @@
 /* Author: Zachary Kingston */
 
 #include <pddlboat/utility.h>
+#include <pddlboat/solver/domain.h>
 #include <pddlboat/solver/expressions.h>
 
 using namespace pddlboat;
@@ -12,6 +13,11 @@ using namespace pddlboat;
 Expression::Type Expression::type() const
 {
     return EXPRESSION;
+}
+
+void Expression::assign(StatePtr &out, const Assignment &vars) const
+{
+    throw std::invalid_argument(log::format("Cannot assign with expression type %1%", type()));
 }
 
 void Expression::getVariables(VariableSet &vars) const
@@ -98,6 +104,12 @@ bool And::evaluate(const StatePtr &state, const Assignment &vars) const
     return ret;
 }
 
+void And::assign(StatePtr &out, const Assignment &vars) const
+{
+    for (unsigned int i = 0; i < terms_.size(); ++i)
+        terms_[i]->assign(out, vars);
+}
+
 Expression::Type And::type() const
 {
     return Expression::AND;
@@ -180,6 +192,15 @@ const ExpressionPtr Not::getTerm() const
 bool Not::evaluate(const StatePtr &state, const Assignment &vars) const
 {
     return not term_->evaluate(state, vars);
+}
+
+void Not::assign(StatePtr &out, const Assignment &vars) const
+{
+    auto temp = out->getProblem()->makeState();
+    term_->assign(temp, vars);
+    temp->complement();
+
+    out->fold(temp);
 }
 
 Expression::Type Not::type() const

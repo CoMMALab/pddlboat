@@ -39,6 +39,7 @@ namespace pddlboat
         };
 
         virtual bool evaluate(const StatePtr &state, const Assignment &vars) const = 0;
+        virtual void assign(StatePtr &out, const Assignment &vars) const;
         virtual Type type() const;
         virtual void getVariables(VariableSet &vars) const;
         virtual bool containsVariable(const std::string &variable) const;
@@ -109,6 +110,7 @@ namespace pddlboat
         And(const std::vector<ExpressionPtr> &terms = {});
 
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
+        void assign(StatePtr &out, const Assignment &vars) const override;
         Expression::Type type() const override;
         void toPDDL(std::ostream &out, unsigned int indent = 2, unsigned int level = 0) const override;
     };
@@ -145,6 +147,7 @@ namespace pddlboat
         const ExpressionPtr getTerm() const;
 
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
+        void assign(StatePtr &out, const Assignment &vars) const override;
         Expression::Type type() const override;
         void getVariables(VariableSet &vars) const override;
         bool containsVariable(const std::string &variable) const override;
