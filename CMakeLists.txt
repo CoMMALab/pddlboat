@@ -16,13 +16,16 @@ include(FeatureSummary)
 
 include_directories(${CMAKE_CURRENT_LIST_DIR}/include)
 
+SET (BOOST_MIN_VERSION "1.65.0")
+find_package(Boost ${BOOST_MIN_VERSION} QUIET)
 
+#For ubuntu 16.04 with boost from source:
+if(NOT Boost_INCLUDE_DIRS)
 SET (BOOST_ROOT "/usr/local/")
-SET (BOOST_MIN_VERSION "1.70.0")
 set (Boost_NO_BOOST_CMAKE ON)
 FIND_PACKAGE(Boost ${BOOST_MIN_VERSION} REQUIRED)
 if (NOT Boost_FOUND)
-  message(FATAL_ERROR "Fatal error: Boost (version >= 1.70) required.")
+  message(FATAL_ERROR "Fatal error: Boost (version >= 1.65) required.")
 else()
   message(STATUS "Setting up BOOST")
   message(STATUS " Includes - ${Boost_INCLUDE_DIRS}")
@@ -30,8 +33,9 @@ else()
   include_directories(${Boost_INCLUDE_DIRS})
   link_directories(${Boost_LIBRARY_DIRS})
 endif (NOT Boost_FOUND)
+endif(NOT Boost_INCLUDE_DIRS)
 
-find_package(Boost 1.70 REQUIRED COMPONENTS system filesystem timer)
+find_package(Boost 1.65 REQUIRED COMPONENTS system filesystem timer)
 
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 list(APPEND LIBRARIES ${Boost_LIBRARIES})
@@ -50,6 +54,7 @@ include_directories(${Z3_INCLUDE_DIR})
 list(APPEND LIBRARIES ${Z3_LIBRARY})
 
 list(APPEND SOURCES
+    src/translator.cpp
     src/utility.cpp
     src/expressions.cpp
     src/domain.cpp
@@ -66,11 +71,13 @@ target_link_libraries(pddlboat ${LIBRARIES})
 
 add_executable(pddlboat_test scripts/test.cpp)
 add_executable(pddlboat_parser scripts/parser_test.cpp)
+add_executable(pddlboat_load scripts/test_parsing.cpp)
 add_executable(pddlboat_test_smt scripts/test_smt.cpp)
 add_executable(pddlboat_test_planning scripts/test_planning.cpp)
 
 target_link_libraries(pddlboat_test pddlboat ${LIBRARIES})
 target_link_libraries(pddlboat_parser pddlboat ${LIBRARIES})
+target_link_libraries(pddlboat_load pddlboat ${LIBRARIES})
 target_link_libraries(pddlboat_test_smt pddlboat ${LIBRARIES})
 target_link_libraries(pddlboat_test_planning pddlboat ${LIBRARIES})
 
