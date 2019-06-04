@@ -18,12 +18,12 @@ include_directories(${CMAKE_CURRENT_LIST_DIR}/include)
 
 
 SET (BOOST_MIN_VERSION "1.65.0")
-find_package(Boost ${BOOST_MIN_VERSION} REQUIRED COMPONENTS system filesystem timer)
+find_package(Boost ${BOOST_MIN_VERSION} REQUIRED COMPONENTS system filesystem timer program_options)
 
 if(NOT Boost_INCLUDE_DIRS)
 SET (BOOST_ROOT "/usr/local/")
 set (Boost_NO_BOOST_CMAKE ON)
-FIND_PACKAGE(Boost ${BOOST_MIN_VERSION} REQUIRED COMPONENTS system filesystem timer)
+FIND_PACKAGE(Boost ${BOOST_MIN_VERSION} REQUIRED COMPONENTS system filesystem timer program_options)
 if (NOT Boost_FOUND)
   message(FATAL_ERROR "Fatal error: Boost (version >= 1.70) required.")
 else()
@@ -35,7 +35,6 @@ else()
 endif (NOT Boost_FOUND)
 
 endif(NOT Boost_INCLUDE_DIRS)
-
 
 
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})

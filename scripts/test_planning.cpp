@@ -1,20 +1,67 @@
 #include <iostream>
 #include <boost/timer/timer.hpp>
+#include <boost/program_options.hpp>
+
 #include <pddlboat/parser/parser.h>
 #include <pddlboat/parser/translator.h>
 #include <pddlboat/solver/expressions.h>
 #include <pddlboat/solver/planner.h>
+#include <pddlboat/solver/fastdownwardplanner.h>
 #include <pddlboat/solver/z3planner.h>
 
+namespace po = boost::program_options;
 namespace pd = pddlboat;
+
+enum Planner
+{
+    Z3,
+    FD
+};
+
+std::istream &operator>>(std::istream &in, Planner &unit)
+{
+    std::string token;
+    in >> token;
+    if (token == "z3")
+        unit = Planner::Z3;
+    else if (token == "fd")
+        unit = Planner::FD;
+    else
+        in.setstate(std::ios_base::failbit);
+    return in;
+}
 
 int main(int argc, char **argv)
 {
-    if (argc < 3)
+    std::string domainfile, problemfile;
+    Planner planner;
+    po::options_description desc("PDDLBoat - Planner Testing Demo");
+    desc.add_options()  //
+        ("help,h", "Produces this help message")
+        ("domain,d", po::value<std::string>(&domainfile)->required(),
+         "PDDL file that describes the problem domain")  //
+        ("problem,p", po::value<std::string>(&problemfile)->required(),
+         "PDDL file that describes the problem")  //
+        ("planner,s", po::value<Planner>(&planner)->default_value(Planner::FD),
+         "Planner to use. Either `z3` or `fd`");
+
+    unsigned int horizon;
+    po::options_description z3opt("z3 Planner Options");
+    z3opt.add_options()  //
+        ("horizon,h", po::value<unsigned int>(&horizon)->default_value(1), "Maximum planning horizon to use");
+
+    desc.add(z3opt);
+
+    po::variables_map vm;
+    po::store(po::parse_command_line(argc, argv, desc), vm);
+
+    if (vm.count("help"))
     {
-        std::cerr << "Must provide file names!" << std::endl;
+        std::cout << desc << std::endl;
         return 1;
     }
+
+    po::notify(vm);
 
     const std::string domainfile(argv[1]);
     pddlboat::ast::Domain domain;
