@@ -65,6 +65,25 @@ namespace pddlboat
             plan.emplace_back(action, assignment);
         }
 
+        std::string toString() const
+        {
+            std::stringstream ss;
+
+            ss << "Plan: " << plan.size() << " action(s):" << std::endl;
+            for (const auto &step : plan)
+            {
+                ss << "  " << step.action->name;
+                for (const auto &parameter : step.action->parameters)
+                {
+                    ss << " ";
+                    ss << parameter.name << "=" << step.assignment.assigned(parameter.name)->name;
+                }
+                ss << std::endl;
+            }
+
+            return ss.str();
+        }
+
         std::vector<Step> plan;
 
     private:
@@ -105,7 +124,8 @@ namespace pddlboat
           , problem_file(log::format(problem_file_template, uuid))
           , sas_file(log::format(sas_file_template, uuid))
           , output_file(log::format(output_file_template, uuid))
-          , output_file_1(output_file + ".1")
+          // , output_file_1(output_file + ".1")
+          , output_file_1(output_file)
         {
             std::stringstream cs;
             cs << solver;
@@ -113,49 +133,56 @@ namespace pddlboat
             // Output file
             cs << " --internal-plan-file " << output_file;
 
-            // Evaluators
-            cs << " --evaluator \"hcea=cea(transform=adapt_costs(plusone))\"";
-            cs << " --evaluator \"hcg=cg(transform=adapt_costs(one))\"";
-            cs << " --evaluator \"hgc=goalcount(transform=adapt_costs(plusone))\"";
-            cs << " --evaluator \"hff=ff()\"";
 
-            // Autotune Fast Downward Search
-            cs << " --search ";
-            cs << "\"";
-            cs << "iterated([";
-            cs << "ehc(hcea,preferred=[hcea],preferred_usage=0,cost_type=normal),";
-            cs << "lazy(alt([single(sum([weight(g(),2),weight(hff,3)])),";
-            cs << "single(sum([weight(g(),2),weight(hff,3)]),pref_only=true),";
-            cs << "single(sum([weight(g(),2),weight(hcg,3)])),";
-            cs << "single(sum([weight(g(),2),weight(hcg,3)]),pref_only=true),";
-            cs << "single(sum([weight(g(),2),weight(hcea,3)])),";
-            cs << "single(sum([weight(g(),2),weight(hcea,3)]),pref_only=true),";
-            cs << "single(sum([weight(g(),2),weight(hgc,3)])),";
-            cs << "single(sum([weight(g(),2),weight(hgc,3)]),pref_only=true)],";
-            cs << "boost=200),";
-            cs << "preferred=[hcea,hgc],reopen_closed=false,cost_type=one),";
-            cs << "lazy(alt([single(sum([g(),weight(hff,5)])),";
-            cs << "single(sum([g(),weight(hff,5)]),pref_only=true),";
-            cs << "single(sum([g(),weight(hcg,5)])),";
-            cs << "single(sum([g(),weight(hcg,5)]),pref_only=true),";
-            cs << "single(sum([g(),weight(hcea,5)])),";
-            cs << "single(sum([g(),weight(hcea,5)]),pref_only=true),";
-            cs << "single(sum([g(),weight(hgc,5)])),";
-            cs << "single(sum([g(),weight(hgc,5)]),pref_only=true)],";
-            cs << "boost=5000),";
-            cs << "preferred=[hcea,hgc],reopen_closed=true,cost_type=normal),";
-            cs << "lazy(alt([single(sum([g(),weight(hff,2)])),";
-            cs << "single(sum([g(),weight(hff,2)]),pref_only=true),";
-            cs << "single(sum([g(),weight(hcg,2)])),";
-            cs << "single(sum([g(),weight(hcg,2)]),pref_only=true),";
-            cs << "single(sum([g(),weight(hcea,2)])),";
-            cs << "single(sum([g(),weight(hcea,2)]),pref_only=true),";
-            cs << "single(sum([g(),weight(hgc,2)])),";
-            cs << "single(sum([g(),weight(hgc,2)]),pref_only=true)],";
-            cs << "boost=1000),";
-            cs << "preferred=[hcea,hgc],reopen_closed=true,cost_type=one)";
-            cs << "],repeat_last=true,continue_on_fail=true)";
-            cs << "\"";
+            // Lazy greedy best-first search with preferred operators and the queue alternation method
+            cs << " --evaluator \"hff=ff()\"";
+            cs << " --evaluator \"hcea=cea()\"";
+            cs << " --search \"lazy_greedy([hff, hcea], preferred=[hff, hcea])\"";
+
+            // Fast Downward Autotune 2
+            // // Evaluators
+            // cs << " --evaluator \"hcea=cea(transform=adapt_costs(plusone))\"";
+            // cs << " --evaluator \"hcg=cg(transform=adapt_costs(one))\"";
+            // cs << " --evaluator \"hgc=goalcount(transform=adapt_costs(plusone))\"";
+            // cs << " --evaluator \"hff=ff()\"";
+
+            // // Autotune Fast Downward Search
+            // cs << " --search ";
+            // cs << "\"";
+            // cs << "iterated([";
+            // cs << "ehc(hcea,preferred=[hcea],preferred_usage=0,cost_type=normal),";
+            // cs << "lazy(alt([single(sum([weight(g(),2),weight(hff,3)])),";
+            // cs << "single(sum([weight(g(),2),weight(hff,3)]),pref_only=true),";
+            // cs << "single(sum([weight(g(),2),weight(hcg,3)])),";
+            // cs << "single(sum([weight(g(),2),weight(hcg,3)]),pref_only=true),";
+            // cs << "single(sum([weight(g(),2),weight(hcea,3)])),";
+            // cs << "single(sum([weight(g(),2),weight(hcea,3)]),pref_only=true),";
+            // cs << "single(sum([weight(g(),2),weight(hgc,3)])),";
+            // cs << "single(sum([weight(g(),2),weight(hgc,3)]),pref_only=true)],";
+            // cs << "boost=200),";
+            // cs << "preferred=[hcea,hgc],reopen_closed=false,cost_type=one),";
+            // cs << "lazy(alt([single(sum([g(),weight(hff,5)])),";
+            // cs << "single(sum([g(),weight(hff,5)]),pref_only=true),";
+            // cs << "single(sum([g(),weight(hcg,5)])),";
+            // cs << "single(sum([g(),weight(hcg,5)]),pref_only=true),";
+            // cs << "single(sum([g(),weight(hcea,5)])),";
+            // cs << "single(sum([g(),weight(hcea,5)]),pref_only=true),";
+            // cs << "single(sum([g(),weight(hgc,5)])),";
+            // cs << "single(sum([g(),weight(hgc,5)]),pref_only=true)],";
+            // cs << "boost=5000),";
+            // cs << "preferred=[hcea,hgc],reopen_closed=true,cost_type=normal),";
+            // cs << "lazy(alt([single(sum([g(),weight(hff,2)])),";
+            // cs << "single(sum([g(),weight(hff,2)]),pref_only=true),";
+            // cs << "single(sum([g(),weight(hcg,2)])),";
+            // cs << "single(sum([g(),weight(hcg,2)]),pref_only=true),";
+            // cs << "single(sum([g(),weight(hcea,2)])),";
+            // cs << "single(sum([g(),weight(hcea,2)]),pref_only=true),";
+            // cs << "single(sum([g(),weight(hgc,2)])),";
+            // cs << "single(sum([g(),weight(hgc,2)]),pref_only=true)],";
+            // cs << "boost=1000),";
+            // cs << "preferred=[hcea,hgc],reopen_closed=true,cost_type=one)";
+            // cs << "],repeat_last=true,continue_on_fail=true)";
+            // cs << "\"";
 
             // Tell command what SAS file to use
             cs << " < " << sas_file;

@@ -35,13 +35,15 @@ int main(int argc, char **argv)
         {
             auto loadedProblem = pddlboat::toProblem(problem, loadedDomain);
 
-            size_t planning_horizon = 1;
+            // size_t planning_horizon = 1;
+            // pddlboat::Z3Planner fd(loadedProblem, planning_horizon);
 
-            pddlboat::Z3Planner fd(loadedProblem, planning_horizon);
+            pddlboat::FastDownwardPlanner fd(loadedProblem);
+
             pddlboat::Plan plan(loadedProblem);
             if (fd.solve(plan))
             {
-
+                std::cout << plan.toString();
             }
         }
     }
