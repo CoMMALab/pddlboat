@@ -8,9 +8,8 @@
 #include <pddlboat/solver/domain.h>
 #include <pddlboat/solver/planner.h>
 
-
-namespace pddlboat {
-
+namespace pddlboat
+{
     class Z3Planner : public Planner
     {
         // We store a set of grounded actions and predicates (without the timestep)
@@ -49,6 +48,7 @@ namespace pddlboat {
             {
                 case z3::sat:
                     std::cout << "planning instance is solved\n";
+                    std::cout << solver_->get_model() << std::endl;
                     return true;
                 case z3::unsat:
                     std::cout << "planning instance is not solved\n";
@@ -62,7 +62,7 @@ namespace pddlboat {
     private:
         z3::expr makeBool(const std::string &string)  // Should be renamed. Only makes new if doesn't exist.
         {
-            std::cout << "Creating bool: " << string << std::endl;
+            // std::cout << "Creating bool: " << string << std::endl;
             return ctx_->bool_const(string.c_str());
         }
 
@@ -135,30 +135,91 @@ namespace pddlboat {
                    "TIME:" + std::to_string(step);
         }
 
-        //TODO make a version that works for nary predicates
-        std::vector<std::vector<std::string>> getNAryObjectList(const PredicatePtr)
+        // TODO: How should this differ from the function for non-bound predicates
+        std::string createGroundedPredicateString(const BoundPredicatePtr predicate, const Time step)
         {
-          std::vector<std::vector<std::string>> list = {};
-            for (auto obj : problem_->objects)
+            std::string str;
+            for (auto const &val : predicate->bindings)
             {
-                std::vector<std::string> permutation;
-                permutation.emplace_back(obj->name);
-                list.emplace_back(permutation);
+                str += val.name;
             }
-            return list;
+            return "PRED:" + std::string(predicate->getPredicateName()) + "ARGS:" + str +
+                   "TIME:" + std::to_string(step);
         }
 
-        //TODO version that works for nary actions
-        std::vector<std::vector<std::string>> getNAryArgList(const ActionPtr)
+        /* //TODO version that does type checking */
+        /* std::vector<std::vector<std::string>> getNAryObjectList(const VariableList variables, */
+        /*                                                      size_t start_mod = 0) */
+        /* { */
+        /*     std::vector<std::vector<std::string>> list = {}; */
+
+        /*     size_t num_args = variables.size() - start_mod; */
+        /*     if (num_args == 0) */
+        /*     { */
+        /*         return list; */
+        /*     } */
+        /*     else */
+        /*     { */
+        /*         std::vector<std::vector<std::string>> list_of_list_of_names = getNAryArgList(variables,
+         * start_mod + 1); */
+        /*         for (auto l : list_of_list_of_names) */
+        /*         { */
+        /*             for (auto obj : problem_->objects) */
+        /*             { */
+        /*                 std::vector<std::string> new_list_of_names(l); */
+        /*                 new_list_of_names.emplace_back(obj->name); */
+        /*                 list.emplace_back(new_list_of_names); */
+        /*             } */
+        /*         } */
+        /*         return list; */
+        /*     } */
+        /* } */
+
+        void printVectorOfStrings(std::vector<std::string> vec)
         {
-          std::vector<std::vector<std::string>> list = {};
-            for (auto obj : problem_->objects)
+            std::string str = "";
+            for (auto s : vec)
             {
-                std::vector<std::string> permutation;
-                permutation.emplace_back(obj->name);
-                list.emplace_back(permutation);
+                str += s;
             }
-            return list;
+            std::cout << str << std::endl;
+        }
+
+        // TODO version that does type checking
+        std::vector<std::vector<std::string>> getNAryArgList(const VariableList parameters,
+                                                             size_t start_mod = 0)
+        {
+            std::vector<std::vector<std::string>> list = {};
+            std::cout << "Parameter size: " << parameters.size() - start_mod << std::endl;
+
+            size_t num_args = parameters.size() - start_mod;
+            if (num_args == 0)
+            {
+                return list = {{""}};
+            }
+            else
+            {
+                std::vector<std::vector<std::string>> list_of_list_of_names =
+                    getNAryArgList(parameters, start_mod + 1);
+                std::cout << list_of_list_of_names.size() << std::endl;
+
+                for (auto l : list_of_list_of_names)
+                {
+                    std::cout << "l = " << std::endl;
+                    printVectorOfStrings(l);
+                    for (auto obj : problem_->objects)
+                    {
+                        std::vector<std::string> new_list_of_names(l);
+                        new_list_of_names.emplace_back(obj->name);
+
+                        std::cout << "list of names: " << std::endl;
+                        printVectorOfStrings(new_list_of_names);
+
+                        list.emplace_back(new_list_of_names);
+                    }
+                }
+                return list;
+            }
         }
 
         /**
@@ -171,7 +232,7 @@ namespace pddlboat {
             for (const auto name_actionptr : problem_->domain->actions)
             {
                 std::vector<std::vector<std::string>> nary_arg_assignment_list =
-                    getNAryArgList(name_actionptr.second);
+                    getNAryArgList(name_actionptr.second->parameters);
                 for (const auto args_to_action : nary_arg_assignment_list)
                 {
                     if (effectContainsProposition(name_actionptr.second, args_to_action, proposition))
@@ -249,6 +310,59 @@ namespace pddlboat {
             }
         }
 
+        z3::expr getGoalAsZ3Expr(const ExpressionPtr &expr, const Time step)
+        {
+            switch (expr->type())
+            {
+                case Expression::Type::PREDICATE:
+                {
+                    const auto &predicate_expr = std::static_pointer_cast<BoundPredicate>(expr);
+                    return makeBool(createGroundedPredicateString(predicate_expr, step));
+                }
+                case Expression::Type::AND:
+                {
+                    const auto &and_expr = std::static_pointer_cast<And>(expr);
+                    z3::expr car = getGoalAsZ3Expr(makeCAR(and_expr), step);
+                    auto cdr_expr = makeCDR(and_expr);
+                    if (cdr_expr)
+                    {
+                        z3::expr cdr = getGoalAsZ3Expr(cdr_expr, step);
+                        z3::expr clause = car and cdr;
+                        return clause;
+                    }
+                    else
+                        return car;
+                }
+                case Expression::Type::OR:
+                {
+                    const auto &or_expr = std::static_pointer_cast<Or>(expr);
+                    z3::expr car = getGoalAsZ3Expr(or_expr->getTerms().back(), step);
+                    auto cdr_expr = makeCDR(or_expr);
+                    if (or_expr)
+                    {
+                        z3::expr cdr = getGoalAsZ3Expr(cdr_expr, step);
+                        z3::expr clause = car or cdr;
+                        return clause;
+                    }
+                    else
+                        return car;
+                }
+                case Expression::Type::NOT:
+                {
+                    const auto &not_expr = std::static_pointer_cast<Not>(expr);
+                    z3::expr exp = getGoalAsZ3Expr(not_expr->getTerm(), step);
+                    return not exp;
+                }
+                case Expression::Type::EXPRESSION:
+                    std::cout << "Error, we do not currently support Expression types here." << std::endl;
+                    [[fallthrough]];  // sweet c++17 feature
+                default:
+                    std::cout << "We had an error in parsing the pddlboat expression to an expression for Z3."
+                              << std::endl;
+                    throw std::runtime_error("whoops!");
+            }
+        }
+
         // We need to ground predicates for each timestep and each applicable set of object:
         void groundPredicates()
         {
@@ -257,7 +371,7 @@ namespace pddlboat {
                 for (const auto name_predptr : problem_->domain->predicates)
                 {
                     std::vector<std::vector<std::string>> nary_object_list =
-                        getNAryObjectList(name_predptr.second);
+                        getNAryArgList(name_predptr.second->variables);
                     for (const auto args_to_pred : nary_object_list)
                     {
                         // create a predicate:
@@ -283,7 +397,7 @@ namespace pddlboat {
                 for (const auto name_actionptr : problem_->domain->actions)
                 {
                     std::vector<std::vector<std::string>> nary_arg_assignment_list =
-                        getNAryArgList(name_actionptr.second);
+                        getNAryArgList(name_actionptr.second->parameters);
                     for (const auto args_to_action : nary_arg_assignment_list)
                     {
                         // create an action:
@@ -322,9 +436,18 @@ namespace pddlboat {
                 // add clauses for preconditions and effects of actions
                 for (const auto name_actionptr : problem_->domain->actions)
                 {
-                    std::vector<std::vector<std::string>> nary_arg_assignment_list = getNAryArgList(name_actionptr.second);
+                    std::cout << "About to call nary arg list function: " << std::endl;
+                    std::vector<std::vector<std::string>> nary_arg_assignment_list =
+                        getNAryArgList(name_actionptr.second->parameters);
                     for (const auto args_to_action : nary_arg_assignment_list)
                     {
+                        std::string my_str = "";
+                        for (auto s : args_to_action)
+                        {
+                            my_str += s;
+                        }
+                        std::cout << "Arg assignment: " << my_str << std::endl;
+
                         // create an action:
                         // actions have variable names and assignments
                         // action name, arg0, arg1, ..., timestep
@@ -386,8 +509,10 @@ namespace pddlboat {
                     }
                 }
 
+                //                problem_->goal->toPDDL(std::cout);
+
                 // Add the goal
-                //                solver_->add(exprAtTime(problem_->goal, {""}, horizon_));
+                solver_->add(getGoalAsZ3Expr(problem_->goal, horizon_));
 
                 // Add the start state
                 /* for (const auto &assgn : problem_->start->assignments) */
@@ -396,10 +521,32 @@ namespace pddlboat {
                 /*         problem_->domain->predicates[assgn.first.first], assgn.first.second, 0)); */
                 /*     solver_->add(z3::expr((assgn.second) ? p : not p)); */
                 /* } */
+
+                /* // set everything else to false */
+                for (const auto name_predptr : problem_->domain->predicates)
+                {
+                    std::vector<std::vector<std::string>> nary_arg_assignment_list =
+                        getNAryArgList(name_predptr.second->variables);
+
+                    auto pred = *name_predptr.second;
+                    for (const auto arg_list : nary_arg_assignment_list)
+                    {
+                        if (problem_->start->isTrue(pred.name, arg_list))
+                        {
+                            z3::expr p = makeBool(createGroundedPredicateString(name_predptr.second, arg_list, 0));
+                            solver_->add(z3::expr(p));
+                        }
+                        else
+                        {
+                            z3::expr p = makeBool(createGroundedPredicateString(name_predptr.second, arg_list, 0));
+                            solver_->add(z3::expr(not p));
+                        }
+                    }
+                }
             }
         }
     };
 
-} // namespace pddlboat
+}  // namespace pddlboat
 
-#endif //include guard
+#endif  // include guard
