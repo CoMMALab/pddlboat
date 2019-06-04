@@ -1,121 +1,50 @@
 #include <iostream>
+#include <boost/timer/timer.hpp>
+#include <pddlboat/parser/parser.h>
+#include <pddlboat/parser/translator.h>
 #include <pddlboat/solver/expressions.h>
 #include <pddlboat/solver/planner.h>
-#include <pddlboat/solver/expressions.h>
-#include <pddlboat/solver/domain.h>
-#include <z3++.h>
+#include <pddlboat/solver/z3planner.h>
 
 namespace pd = pddlboat;
 
 int main(int argc, char **argv)
 {
-    size_t planning_horizon = 1;
 
-    std::cout << "Hello world" << std::endl;
+    boost::timer::auto_cpu_timer t;
 
-    auto domain = std::make_shared<pd::Domain>("block-world");
-    domain->addType("block");
+    if (argc < 3)
+    {
+        std::cerr << "Must provide file names!" << std::endl;
+        return 1;
+    }
 
-    // Predicates
-    auto p_on = pd::makePred("on", {{"x", "block"}, {"y", "block"}});
-    domain->addPredicate(p_on);
+    const std::string domainfile(argv[1]);
+    pddlboat::ast::Domain domain;
+    bool r = pddlboat::parseFile(domainfile, domain);
+    std::cout << domainfile << ": " << (r ? "OK" : "FAILED") << std::endl;
+    if (r)
+    {
+        auto loadedDomain = pddlboat::toDomain(domain);
 
-    auto p_ontable = pd::makePred("ontable", {{"x", "block"}});
-    domain->addPredicate(p_ontable);
+        const std::string problemfile(argv[2]);
+        pddlboat::ast::Problem problem;
+        bool r = pddlboat::parseFile(problemfile, problem);
+        std::cout << problemfile << ": " << (r ? "OK" : "FAILED") << std::endl;
+        if (r)
+        {
+            auto loadedProblem = pddlboat::toProblem(problem, loadedDomain);
 
-    auto p_clear = pd::makePred("clear", {{"x", "block"}});
-    domain->addPredicate(p_clear);
+            size_t planning_horizon = 1;
 
-    auto p_empty = pd::makePred("handempty");
-    domain->addPredicate(p_empty);
+            pddlboat::Z3Planner fd(loadedProblem, planning_horizon);
+            pddlboat::Plan plan(loadedProblem);
+            if (fd.solve(plan))
+            {
 
-    auto p_holding = pd::makePred("holding", {{"x", "block"}});
-    domain->addPredicate(p_holding);
-
-    auto a_pickup =  //
-        pd::makeAction("pick-up",
-                       // Parameters
-                       {{"x", "block"}},  //
-                       // Precondition
-                       pd::makeAnd({p_clear->bind({"?x"}), p_ontable->bind({"?x"}), p_empty->bind()}),
-                       // Effect
-                       pd::makeAnd({pd::makeNot(p_clear->bind({"?x"})),    //
-                                    pd::makeNot(p_ontable->bind({"?x"})),  //
-                                    pd::makeNot(p_empty->bind()),          //
-                                    p_holding->bind({"?x"})}));
-    domain->addAction(a_pickup);
-
-    auto a_putdown =  //
-        pd::makeAction("put-down",
-                       // Parameters
-                       {{"x", "block"}},  //
-                       // Precondition
-                       pd::makeAnd({p_holding->bind({"?x"})}),
-                       // Effect
-                       pd::makeAnd({p_clear->bind({"?x"}),    //
-                                    p_ontable->bind({"?x"}),  //
-                                    p_empty->bind(),          //
-                                    pd::makeNot(p_holding->bind({"?x"}))}));
-    domain->addAction(a_putdown);
-
-    auto a_stack =  //
-        pd::makeAction("stack",
-                       // Parameters
-                       {{"x", "block"}, {"y", "block"}},  //
-                       // Precondition
-                       pd::makeAnd({p_holding->bind({"?x"}), p_clear->bind({"?y"})}),
-                       // Effect
-                       pd::makeAnd({pd::makeNot(p_holding->bind({"?x"})),  //
-                                    pd::makeNot(p_clear->bind({"?y"})),    //
-                                    p_clear->bind({"?x"}),                 //
-                                    p_empty->bind(),                       //
-                                    p_on->bind({"?x", "?y"})}));
-    domain->addAction(a_stack);
-
-    auto a_unstack =  //
-        pd::makeAction("unstack",
-                       // Parameters
-                       {{"x", "block"}, {"y", "block"}},  //
-                       // Precondition
-                       pd::makeAnd({p_on->bind({"?x", "?y"}), p_clear->bind({"?x"}), p_empty->bind()}),
-                       // Effect
-                       pd::makeAnd({p_holding->bind({"?x"}),             //
-                                    p_clear->bind({"?y"}),               //
-                                    pd::makeNot(p_clear->bind({"?x"})),  //
-                                    pd::makeNot(p_empty->bind()),        //
-                                    pd::makeNot(p_on->bind({"?x", "?y"}))}));
-    domain->addAction(a_unstack);
-    //domain->toPDDL();
-
-    std::cout << std::endl;
-
-    auto problem = std::make_shared<pd::Problem>("simple", domain);
-    problem->addObject("a", "block");
-    problem->addObject("b", "block");
-    problem->addObject("c", "block");
-    problem->addObject("d", "block");
-
-    problem->start->assign1("clear", "a");
-    problem->start->assign1("clear", "b");
-    problem->start->assign1("clear", "c");
-    problem->start->assign1("clear", "d");
-    problem->start->assign1("ontable", "a");
-    problem->start->assign1("ontable", "b");
-    problem->start->assign1("ontable", "c");
-    problem->start->assign1("ontable", "d");
-    problem->start->assign0("handempty");
-
-    problem->goal = pd::makeAnd({
-        p_on->bind({"d", "c"}, problem),
-        p_on->bind({"c", "b"}, problem),
-        p_on->bind({"b", "a"}, problem),
-    });
-
-    //problem->toPDDL();
-
-    pddlboat::Z3Planner solver(problem, planning_horizon);
-    solver.solve();
-
+            }
+        }
+    }
 
     return 0;
 }

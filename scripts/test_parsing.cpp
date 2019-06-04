@@ -1,0 +1,41 @@
+/** Author: Zachary Kingston */
+
+#include <iostream>
+
+#include <boost/timer/timer.hpp>
+#include <pddlboat/parser/parser.h>
+#include <pddlboat/parser/translator.h>
+#include <pddlboat/solver/domain.h>
+
+int main(int argc, char **argv)
+{
+    boost::timer::auto_cpu_timer t;
+
+    if (argc < 3)
+    {
+        std::cerr << "Must provide file names!" << std::endl;
+        return 1;
+    }
+
+    const std::string domainfile(argv[1]);
+    pddlboat::ast::Domain domain;
+    bool r = pddlboat::parseFile(domainfile, domain);
+    std::cout << domainfile << ": " << (r ? "OK" : "FAILED") << std::endl;
+    if (r)
+    {
+        auto loadedDomain = pddlboat::toDomain(domain);
+        loadedDomain->toPDDL();
+
+        const std::string problemfile(argv[2]);
+        pddlboat::ast::Problem problem;
+        bool r = pddlboat::parseFile(problemfile, problem);
+        std::cout << problemfile << ": " << (r ? "OK" : "FAILED") << std::endl;
+        if (r)
+        {
+            auto loadedProblem = pddlboat::toProblem(problem, loadedDomain);
+            loadedProblem->toPDDL();
+        }
+    }
+
+    return 0;
+}

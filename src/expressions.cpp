@@ -36,7 +36,7 @@ bool Expression::containsPredicate(const std::string &predicate) const
 
 VariadicExpression::VariadicExpression() = default;
 
-VariadicExpression::VariadicExpression(const std::initializer_list<const ExpressionPtr> &terms)
+VariadicExpression::VariadicExpression(const std::vector<ExpressionPtr> &terms)
 {
     for (const auto &term : terms)
         addTerm(term);
@@ -85,7 +85,7 @@ bool VariadicExpression::containsPredicate(const std::string &prop) const
 /// And
 ///
 
-And::And(const std::initializer_list<const ExpressionPtr> &terms) : VariadicExpression(terms)
+And::And(const std::vector<ExpressionPtr> &terms) : VariadicExpression(terms)
 {
 }
 
@@ -117,16 +117,16 @@ void And::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) con
     out << SPACE << ")";
 }
 
-AndPtr pddlboat::makeAnd(const std::initializer_list<const ExpressionPtr> &terms)
+AndPtr pddlboat::makeAnd(const std::vector<ExpressionPtr> &terms)
 {
-    return std::make_shared<And>(std::forward<const std::initializer_list<const ExpressionPtr>>(terms));
+    return std::make_shared<And>(std::forward<const std::vector<ExpressionPtr>>(terms));
 }
 
 ///
 /// Or
 ///
 
-Or::Or(const std::initializer_list<const ExpressionPtr> &terms) : VariadicExpression(terms)
+Or::Or(const std::vector<ExpressionPtr> &terms) : VariadicExpression(terms)
 {
 }
 
@@ -159,9 +159,9 @@ void Or::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) cons
     out << SPACE << ")";
 }
 
-OrPtr pddlboat::makeOr(const std::initializer_list<const ExpressionPtr> &terms)
+OrPtr pddlboat::makeOr(const std::vector<ExpressionPtr> &terms)
 {
-    return std::make_shared<Or>(std::forward<const std::initializer_list<const ExpressionPtr>>(terms));
+    return std::make_shared<Or>(std::forward<const std::vector<ExpressionPtr>>(terms));
 }
 
 ///

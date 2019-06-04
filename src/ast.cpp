@@ -121,7 +121,14 @@ std::string Expression::toString(bool literal) const
 
     ss << ((literal && isLiteral) ? "?" : "") << op.toString();
 
-    if (!terms.empty())
+    if (not parameters.empty())
+    {
+        ss << " - ";
+        for (auto it = parameters.begin(), end = parameters.end(); it != end;)
+            ss << it->toString() << ((++it != end) ? ", " : "");
+    }
+
+    if (not terms.empty())
     {
         ss << " ";
         for (auto it = terms.begin(), end = terms.end(); it != end;)
@@ -139,7 +146,7 @@ std::string Action::toString() const
     std::stringstream ss;
     ss << "(";
     ss << name;
-    if (!parameters.empty())
+    if (not parameters.empty())
     {
         ss << " - ";
         for (auto it = parameters.begin(), end = parameters.end(); it != end;)
@@ -217,5 +224,50 @@ std::string Domain::toString() const
     // End
     ss << ")";
 
+    return ss.str();
+}
+
+std::string Problem::toString() const
+{
+    std::stringstream ss;
+    ss << "problem(" << std::endl;
+    ss << "          name: " << name << std::endl;
+    ss << "        domain: " << domain << std::endl;
+
+    if (!objects.empty())
+    {
+        ss << "     objects: (";
+        for (auto it = objects.begin(), end = objects.end(); it != end;)
+            ss << it->toString() << ((++it != end) ? ", " : "");
+        ss << ")" << std::endl;
+    }
+
+    // Initial
+    if (!initial.empty())
+    {
+        ss << "    initial: (";
+        for (auto it = initial.begin(), end = initial.end(); it != end;)
+            ss << it->toString() << ((++it != end) ? ", " : "");
+        ss << ")" << std::endl;
+    }
+
+    ss << "           goal: " << goal.toString() << std::endl;
+    ss << ")";
+
+    return ss.str();
+}
+
+std::string Plan::toString() const
+{
+    std::stringstream ss;
+    ss << "plan(" << std::endl;
+
+    if (!actions.empty())
+    {
+        ss << "    actions: (";
+        for (auto it = actions.begin(), end = actions.end(); it != end;)
+            ss << it->toString() << ((++it != end) ? ", " : "");
+        ss << ")" << std::endl;
+    }
     return ss.str();
 }

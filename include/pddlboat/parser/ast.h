@@ -119,11 +119,18 @@ namespace pddlboat
             }
 
             Expression(const ExpressionOperator &op, const std::vector<Expression> &terms)
-                : op(op), terms(terms)
+              : op(op), terms(terms)
+            {
+            }
+
+            Expression(const ExpressionOperator &op, const std::vector<TypedList> &parameters,
+                       const std::vector<Expression> &terms)
+              : op(op), parameters(parameters), terms(terms)
             {
             }
 
             ExpressionOperator op;
+            std::vector<TypedList> parameters{};
             std::vector<Expression> terms{};
 
             std::string toString(bool literal = false) const;
@@ -154,6 +161,34 @@ namespace pddlboat
             std::vector<AtomicFormula> predicates;
             std::vector<AtomicFormulaList> functions;
             std::vector<Action> actions;
+
+            std::string toString() const;
+        };
+
+        ///
+        /// Problem
+        ///
+
+        class Problem : x3::position_tagged
+        {
+        public:
+            std::string name;
+            std::string domain;
+            std::vector<TypedList> objects{};
+            std::vector<AtomicFormula> initial{};
+            Expression goal{};
+
+            std::string toString() const;
+        };
+
+        ///
+        /// Plan
+        ///
+
+        class Plan : x3::position_tagged
+        {
+        public:
+            std::vector<AtomicFormula> actions{};
 
             std::string toString() const;
         };

@@ -2,8 +2,12 @@
 
 #include <pddlboat/utility.h>
 
-using namespace pddlboat;
+#include <boost/lexical_cast.hpp>
+#include <boost/uuid/uuid.hpp>
+#include <boost/uuid/uuid_generators.hpp>
+#include <boost/uuid/uuid_io.hpp>
 
+using namespace pddlboat;
 
 std::string log::formatRecurse(boost::format &f)
 {
@@ -99,7 +103,7 @@ std::string io::loadFileToString(const std::string &path)
     return std::string(bytes.data(), size);
 }
 
-std::string io::runCommand(const std::string &cmd)
+std::optional<std::string> io::runCommand(const std::string &cmd)
 {
     std::array<char, 128> buffer;
     std::string result;
@@ -107,7 +111,7 @@ std::string io::runCommand(const std::string &cmd)
     if (!pipe)
     {
         std::cerr << log::format("Failed to run command `%1%`!", cmd) << std::endl;
-        return "";
+        return std::nullopt;
     }
 
     while (!feof(pipe.get()))
@@ -116,7 +120,7 @@ std::string io::runCommand(const std::string &cmd)
             result += buffer.data();
     }
 
-    return result;
+    return std::optional{result};
 }
 
 void io::createFile(std::ofstream &out, const std::string &file)
@@ -131,6 +135,15 @@ void io::createFile(std::ofstream &out, const std::string &file)
         boost::filesystem::create_directories(parent);
 
     out.open(path.string(), std::ofstream::out | std::ofstream::trunc);
+}
+
+void io::deleteFile(const std::string &file)
+{
+    boost::filesystem::path path(file);
+    path = expandHome(path);
+    path = expandSymlinks(path);
+
+    boost::filesystem::remove(path);
 }
 
 std::pair<bool, std::vector<std::string>> io::listDirectory(const std::string &directory)
@@ -150,4 +163,12 @@ std::pair<bool, std::vector<std::string>> io::listDirectory(const std::string &d
         contents.emplace_back(expandPath(it->path()).string());
 
     return std::make_pair(true, contents);
+}
+
+std::string io::generateUUID()
+{
+    boost::uuids::random_generator gen;
+    boost::uuids::uuid u = gen();
+
+    return boost::lexical_cast<std::string>(u);
 }

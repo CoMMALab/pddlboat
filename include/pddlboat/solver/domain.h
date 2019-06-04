@@ -83,9 +83,11 @@ namespace pddlboat
     class Assignment
     {
     public:
+        const Problem *problem;
         std::map<std::string, ObjectPtr> varToObj{};
 
         Assignment(const Problem *problem);
+        Assignment(const Assignment &other);
 
         unsigned int arity() const;
 
@@ -94,8 +96,6 @@ namespace pddlboat
 
         std::set<std::string> getVariables() const;
 
-    private:
-        const Problem *problem;
     };
 
     ///
@@ -145,6 +145,10 @@ namespace pddlboat
         bool containsPredicate(const std::string &predicate) const override;
 
         void toPDDL(std::ostream &out, unsigned int indent = 2, unsigned int level = 0) const override;
+
+        std::string getPredicateName() {
+          return predicate->name;
+        }
 
     private:
         const Predicate *predicate;
@@ -249,14 +253,16 @@ namespace pddlboat
     {
     public:
         const std::string name;
-        const VariableSet parameters;
+        const VariableList parameters;
         const ExpressionPtr precondition;
         const ExpressionPtr effect;
 
-        Action(const std::string &name, const VariableSet &parameters, const ExpressionPtr &precondition,
+        Action(const std::string &name, const VariableList &parameters, const ExpressionPtr &precondition,
                const ExpressionPtr &effect);
 
         void toPDDL(std::ostream &out = std::cout, unsigned int indent = 2) const;
+
+        unsigned int arity() const;
     };
 
     ActionPtr makeAction(const std::string &name, const VariableList &parameters,
