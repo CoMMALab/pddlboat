@@ -91,7 +91,7 @@ const Variable &VariableSet::getVariable(const std::string &name) const
     throw std::invalid_argument(log::format("Variable %1% doesn't exist!", name));
 }
 
-void VariableSet::toPDDL(std::ostream &out) const
+std::ostream &VariableSet::toPDDL(std::ostream &out) const
 {
     bool first = true;
     out << "(";
@@ -107,6 +107,8 @@ void VariableSet::toPDDL(std::ostream &out) const
         first = false;
     }
     out << ")";
+
+    return out;
 }
 
 bool VariableSet::operator==(const VariableSet &other) const
@@ -237,7 +239,7 @@ unsigned int Predicate::arity() const
     return variables.size();
 }
 
-void Predicate::toPDDL(std::ostream &out) const
+std::ostream &Predicate::toPDDL(std::ostream &out) const
 {
     out << "(";
     out << name;
@@ -250,6 +252,7 @@ void Predicate::toPDDL(std::ostream &out) const
     }
 
     out << ")";
+    return out;
 }
 
 PredicatePtr pddlboat::makePred(const std::string &name, const VariableList &variables)
@@ -266,7 +269,6 @@ BoundPredicate::BoundPredicate(const Predicate *predicate, const std::vector<Val
   : bindings(bindings), predicate(predicate)
 {
 }
-
 
 std::vector<std::string> BoundPredicate::getObjects(const Assignment &vars) const
 {
@@ -318,7 +320,7 @@ bool BoundPredicate::containsPredicate(const std::string &pred) const
     return predicate->name == pred;
 }
 
-void BoundPredicate::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
+std::ostream &BoundPredicate::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
 {
     const std::string SPACE = std::string(indent, ' ');
     for (unsigned int i = 0; i < level; ++i)
@@ -334,6 +336,7 @@ void BoundPredicate::toPDDL(std::ostream &out, unsigned int indent, unsigned int
     }
 
     out << ")";
+    return out;
 }
 
 ///
@@ -437,7 +440,7 @@ const ActionPtr Domain::getAction(const std::string &name) const
     return it->second;
 }
 
-void Domain::toPDDL(std::ostream &out) const
+std::ostream &Domain::toPDDL(std::ostream &out) const
 {
     const unsigned int INDENT = 4;
     const std::string SPACE = std::string(INDENT, ' ');
@@ -484,19 +487,19 @@ void Domain::toPDDL(std::ostream &out) const
     for (const auto &key : predicates)
     {
         out << SPACE << SPACE;
-        key.second->toPDDL(out);
-        out << std::endl;
+        key.second->toPDDL(out) << std::endl;
     }
     out << SPACE << ")" << std::endl;
 
     for (const auto &key : actions)
     {
         // out << SPACE << SPACE;
-        key.second->toPDDL(out, INDENT);
-        out << std::endl;
+        key.second->toPDDL(out, INDENT) << std::endl;
     }
 
     out << ")";
+
+    return out;
 }
 
 ///
@@ -578,7 +581,7 @@ StatePtr Problem::makeState() const
     return std::make_shared<State>(this);
 }
 
-void Problem::toPDDL(std::ostream &out) const
+std::ostream &Problem::toPDDL(std::ostream &out) const
 {
     const unsigned int INDENT = 4;
     const std::string SPACE = std::string(INDENT, ' ');
@@ -600,18 +603,18 @@ void Problem::toPDDL(std::ostream &out) const
     }
 
     out << SPACE << "(:init " << std::endl;
-    start->toPDDL(out, INDENT * 2);
-    out << SPACE << ")" << std::endl;
+    start->toPDDL(out, INDENT * 2) << SPACE << ")" << std::endl;
 
     if (goal)
     {
         out << SPACE << "(:goal " << std::endl;
-        goal->toPDDL(out, INDENT, 2);
-        out << std::endl;
+        goal->toPDDL(out, INDENT, 2) << std::endl;
         out << SPACE << ")" << std::endl;
     }
 
     out << ")";
+
+    return out;
 }
 
 ///
@@ -622,8 +625,7 @@ State::State(const Problem *problem) : problem_(problem)
 {
 }
 
-
-const Problem* State::getProblem() const
+const Problem *State::getProblem() const
 {
     return problem_;
 }
@@ -687,7 +689,7 @@ void State::assignN(const std::string &predicate, const std::vector<std::string>
         it->second = value;
 }
 
-void State::toPDDL(std::ostream &out, unsigned int indent) const
+std::ostream &State::toPDDL(std::ostream &out, unsigned int indent) const
 {
     const std::string SPACE = std::string(indent, ' ');
     for (const auto &assignment : assignments)
@@ -700,6 +702,8 @@ void State::toPDDL(std::ostream &out, unsigned int indent) const
             out << ")" << std::endl;
         }
     }
+
+    return out;
 }
 
 ///
@@ -723,7 +727,7 @@ Action::Action(const std::string &name, const VariableList &parameters, const Ex
             log::format("Action %1%'s parameter set does not match expressions!", name));
 }
 
-void Action::toPDDL(std::ostream &out, unsigned int indent) const
+std::ostream &Action::toPDDL(std::ostream &out, unsigned int indent) const
 {
     const std::string SPACE = std::string(indent, ' ');
 
@@ -747,18 +751,18 @@ void Action::toPDDL(std::ostream &out, unsigned int indent) const
     if (precondition)
     {
         out << SPACE << SPACE << ":precondition" << std::endl;
-        precondition->toPDDL(out, indent, 3);
-        out << std::endl;
+        precondition->toPDDL(out, indent, 3) << std::endl;
     }
 
     if (effect)
     {
         out << SPACE << SPACE << ":effect" << std::endl;
-        effect->toPDDL(out, indent, 3);
-        out << std::endl;
+        effect->toPDDL(out, indent, 3) << std::endl;
     }
 
     out << SPACE << ")";
+
+    return out;
 }
 
 unsigned int Action::arity() const

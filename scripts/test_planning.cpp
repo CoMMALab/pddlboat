@@ -8,7 +8,7 @@
 #include <pddlboat/parser/translator.h>
 #include <pddlboat/solver/expressions.h>
 #include <pddlboat/solver/planner.h>
-#include <pddlboat/solver/fastdownwardplanner.h>
+#include <pddlboat/solver/fdplanner.h>
 #include <pddlboat/solver/z3planner.h>
 
 namespace po = boost::program_options;
@@ -33,8 +33,27 @@ std::istream &operator>>(std::istream &in, Planner &unit)
     return in;
 }
 
+namespace pddlboat
+{
+    std::istream &operator>>(std::istream &in, FastDownwardPlanner::Search &unit)
+    {
+        std::string token;
+        in >> token;
+        if (token == "astar")
+            unit = pd::FastDownwardPlanner::Search::ASTAR;
+        else if (token == "greedy")
+            unit = pd::FastDownwardPlanner::Search::LAZYGREEDY;
+        else if (token == "fd")
+            unit = pd::FastDownwardPlanner::Search::FDAT;
+        else
+            in.setstate(std::ios_base::failbit);
+        return in;
+    }
+}  // namespace pddlboat
+
 int main(int argc, char **argv)
 {
+    // Program Options
     std::string domainfile, problemfile;
     bool domainout, problemout, planout, stepsout, timeout;
     Planner plannertype;
@@ -65,8 +84,17 @@ int main(int argc, char **argv)
         ("horizon,z", po::value<unsigned int>(&horizon)->default_value(1),  //
          "Maximum planning horizon to use")                                 //
         ;
-
     desc.add(z3opt);
+
+    pd::FastDownwardPlanner::Search search;
+    po::options_description fdopt("Fast Downward Planner Options");
+    fdopt.add_options()  //
+        ("search,y",
+         po::value<pd::FastDownwardPlanner::Search>(&search)->default_value(
+             pd::FastDownwardPlanner::Search::LAZYGREEDY),              //
+         "Search algorithm for FD. Can be `astar`, `greedy`, or `fd`")  //
+        ;
+    desc.add(fdopt);
 
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -137,7 +165,7 @@ int main(int argc, char **argv)
             planner = std::make_shared<pd::Z3Planner>(problem, horizon);
             break;
         case FD:
-            planner = std::make_shared<pd::FastDownwardPlanner>(problem);
+            planner = std::make_shared<pd::FastDownwardPlanner>(problem, search);
             break;
         default:
             std::cerr << "Unknown planner type. Exiting." << std::endl;
@@ -158,7 +186,7 @@ int main(int argc, char **argv)
             boost::chrono::duration<double> user = boost::chrono::nanoseconds(t.elapsed().user);
             boost::chrono::duration<double> syst = boost::chrono::nanoseconds(t.elapsed().system);
 
-            std::cout << pd::log::format("Wall: %1%s, User: %2%s, System: %3%s",       //
+            std::cout << pd::log::format("Wall: %1%s, User: %2%s, System: %3%s",    //
                                          wall.count(), user.count(), syst.count())  //
                       << std::endl;
         }
@@ -169,40 +197,20 @@ int main(int argc, char **argv)
         std::cerr << "Planning succeeded!" << std::endl;
 
         if (planout)
-            std::cout << plan.toString() << std::endl;
+            std::cout << plan << std::endl;
 
         if (stepsout)
         {
-            // Copy start state
-            auto state = problem->makeState();
-            state->fold(problem->start);
-
-            // Store previous state in sequence
-            auto prevState = problem->makeState();
-            prevState->fold(state);
-
             unsigned int i = 0;
             std::cout << "Step " << i++ << std::endl;
-            state->toPDDL(std::cout);
+            problem->start->toPDDL(std::cout);
             std::cout << std::endl;
 
-            for (const auto &step : plan.plan)
+            for (const auto &step : plan.steps)
             {
-                // Apply action to state
-                if (not step.action->doAction(state, prevState, step.assignment))
-                {
-                    std::cout << "Invalid action!" << std::endl;
-                    return 1;
-                }
-
-                std::cout << "Step " << i++ << " " << step.toString() << std::endl;
-
-                state->toPDDL(std::cout);
+                std::cout << "Step " << i++ << " " << step << std::endl;
+                step.state->toPDDL(std::cout);
                 std::cout << std::endl;
-
-                // Save as previous state
-                prevState->clear();
-                prevState->fold(state);
             }
         }
     }

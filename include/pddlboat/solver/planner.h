@@ -1,14 +1,14 @@
-#ifndef PDDLBOAT_PROBLEM_BUILDER_
-#define PDDLBOAT_PROBLEM_BUILDER_
+/* Author: Zachary Kingston */
 
-#include <pddlboat/utility.h>
-#include <pddlboat/parser/parser.h>
-#include <pddlboat/solver/expressions.h>
+#ifndef PDDLBOAT_SOLVER_PLANNER_
+#define PDDLBOAT_SOLVER_PLANNER_
+
+#include <pddlboat/macros.h>
 #include <pddlboat/solver/domain.h>
 
 namespace pddlboat
 {
-    using Time = size_t;
+    using Time = std::size_t;
 
     PDDLBOAT_CLASS_FORWARD(Plan)
     class Plan
@@ -16,104 +16,37 @@ namespace pddlboat
     public:
         struct Step
         {
-            Step(const ActionPtr &action, const Assignment &assignment)
-              : action(action), assignment(assignment)
-            {
-            }
-
             ActionPtr action;
             Assignment assignment;
+            StatePtr state;
 
-            std::string toString() const
-            {
-                std::stringstream ss;
-                ss << "(" << action->name;
-                for (const auto &parameter : action->parameters)
-                {
-                    ss << " ";
-                    ss << assignment.assigned(parameter.name)->name;
-                }
-                ss << ")";
-
-                return ss.str();
-            }
+            Step(const ActionPtr &action, const Assignment &assignment, const StatePtr &state);
+            std::ostream &toString(std::ostream &out) const;
         };
 
-        Plan(const ProblemPtr &problem) : problem_(problem)
-        {
-        }
+        Plan(const ProblemPtr &problem);
 
-        void addStep(const std::string &action_name, const std::vector<std::string> &objects)
-        {
-            ActionPtr action = problem_->domain->getAction(action_name);
-            if (not action)
-                throw std::invalid_argument(log::format("Action %1% does not exist!", action_name));
+        void addStep(const std::string &action_name, const std::vector<std::string> &objects);
+        std::ostream &toString(std::ostream &out) const;
 
-            if (action->arity() != objects.size())
-                throw std::invalid_argument(log::format("Action %1% has arity %2%, not %3%!", action_name,
-                                                        action->arity(), objects.size()));
-
-            Assignment assignment(problem_.get());
-            for (unsigned int i = 0; i < objects.size(); ++i)
-            {
-                const auto &object_name = objects[i];
-                ObjectPtr obj;
-                if (not(obj = problem_->getObject(object_name)))
-                {
-                    if (not(obj = problem_->domain->getConstant(object_name)))
-                    {
-                        throw std::invalid_argument(
-                            log::format("Cannot do action with object %1%, does not exist!", object_name));
-                    }
-                }
-
-                if (action->parameters[i].type != obj->type)
-                    throw std::invalid_argument(  //
-                        log::format("Cannot do action with object %1%, is type %2%, not %3%!", object_name,
-                                    obj->type, action->parameters[i].type));
-
-                assignment.assign(action->parameters[i].name, objects[i]);
-            }
-
-            plan.emplace_back(action, assignment);
-        }
-
-        std::string toString() const
-        {
-            std::stringstream ss;
-
-            for (const auto &step : plan)
-                ss << step.toString() << std::endl;
-
-            return ss.str();
-        }
-
-        std::vector<Step> plan;
+        std::vector<Step> steps;
 
     private:
         const ProblemPtr problem_;
     };
 
+    std::ostream &operator<<(std::ostream &out, const Plan::Step &step);
+    std::ostream &operator<<(std::ostream &out, const Plan &plan);
+
     PDDLBOAT_CLASS_FORWARD(Planner)
     class Planner
     {
     public:
-        /* Planner(const StatePtr &start, const ExpressionPtr &goal, const std::vector<ActionPtr> &actions, */
-        /*         const Time horizon) */
-        /*   : start_(start), goal_(goal), actions_(actions), horizon_(horizon) */
-        /* { */
-        /* } */
-
-        Planner(const ProblemPtr &problem) : problem_(problem)
-        {
-        }
+        Planner(const ProblemPtr &problem);
 
         virtual bool solve(Plan &plan) = 0;
 
     protected:
-        /* const StatePtr start_; */
-        /* const ExpressionPtr goal_; */
-        /* const std::vector<ActionPtr> actions_; */
         const ProblemPtr problem_;
     };
 

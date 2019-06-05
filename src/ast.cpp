@@ -28,46 +28,43 @@ OperatorsKeywords_::OperatorsKeywords_()
         add(it.first, it.second);
 }
 
-std::string TypedList::toString(bool isVariable) const
+std::ostream &TypedList::toString(std::ostream &out, bool isVariable) const
 {
-    std::stringstream ss;
-    ss << "[";
+    out << "[";
     for (auto it = types.begin(), end = types.end(); it != end;)
-        ss << ((isVariable) ? "?" : "") << *it << ((++it != end) ? ", " : "");
+        out << ((isVariable) ? "?" : "") << *it << ((++it != end) ? ", " : "");
     if (!parent.empty())
-        ss << " - " << parent;
-    ss << "]";
+        out << " - " << parent;
+    out << "]";
 
-    return ss.str();
+    return out;
 }
 
-std::string AtomicFormula::toString() const
+std::ostream &AtomicFormula::toString(std::ostream &out) const
 {
-    std::stringstream ss;
-    ss << "(";
-    ss << name;
+    out << "(";
+    out << name;
     if (!variables.empty())
     {
-        ss << " - ";
+        out << " - ";
         for (auto it = variables.begin(), end = variables.end(); it != end;)
-            ss << it->toString() << ((++it != end) ? ", " : "");
+            it->toString(out) << ((++it != end) ? ", " : "");
     }
-    ss << ")";
+    out << ")";
 
-    return ss.str();
+    return out;
 }
 
-std::string AtomicFormulaList::toString() const
+std::ostream &AtomicFormulaList::toString(std::ostream &out) const
 {
-    std::stringstream ss;
-    ss << "[";
+    out << "[";
     for (auto it = formulas.begin(), end = formulas.end(); it != end;)
-        ss << it->toString() << ((++it != end) ? ", " : "");
+        it->toString(out) << ((++it != end) ? ", " : "");
     if (!parent.empty())
-        ss << " - " << parent;
-    ss << "]";
+        out << " - " << parent;
+    out << "]";
 
-    return ss.str();
+    return out;
 }
 
 std::string ExpressionOperator::toString() const
@@ -110,164 +107,164 @@ pddlboat::Operators::Keyword ExpressionOperator::toOp() const
     return boost::apply_visitor(v, *this);
 }
 
-std::string Expression::toString(bool literal) const
+std::ostream &Expression::toString(std::ostream &out, bool literal) const
 {
-    std::stringstream ss;
-
     bool brace = not literal;
     bool isLiteral = op.toOp() == Operators::LITERAL;
     if (brace)
-        ss << "(";
+        out << "(";
 
-    ss << ((literal && isLiteral) ? "?" : "") << op.toString();
+    out << ((literal && isLiteral) ? "?" : "") << op.toString();
 
     if (not parameters.empty())
     {
-        ss << " - ";
+        out << " - ";
         for (auto it = parameters.begin(), end = parameters.end(); it != end;)
-            ss << it->toString() << ((++it != end) ? ", " : "");
+            it->toString(out) << ((++it != end) ? ", " : "");
     }
 
     if (not terms.empty())
     {
-        ss << " ";
+        out << " ";
         for (auto it = terms.begin(), end = terms.end(); it != end;)
-            ss << it->toString(isLiteral) << ((++it != end) ? " " : "");
+            it->toString(out, isLiteral) << ((++it != end) ? " " : "");
     }
 
     if (brace)
-        ss << ')';
+        out << ')';
 
-    return ss.str();
+    return out;
 }
 
-std::string Action::toString() const
+std::ostream &Action::toString(std::ostream &out) const
 {
-    std::stringstream ss;
-    ss << "(";
-    ss << name;
+    out << "(";
+    out << name;
     if (not parameters.empty())
     {
-        ss << " - ";
+        out << " - ";
         for (auto it = parameters.begin(), end = parameters.end(); it != end;)
-            ss << it->toString() << ((++it != end) ? ", " : "");
+            it->toString(out) << ((++it != end) ? ", " : "");
     }
-    ss << " (precondition: " << precondition.toString() << ')';
-    ss << " (effect: " << effect.toString() << ')';
-    ss << ')';
+    out << " (precondition: ";
+    precondition.toString(out) << ')';
+    out << " (effect: ";
+    effect.toString(out) << ')';
+    out << ')';
 
-    return ss.str();
+    return out;
 }
 
-std::string Domain::toString() const
+std::ostream &Domain::toString(std::ostream &out) const
 {
-    std::stringstream ss;
-    ss << "domain(" << std::endl;
+    out << "domain(" << std::endl;
 
     // Name
-    ss << "          name: " << name << std::endl;
+    out << "          name: " << name << std::endl;
 
     // Requirements
     if (!requirements.empty())
     {
-        ss << "  requirements: (";
+        out << "  requirements: (";
         for (auto it = requirements.begin(), end = requirements.end(); it != end;)
-            ss << Requirements::toString(*it) << ((++it != end) ? ", " : "");
-        ss << ")" << std::endl;
+            out << Requirements::toString(*it) << ((++it != end) ? ", " : "");
+        out << ")" << std::endl;
     }
 
     // Types
     if (!types.empty())
     {
-        ss << "         types: (";
+        out << "         types: (";
         for (auto it = types.begin(), end = types.end(); it != end;)
-            ss << it->toString(false) << ((++it != end) ? ", " : "");
-        ss << ")" << std::endl;
+            it->toString(out, false) << ((++it != end) ? ", " : "");
+        out << ")" << std::endl;
     }
 
     // Constants
     if (!constants.empty())
     {
-        ss << "     constants: (";
+        out << "     constants: (";
         for (auto it = constants.begin(), end = constants.end(); it != end;)
-            ss << it->toString() << ((++it != end) ? ", " : "");
-        ss << ")" << std::endl;
+            it->toString(out) << ((++it != end) ? ", " : "");
+        out << ")" << std::endl;
     }
 
     // Predicates
     if (!predicates.empty())
     {
-        ss << "    predicates: (";
+        out << "    predicates: (";
         for (auto it = predicates.begin(), end = predicates.end(); it != end;)
-            ss << it->toString() << ((++it != end) ? ", " : "");
-        ss << ")" << std::endl;
+            it->toString(out) << ((++it != end) ? ", " : "");
+        out << ")" << std::endl;
     }
 
     // Functions
     if (!functions.empty())
     {
-        ss << "     functions: (";
+        out << "     functions: (";
         for (auto it = functions.begin(), end = functions.end(); it != end;)
-            ss << it->toString() << ((++it != end) ? ", " : "");
-        ss << ")" << std::endl;
+            it->toString(out) << ((++it != end) ? ", " : "");
+        out << ")" << std::endl;
     }
 
     // Actions
     if (!actions.empty())
     {
-        ss << "       actions: (" << std::endl;
+        out << "       actions: (" << std::endl;
         for (auto it = actions.begin(), end = actions.end(); it != end;)
-            ss << "                  " << it++->toString() << std::endl;
-        ss << "                )" << std::endl;
+        {
+            out << "                  ";
+            it++->toString(out) << std::endl;
+        }
+        out << "                )" << std::endl;
     }
 
     // End
-    ss << ")";
+    out << ")";
 
-    return ss.str();
+    return out;
 }
 
-std::string Problem::toString() const
+std::ostream &Problem::toString(std::ostream &out) const
 {
-    std::stringstream ss;
-    ss << "problem(" << std::endl;
-    ss << "          name: " << name << std::endl;
-    ss << "        domain: " << domain << std::endl;
+    out << "problem(" << std::endl;
+    out << "          name: " << name << std::endl;
+    out << "        domain: " << domain << std::endl;
 
     if (!objects.empty())
     {
-        ss << "     objects: (";
+        out << "     objects: (";
         for (auto it = objects.begin(), end = objects.end(); it != end;)
-            ss << it->toString() << ((++it != end) ? ", " : "");
-        ss << ")" << std::endl;
+            it->toString(out) << ((++it != end) ? ", " : "");
+        out << ")" << std::endl;
     }
 
     // Initial
     if (!initial.empty())
     {
-        ss << "    initial: (";
+        out << "    initial: (";
         for (auto it = initial.begin(), end = initial.end(); it != end;)
-            ss << it->toString() << ((++it != end) ? ", " : "");
-        ss << ")" << std::endl;
+            it->toString(out) << ((++it != end) ? ", " : "");
+        out << ")" << std::endl;
     }
 
-    ss << "           goal: " << goal.toString() << std::endl;
-    ss << ")";
+    out << "           goal: ";
+    goal.toString(out) << std::endl;
+    out << ")";
 
-    return ss.str();
+    return out;
 }
 
-std::string Plan::toString() const
+std::ostream &Plan::toString(std::ostream &out) const
 {
-    std::stringstream ss;
-    ss << "plan(" << std::endl;
+    out << "plan(" << std::endl;
 
     if (!actions.empty())
     {
-        ss << "    actions: (";
+        out << "    actions: (";
         for (auto it = actions.begin(), end = actions.end(); it != end;)
-            ss << it->toString() << ((++it != end) ? ", " : "");
-        ss << ")" << std::endl;
+            it->toString(out) << ((++it != end) ? ", " : "");
+        out << ")" << std::endl;
     }
-    return ss.str();
+    return out;
 }

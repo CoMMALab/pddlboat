@@ -70,7 +70,7 @@ namespace pddlboat
         std::set<std::string> getNames() const;
         const Variable &getVariable(const std::string &name) const;
 
-        void toPDDL(std::ostream &out = std::cout) const;
+        std::ostream &toPDDL(std::ostream &out = std::cout) const;
 
         bool operator==(const VariableSet &other) const;
         bool operator!=(const VariableSet &other) const;
@@ -119,7 +119,7 @@ namespace pddlboat
 
         unsigned int arity() const;
 
-        void toPDDL(std::ostream &out = std::cout) const;
+        std::ostream &toPDDL(std::ostream &out = std::cout) const;
     };
 
     PredicatePtr makePred(const std::string &name, const VariableList &variables = {});
@@ -148,7 +148,8 @@ namespace pddlboat
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
 
-        void toPDDL(std::ostream &out, unsigned int indent = 2, unsigned int level = 0) const override;
+        std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
+                             unsigned int level = 0) const override;
 
         std::string getPredicateName()
         {
@@ -192,7 +193,7 @@ namespace pddlboat
         void addAction(const ActionPtr &action);
         const ActionPtr getAction(const std::string &name) const;
 
-        void toPDDL(std::ostream &out = std::cout) const;
+        std::ostream &toPDDL(std::ostream &out = std::cout) const;
     };
 
     ///
@@ -218,7 +219,7 @@ namespace pddlboat
 
         StatePtr makeState() const;
 
-        void toPDDL(std::ostream &out = std::cout) const;
+        std::ostream &toPDDL(std::ostream &out = std::cout) const;
     };
 
     ///
@@ -232,7 +233,7 @@ namespace pddlboat
 
         State(const Problem *problem);
 
-        const Problem* getProblem() const;
+        const Problem *getProblem() const;
         void clear();
         void complement();
         void fold(const StatePtr &other);
@@ -249,7 +250,7 @@ namespace pddlboat
         void assignN(const std::string &predicate, const std::vector<std::string> &objects,
                      bool value = true);
 
-        void toPDDL(std::ostream &out = std::cout, unsigned int indent = 0) const;
+        std::ostream &toPDDL(std::ostream &out = std::cout, unsigned int indent = 0) const;
 
         std::map<Key, bool> assignments{};
 
@@ -275,7 +276,7 @@ namespace pddlboat
         bool holds(const StatePtr &state, const Assignment &vars) const;
         bool doAction(StatePtr &out, const StatePtr &in, const Assignment &vars) const;
 
-        void toPDDL(std::ostream &out = std::cout, unsigned int indent = 2) const;
+        std::ostream &toPDDL(std::ostream &out = std::cout, unsigned int indent = 2) const;
 
         unsigned int arity() const;
     };
