@@ -1,4 +1,6 @@
 #include <iostream>
+
+#include <boost/chrono/chrono.hpp>
 #include <boost/timer/timer.hpp>
 #include <boost/program_options.hpp>
 
@@ -34,21 +36,35 @@ std::istream &operator>>(std::istream &in, Planner &unit)
 int main(int argc, char **argv)
 {
     std::string domainfile, problemfile;
-    Planner planner;
+    bool domainout, problemout, planout, stepsout, timeout;
+    Planner plannertype;
     po::options_description desc("PDDLBoat - Planner Testing Demo");
-    desc.add_options()  //
-        ("help,h", "Produces this help message")
-        ("domain,d", po::value<std::string>(&domainfile)->required(),
-         "PDDL file that describes the problem domain")  //
-        ("problem,p", po::value<std::string>(&problemfile)->required(),
-         "PDDL file that describes the problem")  //
-        ("planner,s", po::value<Planner>(&planner)->default_value(Planner::FD),
-         "Planner to use. Either `z3` or `fd`");
+    desc.add_options()                                                               //
+        ("help,h", "Produces this help message")                                     //
+        ("domain,d", po::value<std::string>(&domainfile)->required(),                //
+         "PDDL file that describes the problem domain")                              //
+        ("problem,p", po::value<std::string>(&problemfile)->required(),              //
+         "PDDL file that describes the problem")                                     //
+        ("planner,s", po::value<Planner>(&plannertype)->default_value(Planner::FD),  //
+         "Planner to use. Either `z3` or `fd`")                                      //
+        ("ot", po::bool_switch(&timeout),                                            //
+         "Print the planning time")                                                  //
+        ("od", po::bool_switch(&domainout),                                          //
+         "Print the domain as PDDL")                                                 //
+        ("op", po::bool_switch(&problemout),                                         //
+         "Print the problem as PDDL")                                                //
+        ("oa", po::bool_switch(&planout),                                            //
+         "Print the steps of a plan as PDDL")                                        //
+        ("os", po::bool_switch(&stepsout),                                           //
+         "Print the steps of a plan as a sequence of states")                        //
+        ;
 
     unsigned int horizon;
     po::options_description z3opt("z3 Planner Options");
-    z3opt.add_options()  //
-        ("horizon,h", po::value<unsigned int>(&horizon)->default_value(1), "Maximum planning horizon to use");
+    z3opt.add_options()                                                     //
+        ("horizon,z", po::value<unsigned int>(&horizon)->default_value(1),  //
+         "Maximum planning horizon to use")                                 //
+        ;
 
     desc.add(z3opt);
 
@@ -63,72 +79,137 @@ int main(int argc, char **argv)
 
     po::notify(vm);
 
-    const std::string domainfile(argv[1]);
-    pddlboat::ast::Domain domain;
-    bool r = pddlboat::parseFile(domainfile, domain);
-    std::cout << domainfile << ": " << (r ? "OK" : "FAILED") << std::endl;
+    // Parse the domain
+    pd::ast::Domain domain_ast;
+    if (not pd::parseFile(domainfile, domain_ast))
+    {
+        std::cerr << pd::log::format("Failed to parse domain file %1%.", domainfile) << std::endl;
+        return 1;
+    }
+
+    // Translate domain
+    pd::DomainPtr domain;
+    try
+    {
+        domain = pd::toDomain(domain_ast);
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << pd::log::format("Caught exception translating domain: %1%", e.what()) << std::endl;
+        return 1;
+    }
+
+    if (domainout)
+    {
+        domain->toPDDL(std::cout);
+        std::cout << std::endl;
+    }
+
+    // Parse the problem
+    pd::ast::Problem problem_ast;
+    if (not pd::parseFile(problemfile, problem_ast))
+    {
+        std::cerr << pd::log::format("Failed to parse problem file %1%.", problemfile) << std::endl;
+        return 1;
+    }
+
+    pd::ProblemPtr problem;
+    try
+    {
+        problem = pd::toProblem(problem_ast, domain);
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << pd::log::format("Caught exception translating problem: %1%", e.what()) << std::endl;
+        return 1;
+    }
+
+    if (problemout)
+    {
+        problem->toPDDL(std::cout);
+        std::cout << std::endl;
+    }
+
+    pd::PlannerPtr planner;
+    switch (plannertype)
+    {
+        case Z3:
+            planner = std::make_shared<pd::Z3Planner>(problem, horizon);
+            break;
+        case FD:
+            planner = std::make_shared<pd::FastDownwardPlanner>(problem);
+            break;
+        default:
+            std::cerr << "Unknown planner type. Exiting." << std::endl;
+            return 1;
+    }
+
+    bool r;
+    pd::Plan plan(problem);
+
+    {
+        boost::timer::cpu_timer t;
+        r = planner->solve(plan);
+
+        if (timeout)
+        {
+            t.stop();
+            boost::chrono::duration<double> wall = boost::chrono::nanoseconds(t.elapsed().wall);
+            boost::chrono::duration<double> user = boost::chrono::nanoseconds(t.elapsed().user);
+            boost::chrono::duration<double> syst = boost::chrono::nanoseconds(t.elapsed().system);
+
+            std::cout << pd::log::format("Wall: %1%s, User: %2%s, System: %3%s",       //
+                                         wall.count(), user.count(), syst.count())  //
+                      << std::endl;
+        }
+    }
+
     if (r)
     {
-        auto loadedDomain = pddlboat::toDomain(domain);
-        loadedDomain->toPDDL(std::cout);
+        std::cerr << "Planning succeeded!" << std::endl;
 
-        const std::string problemfile(argv[2]);
-        pddlboat::ast::Problem problem;
-        bool r = pddlboat::parseFile(problemfile, problem);
-        std::cout << problemfile << ": " << (r ? "OK" : "FAILED") << std::endl;
-        if (r)
+        if (planout)
+            std::cout << plan.toString() << std::endl;
+
+        if (stepsout)
         {
-            auto loadedProblem = pddlboat::toProblem(problem, loadedDomain);
-            loadedProblem->toPDDL(std::cout);
+            // Copy start state
+            auto state = problem->makeState();
+            state->fold(problem->start);
 
-            // size_t planning_horizon = 1;
-            // pddlboat::Z3Planner fd(loadedProblem, planning_horizon);
+            // Store previous state in sequence
+            auto prevState = problem->makeState();
+            prevState->fold(state);
 
-            bool r;
-            pddlboat::Plan plan(loadedProblem);
+            unsigned int i = 0;
+            std::cout << "Step " << i++ << std::endl;
+            state->toPDDL(std::cout);
+            std::cout << std::endl;
 
+            for (const auto &step : plan.plan)
             {
-                boost::timer::auto_cpu_timer t;
-                pddlboat::FastDownwardPlanner fd(loadedProblem);
-                r = fd.solve(plan);
-            }
+                // Apply action to state
+                if (not step.action->doAction(state, prevState, step.assignment))
+                {
+                    std::cout << "Invalid action!" << std::endl;
+                    return 1;
+                }
 
-            if (r)
-            {
-                std::cout << std::endl;
-                std::cout << plan.toString();
-                std::cout << std::endl;
+                std::cout << "Step " << i++ << " " << step.toString() << std::endl;
 
-                auto state = loadedProblem->makeState();
-                state->fold(loadedProblem->start);
-
-                auto prevState = loadedProblem->makeState();
-                prevState->fold(state);
-
-                std::cout << "Start State" << std::endl;
                 state->toPDDL(std::cout);
                 std::cout << std::endl;
 
-                unsigned int i = 1;
-                for (const auto &step : plan.plan)
-                {
-                    if (not step.action->doAction(state, prevState, step.assignment))
-                    {
-                        std::cout << "Invalid action!" << std::endl;
-                        return 1;
-                    }
-
-                    std::cout << "Step " << i++ << std::endl;
-                    std::cout << step.toString() << std::endl;
-
-                    state->toPDDL(std::cout);
-                    std::cout << std::endl;
-
-                    prevState->clear();
-                    prevState->fold(state);
-                }
+                // Save as previous state
+                prevState->clear();
+                prevState->fold(state);
             }
         }
+    }
+    else
+    {
+        std::cerr << "Planning failed!" << std::endl;
+        return 1;
     }
 
     return 0;

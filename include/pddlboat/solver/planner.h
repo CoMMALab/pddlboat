@@ -10,6 +10,7 @@ namespace pddlboat
 {
     using Time = size_t;
 
+    PDDLBOAT_CLASS_FORWARD(Plan)
     class Plan
     {
     public:
@@ -26,12 +27,13 @@ namespace pddlboat
             std::string toString() const
             {
                 std::stringstream ss;
-                ss << action->name;
+                ss << "(" << action->name;
                 for (const auto &parameter : action->parameters)
                 {
                     ss << " ";
-                    ss << parameter.name << "=" << assignment.assigned(parameter.name)->name;
+                    ss << assignment.assigned(parameter.name)->name;
                 }
+                ss << ")";
 
                 return ss.str();
             }
@@ -80,7 +82,6 @@ namespace pddlboat
         {
             std::stringstream ss;
 
-            ss << "Plan: " << plan.size() << " action(s):" << std::endl;
             for (const auto &step : plan)
                 ss << step.toString() << std::endl;
 
@@ -93,6 +94,7 @@ namespace pddlboat
         const ProblemPtr problem_;
     };
 
+    PDDLBOAT_CLASS_FORWARD(Planner)
     class Planner
     {
     public:

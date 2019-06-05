@@ -118,9 +118,7 @@ pddlboat::DomainPtr pddlboat::toDomain(const ast::Domain &domain)
     {
         const auto &parent = (typelist.parent != "") ? typelist.parent : PDDLBOAT_OBJECT_CLASS;
         for (const auto &type : typelist.types)
-        {
             r->addType(type, parent);
-        }
     }
 
     for (const auto &constantlist : domain.constants)

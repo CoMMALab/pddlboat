@@ -326,7 +326,6 @@ bool pddlboat::parseFile(const std::string &file, ast::Domain &domain)
 {
     typedef std::string::const_iterator iterator_type;
 
-    std::cout << log::format("Reading file `%1%`", file) << std::endl;
     const std::string text = io::loadFileToString(file);
     // std::cout << text << std::endl;
 
@@ -361,7 +360,6 @@ bool pddlboat::parseFile(const std::string &file, ast::Problem &problem)
 {
     typedef std::string::const_iterator iterator_type;
 
-    std::cout << log::format("Reading file `%1%`", file) << std::endl;
     const std::string text = io::loadFileToString(file);
     // std::cout << text << std::endl;
 
@@ -399,7 +397,6 @@ bool pddlboat::parseFile(const std::string &file, ast::Plan &plan)
 {
     typedef std::string::const_iterator iterator_type;
 
-    std::cout << log::format("Reading file `%1%`", file) << std::endl;
     const std::string text = io::loadFileToString(file);
     // std::cout << text << std::endl;
 
