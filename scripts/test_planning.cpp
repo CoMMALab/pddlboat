@@ -35,7 +35,7 @@ int main(int argc, char **argv)
         {
             auto loadedProblem = pddlboat::toProblem(problem, loadedDomain);
 
-            size_t planning_horizon = 1;
+            size_t planning_horizon = 6;
 
             pddlboat::Z3Planner fd(loadedProblem, planning_horizon);
             pddlboat::Plan plan(loadedProblem);

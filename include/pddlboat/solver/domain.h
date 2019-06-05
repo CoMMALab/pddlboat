@@ -150,7 +150,7 @@ namespace pddlboat
           return predicate->name;
         }
 
-    private:
+      //private:
         const Predicate *predicate;
     };
 
