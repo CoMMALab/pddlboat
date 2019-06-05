@@ -705,7 +705,6 @@ namespace pddlboat
 
             problem_->start->toPDDL(std::cout);
 
-
             // Add the start state
             for (const auto name_predptr : problem_->domain->predicates)
             {
@@ -715,17 +714,25 @@ namespace pddlboat
                 auto pred = *name_predptr.second;
                 for (const auto arg_list : nary_arg_assignment_list)
                 {
-                    if (problem_->start->isTrue(pred.name, arg_list))
+                    std::vector<std::string> new_arg_list;
+                    for (auto s : arg_list)
+                    {
+                      if (s != "") {
+                        new_arg_list.push_back(s);
+                      }
+                    }
+
+                    if (problem_->start->isTrue(pred.name, new_arg_list))
                     {
                         z3::expr p =
-                            makeBool(createGroundedPredicateString(name_predptr.second, arg_list, 0));
+                            makeBool(createGroundedPredicateString(name_predptr.second, new_arg_list, 0));
                         solver_->add(z3::expr(p));
                         std::cout << z3::expr(p) << std::endl;
                     }
                     else
                     {
                         z3::expr p =
-                            makeBool(createGroundedPredicateString(name_predptr.second, arg_list, 0));
+                            makeBool(createGroundedPredicateString(name_predptr.second, new_arg_list, 0));
                         solver_->add(z3::expr(not p));
                         std::cout << z3::expr(not p) << std::endl;
                     }
