@@ -37,6 +37,13 @@ namespace pddlboat
             build();
         }
 
+        std::string toString(std::ostream &str)
+        {
+            std::ostringstream ss;
+            ss << str.rdbuf();
+            return ss.str();
+        }
+
         void printPlan()
         {
             auto m = solver_->get_model();
@@ -58,22 +65,64 @@ namespace pddlboat
             }
         }
 
+        std::vector<std::string> getVectorOfArgs(std::string string)
+        {
+            std::string str =
+                string.substr(string.find("ARGS:") + 5, string.find("TIME:") - (string.find("ARGS:") + 5));
+            std::vector<std::string> vec;
+            for (size_t i = 0; i < str.length(); i++)
+            {
+                std::string s = std::string(1, str.at(i));
+                vec.push_back(s);
+            }
+            return vec;
+        }
+
+        void buildPlan(Plan &my_plan)
+        {
+            auto m = solver_->get_model();
+            for (size_t i = 0; i < m.num_consts(); i++)
+            {
+                z3::expr f = m.get_const_interp(m.get_const_decl(i));
+
+                if (f.is_true())
+                {
+                    std::ostringstream oss;
+                    oss << m.get_const_decl(i);
+                    std::string complete_act_string = oss.str();  // toString(m.get_const_decl(i));
+                    if (complete_act_string.find("ACTION:") != std::string::npos)
+                    {
+                        std::string act_string = complete_act_string.substr(
+                            complete_act_string.find("ACTION:") + 7,
+                            complete_act_string.find("ARGS:") - (complete_act_string.find("ACTION:") + 7));
+
+                        std::vector<std::string> args_strings = getVectorOfArgs(complete_act_string);
+
+                        my_plan.addStep(act_string, args_strings);
+                    }
+                }
+            }
+        }
+
         bool solve(Plan &plan) override
         {
             if (not solver_)
                 return false;
 
             // Solve the problem
-            std::cout << "solver: " << std::endl;
+            // std::cout << "solver: " << std::endl;
             // std::cout << *solver_ << "\n";
-            std::cout << "solver to smt2" << std::endl;
+            // std::cout << "solver to smt2" << std::endl;
             // std::cout << solver_->to_smt2() << "\n";
 
             switch (solver_->check())
             {
                 case z3::sat:
                     std::cout << "planning instance is solved\n";
-                    printPlan();
+                    // printPlan();
+                    buildPlan(plan);
+                    std::cout << plan << std::endl;
+
                     return true;
                 case z3::unsat:
                     std::cout << "planning instance is not solved\n";
@@ -147,22 +196,25 @@ namespace pddlboat
         // }
         const ActionPtr getActionFromString(std::string string)
         {
-            std::string str = string.substr(string.find("ACTION:") + 6, string.find("ARGS:"));
+            std::string str = string.substr(string.find("ACTION:") + 7,
+                                            string.find("ARGS:") - (string.find("ACTION:") + 7));
             return problem_->domain->actions[str];
         }
 
         const PredicatePtr getPredicateFromString(std::string string)
         {
-            std::string str = string.substr(string.find("PRED:") + 4, string.find("ARGS:"));
+            std::string str =
+                string.substr(string.find("PRED:") + 4, string.find("ARGS:") - (string.find("PRED:") + 4));
             return problem_->domain->predicates[str];
         }
 
-        /* const std::vector<std::string> getArgsFromString(std::string string) */
-        /* { */
-        /*   std::string str = string.substr(string.find("ARGS:") + 4, string.find("TIME:")); */
-        /*   std::istringstream iss(str); */
-        /*   return std::vector<std::string>(); */
-        /* } */
+        const std::vector<std::string> getArgsFromString(std::string string)
+        {
+            std::string str =
+                string.substr(string.find("ARGS:") + 4, string.find("TIME:") - (string.find("ARGS:") + 4));
+            std::istringstream iss(str);
+            return std::vector<std::string>();
+        }
 
         const std::string addTimeToString(std::string string, Time time)
         {
@@ -462,13 +514,6 @@ namespace pddlboat
             }
         }
 
-        std::string toString(std::ostream &str)
-        {
-            std::ostringstream ss;
-            ss << str.rdbuf();
-            return ss.str();
-        }
-
         void printVectorOfStrings(const std::vector<std::string> &vec)
         {
             for (auto s : vec)
@@ -701,10 +746,6 @@ namespace pddlboat
             // Add the goal
             solver_->add(getGoalAsZ3Expr(problem_->goal, horizon_));
 
-            std::cout << "Start state:" << std::endl;
-
-            problem_->start->toPDDL(std::cout);
-
             // Add the start state
             for (const auto name_predptr : problem_->domain->predicates)
             {
@@ -717,9 +758,10 @@ namespace pddlboat
                     std::vector<std::string> new_arg_list;
                     for (auto s : arg_list)
                     {
-                      if (s != "") {
-                        new_arg_list.push_back(s);
-                      }
+                        if (s != "")
+                        {
+                            new_arg_list.push_back(s);
+                        }
                     }
 
                     if (problem_->start->isTrue(pred.name, new_arg_list))
@@ -727,14 +769,12 @@ namespace pddlboat
                         z3::expr p =
                             makeBool(createGroundedPredicateString(name_predptr.second, new_arg_list, 0));
                         solver_->add(z3::expr(p));
-                        std::cout << z3::expr(p) << std::endl;
                     }
                     else
                     {
                         z3::expr p =
                             makeBool(createGroundedPredicateString(name_predptr.second, new_arg_list, 0));
                         solver_->add(z3::expr(not p));
-                        std::cout << z3::expr(not p) << std::endl;
                     }
                 }
             }
