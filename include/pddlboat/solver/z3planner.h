@@ -25,44 +25,9 @@ namespace pddlboat
         z3::solver *solver_{nullptr};
 
     public:
-        /* Z3Planner(const StatePtr &start, const ExpressionPtr &goal, const std::vector<ActionPtr> &actions,
-         */
-        /*           const Time horizon) : Planner(start, goal, actions, horizon) */
-        /* { */
-        /*     build(); */
-        /* } */
-
         Z3Planner(const ProblemPtr problem, const Time horizon) : Planner(problem), horizon_(horizon)
         {
             build();
-        }
-
-        std::string toString(std::ostream &str)
-        {
-            std::ostringstream ss;
-            ss << str.rdbuf();
-            return ss.str();
-        }
-
-        void printPlan()
-        {
-            auto m = solver_->get_model();
-            std::cout << "num funcs: " << m.num_funcs() << std::endl;
-            for (size_t i = 0; i < m.num_funcs(); i++)
-            {
-                auto f = m.get_func_interp(m.get_func_decl(i));
-                std::cout << f << std::endl;
-            }
-            std::cout << "num consts: " << m.num_consts() << std::endl;
-            for (size_t i = 0; i < m.num_consts(); i++)
-            {
-                z3::expr f = m.get_const_interp(m.get_const_decl(i));
-
-                if (f.is_true())
-                {
-                    std::cout << m.get_const_decl(i) << std::endl;
-                }
-            }
         }
 
         std::vector<std::string> getVectorOfArgs(std::string string)
@@ -89,7 +54,7 @@ namespace pddlboat
                 {
                     std::ostringstream oss;
                     oss << m.get_const_decl(i);
-                    std::string complete_act_string = oss.str();  // toString(m.get_const_decl(i));
+                    std::string complete_act_string = oss.str();
                     if (complete_act_string.find("ACTION:") != std::string::npos)
                     {
                         std::string act_string = complete_act_string.substr(
@@ -119,7 +84,6 @@ namespace pddlboat
             {
                 case z3::sat:
                     std::cout << "planning instance is solved\n";
-                    // printPlan();
                     buildPlan(plan);
                     std::cout << plan << std::endl;
 
@@ -179,41 +143,6 @@ namespace pddlboat
                 throw std::runtime_error("whoops!");
             }
             return ctx_->bool_const(string.c_str());
-        }
-
-        // bool effectContainsProposition(const ActionPtr action, const std::vector<std::string> args,
-        //                                std::string prop)
-        // {
-        //     // TODO: Don't count the preconditions here
-        //     for (auto s : args)std::string(predicate->predicate->name
-        //     {
-        //         if (s.find(prop) != std::string::npos)
-        //         {
-        //             return true;
-        //         }
-        //     }
-        //     return false;
-        // }
-        const ActionPtr getActionFromString(std::string string)
-        {
-            std::string str = string.substr(string.find("ACTION:") + 7,
-                                            string.find("ARGS:") - (string.find("ACTION:") + 7));
-            return problem_->domain->actions[str];
-        }
-
-        const PredicatePtr getPredicateFromString(std::string string)
-        {
-            std::string str =
-                string.substr(string.find("PRED:") + 4, string.find("ARGS:") - (string.find("PRED:") + 4));
-            return problem_->domain->predicates[str];
-        }
-
-        const std::vector<std::string> getArgsFromString(std::string string)
-        {
-            std::string str =
-                string.substr(string.find("ARGS:") + 4, string.find("TIME:") - (string.find("ARGS:") + 4));
-            std::istringstream iss(str);
-            return std::vector<std::string>();
         }
 
         const std::string addTimeToString(std::string string, Time time)
@@ -514,12 +443,6 @@ namespace pddlboat
             }
         }
 
-        void printVectorOfStrings(const std::vector<std::string> &vec)
-        {
-            for (auto s : vec)
-                std::cout << s << ", ";
-        }
-
         std::vector<std::string> getEffectStringsFromGroundedAction(
             const ActionPtr &action, const std::vector<std::string> &action_args, const Time step_before)
         {
@@ -565,7 +488,6 @@ namespace pddlboat
             z3::expr change_actions = ctx_->bool_val(false);
             for (const auto name_actionptr : problem_->domain->actions)
             {
-                // TODO: This should only count effects
                 std::vector<std::vector<std::string>> nary_arg_assignment_list =
                     getNAryArgList(name_actionptr.second->parameters);
                 for (const auto args_to_action : nary_arg_assignment_list)
@@ -578,14 +500,6 @@ namespace pddlboat
                         change_actions = change_actions or
                                          makeBool(createGroundedActionString(name_actionptr.second,
                                                                              args_to_action, step_before));
-                    }
-                    else
-                    {
-                        // std::cout << log::format("Action %1% does not contain prop. %2%.",
-                        //                          name_actionptr.first, addTimeToString(proposition,
-                        //                          step_before+1)) << std::endl;
-                        // printVectorOfStrings(effect_strs);
-                        // std::cout<<std::endl;
                     }
                 }
             }
@@ -679,36 +593,23 @@ namespace pddlboat
                         z3::expr act = makeBool(action_string);
                         z3::expr precond = exprAtTime(name_actionptr.second->precondition, arg_map, step);
                         z3::expr effects = exprAtTime(name_actionptr.second->effect, arg_map, step + 1);
-
-                        /* z3::expr precond = makeBool(precondition_string); */
-                        /* z3::expr effects = makeBool(effect_string); */
-                        /* z3::expr act = makeBool(action_string); */
-
                         // action -> preconditions_t0 and effects_t1
                         z3::expr clause = (not act) or (precond and effects);
-
-                        // std::cout << "Adding clause: " << std::endl;
-                        // std::cout << clause << std::endl;
 
                         solver_->add(clause);
                     }
                 }
 
                 // add frame axioms
+                // if the prop changed, then an action changed it. it doesn't matter what the value
+                // changes to, because the clauses for precoditions and effects will ensure
+                // consistency
                 for (const auto &predicate : grounded_predicates_)
                 {
                     z3::expr curr_prop = makeBool(addTimeToString(predicate, step));
                     z3::expr next_prop = makeBool(addTimeToString(predicate, step + 1));
-
-                    // if the prop changed, then an action changed it. it doesn't matter what the value
-                    // changes to, because the clauses for precoditions and effects will ensure
-                    // consistency
                     z3::expr clause =
                         not(curr_prop != next_prop) or (getPossibleChangeActions(predicate, step));
-
-                    // std::cout << "Adding clause: " << std::endl;
-                    // std::cout << clause << std::endl;
-
                     solver_->add(clause);
                 }
 
@@ -718,14 +619,10 @@ namespace pddlboat
                     for (const auto &other_action : grounded_actions_)
                     {
                         if (action != other_action)
-                        {  // TODO: make sure this comparison works correctly
+                        {
                             z3::expr e = makeBool(addTimeToString(action, step));
                             z3::expr other_e = makeBool(addTimeToString(other_action, step));
                             z3::expr clause = (not e) or (not other_e);
-
-                            // std::cout << "Adding clause: " << std::endl;
-                            // std::cout << clause << std::endl;
-
                             solver_->add(clause);
                         }
                     }
