@@ -122,6 +122,7 @@ namespace pddlboat
         unsigned int arity() const;
 
         std::ostream &toPDDL(std::ostream &out = std::cout) const;
+        std::string toID(const Assignment &vars) const;
     };
 
     PredicatePtr makePred(const std::string &name, const VariableList &variables = {});
@@ -146,6 +147,7 @@ namespace pddlboat
 
         Expression::Type type() const override;
         void getVariables(VariableSet &vars) const override;
+        VariableList arguments() const;
 
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;

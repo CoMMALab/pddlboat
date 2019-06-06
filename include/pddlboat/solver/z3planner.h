@@ -16,9 +16,6 @@ namespace pddlboat
 {
     class Z3Planner : public Planner
     {
-        // We store a set of grounded actions and predicates (without the timestep)
-        std::set<std::string> grounded_actions_;
-        std::set<std::string> grounded_predicates_;
         const Time horizon_;
 
         z3::context *ctx_{nullptr};
@@ -32,7 +29,6 @@ namespace pddlboat
 
         std::vector<std::string> getVectorOfArgs(std::string string)
         {
-
             std::string str =
                 string.substr(string.find("ARGS:") + 5, string.find("TIME:") - (string.find("ARGS:") + 5));
             std::vector<std::string> vec;
@@ -40,13 +36,14 @@ namespace pddlboat
             std::string s = "";
             for (size_t i = 0; i < str.length(); i++)
             {
-              std::string new_c = std::string(1, str.at(i));
-              if(new_c != ",")
-                s += new_c;
-              else {
-                vec.push_back(s);
-                s = "";
-              }
+                std::string new_c = std::string(1, str.at(i));
+                if (new_c != ",")
+                    s += new_c;
+                else
+                {
+                    vec.push_back(s);
+                    s = "";
+                }
             }
             vec.push_back(s);
 
@@ -190,7 +187,7 @@ namespace pddlboat
                 }
             }
 
-            str = str.substr(0, str.length()-1);
+            str = str.substr(0, str.length() - 1);
             return "PRED:" + std::string(predicate->getPredicateName()) + "ARGS:" + str +
                    "TIME:" + std::to_string(step);
         }
@@ -200,13 +197,15 @@ namespace pddlboat
                                                   const Time step)
         {
             std::string str;
-            for (auto const &s : args_to_pred) {
-              if(s != "") {
-                str += s + ",";
-              }
+            for (auto const &s : args_to_pred)
+            {
+                if (s != "")
+                {
+                    str += s + ",";
+                }
             }
 
-            str = str.substr(0, str.length()-1);
+            str = str.substr(0, str.length() - 1);
             return "PRED:" + std::string(predicate->name) + "ARGS:" + str + "TIME:" + std::to_string(step);
         }
 
@@ -215,13 +214,15 @@ namespace pddlboat
                                                const Time step)
         {
             std::string str;
-            for (auto const &s : args_to_action) {
-              if(s != "") {
-                str += s + ",";
-              }
+            for (auto const &s : args_to_action)
+            {
+                if (s != "")
+                {
+                    str += s + ",";
+                }
             }
 
-            str = str.substr(0, str.length()-1);
+            str = str.substr(0, str.length() - 1);
             return "ACTION:" + std::string(action->name) + "ARGS:" + str + "TIME:" + std::to_string(step);
         }
 
@@ -231,13 +232,15 @@ namespace pddlboat
                                                   const Time step)
         {
             std::string str;
-            for (auto const &s : args_to_pred) {
-              if(s != "") {
-                str += s + ",";
-              }
+            for (auto const &s : args_to_pred)
+            {
+                if (s != "")
+                {
+                    str += s + ",";
+                }
             }
 
-            str = str.substr(0, str.length()-1);
+            str = str.substr(0, str.length() - 1);
             return "PRED:" + std::string(predicate->getPredicateName()) + "ARGS:" + str +
                    "TIME:" + std::to_string(step);
         }
@@ -250,7 +253,7 @@ namespace pddlboat
             {
                 str += val.name + ",";
             }
-            str = str.substr(0, str.length()-1);
+            str = str.substr(0, str.length() - 1);
             return "PRED:" + std::string(predicate->getPredicateName()) + "ARGS:" + str +
                    "TIME:" + std::to_string(step);
         }
@@ -310,8 +313,7 @@ namespace pddlboat
          * z3 bool_constants. We require that the expression does not contain any actions (all terminals
          * are state props).
          */
-      z3::expr exprAtTime(const ExpressionPtr &expr, const Assignment &assignment,
-                            const Time step)
+        z3::expr exprAtTime(const ExpressionPtr &expr, const Assignment &assignment, const Time step)
         {
             switch (expr->type())
             {
@@ -327,7 +329,7 @@ namespace pddlboat
                     auto cdr_expr = makeCDR(and_expr);
                     if (cdr_expr)
                     {
-                      z3::expr cdr = exprAtTime(cdr_expr, assignment, step);
+                        z3::expr cdr = exprAtTime(cdr_expr, assignment, step);
                         z3::expr clause = car and cdr;
                         return clause;
                     }
@@ -341,7 +343,7 @@ namespace pddlboat
                     auto cdr_expr = makeCDR(or_expr);
                     if (or_expr)
                     {
-                      z3::expr cdr = exprAtTime(cdr_expr, assignment, step);
+                        z3::expr cdr = exprAtTime(cdr_expr, assignment, step);
                         z3::expr clause = car or cdr;
                         return clause;
                     }
@@ -479,66 +481,17 @@ namespace pddlboat
             return change_actions;
         }
 
-        // We need to ground predicates for each timestep and each applicable set of object:
-        void groundPredicates()
-        {
-            for (Time step = 0; step <= horizon_; ++step)
-            {
-                for (const auto name_predptr : problem_->domain->predicates)
-                {
-                    std::vector<std::vector<std::string>> nary_object_list =
-                        getNAryArgList(name_predptr.second->variables);
-                    for (const auto args_to_pred : nary_object_list)
-                    {
-                        // create a predicate:
-                        // predicate name, arg0, arg1, ..., timestep
-                        std::string pred_string =
-                            createGroundedPredicateString(name_predptr.second, args_to_pred, step);
-                        makeBool(pred_string);
-                        if (step == 0)
-                        {
-                            grounded_predicates_.insert(pred_string.substr(0, pred_string.find("TIME:")));
-                        }
-                    }
-                }
-            }
-        }
-
-        // We need to ground predicates for each timestep and each applicable set of objects:
-        void groundActions()
-        {
-            // stop at the second to last time step
-            for (Time step = 0; step < horizon_; ++step)
-            {
-                for (const auto name_actionptr : problem_->domain->actions)
-                {
-                    std::vector<std::vector<std::string>> nary_arg_assignment_list =
-                        getNAryArgList(name_actionptr.second->parameters);
-                    for (const auto args_to_action : nary_arg_assignment_list)
-                    {
-                        // create an action:
-                        // actions have variable names and assignments
-                        // action name, arg0, arg1, ..., timestep
-                        std::string action_string =
-                            createGroundedActionString(name_actionptr.second, args_to_action, step);
-                        makeBool(action_string);
-                        if (step == 0)
-                        {
-                            grounded_actions_.insert(action_string.substr(0, action_string.find("TIME:")));
-                        }
-                    }
-                }
-            }
-        }
-
         void build()
         {
             // First we build the context, grounding all actions and predicates.
             ctx_ = new z3::context;
             solver_ = new z3::solver(*ctx_);
 
-            groundPredicates();
-            groundActions();
+            // groundPredicates();
+            // groundActions();
+
+            // We store a set of grounded actions and predicates (without the timestep)
+            std::vector<std::string> grounded_actions_;
 
             // Now that we have built the context, we need to add constraints. These are clauses that ensure:
             // (1) an action implies its precondition is true and its effects will be true next time step
@@ -549,55 +502,59 @@ namespace pddlboat
                 // add clauses for preconditions and effects of actions
                 for (const auto &name_actionptr : problem_->domain->actions)
                 {
-                    const auto& assignments = problem_->getGroundings(name_actionptr.second->parameters);
+                    const auto &assignments = problem_->getGroundings(name_actionptr.second->parameters);
                     for (const auto &assignment : assignments)
                     {
-                        // std::unordered_map<std::string, std::string> arg_map;
-                        // for (const auto &[var, object] : assignment.varToObj)
-                        //     arg_map.emplace(var, object->name);
+                        std::string action_string = name_actionptr.second->toID(assignment);
+                        std::string action_string_time = addTimeToString(action_string, step);
 
-                        // create an action:
-                        // actions have variable names and assignments
-                        // action name, arg0, arg1, ..., timestep
-                        // std::string action_string =
-                        //     createGroundedActionString(name_actionptr.second, args_to_action, step);
-
-                        std::string action_string = addTimeToString(name_actionptr.second->toID(assignment), step);
-                        z3::expr act = makeBool(action_string);
+                        z3::expr act = makeBool(action_string_time);
                         z3::expr precond = exprAtTime(name_actionptr.second->precondition, assignment, step);
                         z3::expr effects = exprAtTime(name_actionptr.second->effect, assignment, step + 1);
+
                         // action -> preconditions_t0 and effects_t1
                         z3::expr clause = (not act) or (precond and effects);
+
+                        solver_->add(clause);
+
+                        if (step == 0)
+                            grounded_actions_.emplace_back(action_string);
+                    }
+                }
+
+                for (const auto &name_predptr : problem_->domain->predicates)
+                {
+                    const auto &assignments = problem_->getGroundings(name_predptr.second->variables);
+                    for (const auto &assignment : assignments)
+                    {
+                        std::string pred_string = name_predptr.second->toID(assignment);
+
+                        // add frame axioms
+                        // if the prop changed, then an action changed it. it doesn't matter what the value
+                        // changes to, because the clauses for precoditions and effects will ensure
+                        // consistency
+                        z3::expr curr_prop = makeBool(addTimeToString(pred_string, step));
+                        z3::expr next_prop = makeBool(addTimeToString(pred_string, step + 1));
+                        z3::expr clause =
+                            not(curr_prop != next_prop) or (getPossibleChangeActions(pred_string, step));
 
                         solver_->add(clause);
                     }
                 }
 
-                // add frame axioms
-                // if the prop changed, then an action changed it. it doesn't matter what the value
-                // changes to, because the clauses for precoditions and effects will ensure
-                // consistency
-                for (const auto &predicate : grounded_predicates_)
-                {
-                    z3::expr curr_prop = makeBool(addTimeToString(predicate, step));
-                    z3::expr next_prop = makeBool(addTimeToString(predicate, step + 1));
-                    z3::expr clause =
-                        not(curr_prop != next_prop) or (getPossibleChangeActions(predicate, step));
-                    solver_->add(clause);
-                }
-
                 // add mutual exclusion axioms, i.e., we only take one action each time step
-                for (const auto &action : grounded_actions_)
+                for (unsigned int i = 0; i < grounded_actions_.size(); ++i)
                 {
-                    for (const auto &other_action : grounded_actions_)
+                    const auto &action = grounded_actions_[i];
+                    for (unsigned int j = i + 1; j < grounded_actions_.size(); ++j)
                     {
-                        if (action != other_action)
-                        {
-                            z3::expr e = makeBool(addTimeToString(action, step));
-                            z3::expr other_e = makeBool(addTimeToString(other_action, step));
-                            z3::expr clause = (not e) or (not other_e);
-                            solver_->add(clause);
-                        }
+                        const auto &other_action = grounded_actions_[j];
+
+                        z3::expr e = makeBool(addTimeToString(action, step));
+                        z3::expr other_e = makeBool(addTimeToString(other_action, step));
+                        z3::expr clause = (not e) or (not other_e);
+
+                        solver_->add(clause);
                     }
                 }
             }  // end for timestep

@@ -266,6 +266,22 @@ std::ostream &Predicate::toPDDL(std::ostream &out) const
     return out;
 }
 
+std::string Predicate::toID(const Assignment &vars) const
+{
+    std::stringstream ss;
+    ss << "PRED:" << name;
+
+    ss << "ARGS:";
+    for (unsigned int i = 0; i < variables.size(); ++i)
+    {
+        ss << vars.assigned(variables[i].name)->name;
+        if (i < variables.size() - 1)
+            ss << ",";
+    }
+
+    return ss.str();
+}
+
 PredicatePtr pddlboat::makePred(const std::string &name, const VariableList &variables)
 {
     return std::make_shared<Predicate>(name, variables);
@@ -315,6 +331,17 @@ void BoundPredicate::getVariables(VariableSet &vars) const
     for (const auto &binding : bindings)
         if (binding.isVar)
             vars.addVariable({binding.name, binding.type});
+}
+
+
+VariableList BoundPredicate::arguments() const
+{
+    VariableList list;
+    for (const auto &binding : bindings)
+        if (binding.isVar)
+            list.emplace_back(binding.name, binding.type);
+
+    return list;
 }
 
 bool BoundPredicate::containsVariable(const std::string &variable) const
