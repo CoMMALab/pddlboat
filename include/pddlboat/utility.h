@@ -4,6 +4,7 @@
 #define PDDLBOAT_UTILITY_
 
 #include <iostream>
+#include <optional>
 #include <cstdlib>  // for std::getenv
 #include <memory>   // for std::shared_ptr
 #include <array>    // for std::array
@@ -41,9 +42,13 @@ namespace pddlboat
         bool isExtension(const std::string &path_string, const std::string &extension);
         std::string resolvePath(const std::string &path);
         std::string loadFileToString(const std::string &path);
-        std::string runCommand(const std::string &cmd);
+        std::optional<std::string> runCommand(const std::string &cmd);
         void createFile(std::ofstream &out, const std::string &file);
-        std::pair<bool, std::vector<std::string>> listDirectory(const std::string &directory);
+        bool deleteFile(const std::string &file);
+        std::optional<std::vector<std::string>> listDirectory(const std::string &directory);
+        std::optional<std::vector<std::string>> glob(const std::string &directory, const std::string &wildcard);
+
+        std::string generateUUID();
     }  // namespace io
 }  // namespace pddlboat
 

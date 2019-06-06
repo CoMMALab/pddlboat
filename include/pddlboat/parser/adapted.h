@@ -74,4 +74,9 @@ BOOST_FUSION_ADAPT_STRUCT(                                //
     (pddlboat::ast::Expression, goal)                     //
 );
 
+BOOST_FUSION_ADAPT_STRUCT(                                //
+    pddlboat::ast::Plan,                                  //
+    (std::vector<pddlboat::ast::AtomicFormula>, actions)  //
+);
+
 #endif

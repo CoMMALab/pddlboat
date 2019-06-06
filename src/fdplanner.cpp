@@ -1,0 +1,178 @@
+/* Author: Zachary Kingston */
+
+#include <sstream>
+#include <iostream>
+
+#include <pddlboat/utility.h>
+#include <pddlboat/parser/parser.h>
+#include <pddlboat/solver/fdplanner.h>
+
+using namespace pddlboat;
+
+FastDownwardPlanner::FastDownwardPlanner(const ProblemPtr &problem, const Search &search)
+  : Planner(problem)
+  , search(search)
+  , uuid(io::generateUUID())
+  , translator(io::resolvePath(log::format("%1%/translate/translate.py", directory)))
+  , solver(io::resolvePath(log::format("%1%/downward", directory)))
+  , domain_file(temporary + "/" + log::format(domain_file_template, uuid))
+  , problem_file(temporary + "/" + log::format(problem_file_template, uuid))
+  , sas_file(temporary + "/" + log::format(sas_file_template, uuid))
+  , output_filename(log::format(output_file_template, uuid))
+  , output_file(temporary + "/" + output_filename)
+{
+    std::stringstream cs;
+    cs << solver;
+
+    // Output file
+    cs << " --internal-plan-file " << output_file;
+
+    switch (search)
+    {
+        case ASTAR:
+            cs << " --search \"astar(lmcut())\"";
+            break;
+
+        case LAZYGREEDY:
+            // Lazy greedy best-first search with preferred operators and the queue alternation method
+            cs << " --evaluator \"hff=ff()\"";
+            cs << " --evaluator \"hcea=cea()\"";
+            cs << " --search \"lazy_greedy([hff, hcea], preferred=[hff, hcea])\"";
+            break;
+
+        // Fast Downward Autotune 2
+        case FDAT:
+            // Evaluators
+            cs << " --evaluator \"hcea=cea(transform=adapt_costs(plusone))\"";
+            cs << " --evaluator \"hcg=cg(transform=adapt_costs(one))\"";
+            cs << " --evaluator \"hgc=goalcount(transform=adapt_costs(plusone))\"";
+            cs << " --evaluator \"hff=ff()\"";
+
+            // Autotune Fast Downward Search
+            cs << " --search ";
+            cs << "\"";
+            cs << "iterated([";
+            cs << "ehc(hcea,preferred=[hcea],preferred_usage=0,cost_type=normal),";
+            cs << "lazy(alt([single(sum([weight(g(),2),weight(hff,3)])),";
+            cs << "single(sum([weight(g(),2),weight(hff,3)]),pref_only=true),";
+            cs << "single(sum([weight(g(),2),weight(hcg,3)])),";
+            cs << "single(sum([weight(g(),2),weight(hcg,3)]),pref_only=true),";
+            cs << "single(sum([weight(g(),2),weight(hcea,3)])),";
+            cs << "single(sum([weight(g(),2),weight(hcea,3)]),pref_only=true),";
+            cs << "single(sum([weight(g(),2),weight(hgc,3)])),";
+            cs << "single(sum([weight(g(),2),weight(hgc,3)]),pref_only=true)],";
+            cs << "boost=200),";
+            cs << "preferred=[hcea,hgc],reopen_closed=false,cost_type=one),";
+            cs << "lazy(alt([single(sum([g(),weight(hff,5)])),";
+            cs << "single(sum([g(),weight(hff,5)]),pref_only=true),";
+            cs << "single(sum([g(),weight(hcg,5)])),";
+            cs << "single(sum([g(),weight(hcg,5)]),pref_only=true),";
+            cs << "single(sum([g(),weight(hcea,5)])),";
+            cs << "single(sum([g(),weight(hcea,5)]),pref_only=true),";
+            cs << "single(sum([g(),weight(hgc,5)])),";
+            cs << "single(sum([g(),weight(hgc,5)]),pref_only=true)],";
+            cs << "boost=5000),";
+            cs << "preferred=[hcea,hgc],reopen_closed=true,cost_type=normal),";
+            cs << "lazy(alt([single(sum([g(),weight(hff,2)])),";
+            cs << "single(sum([g(),weight(hff,2)]),pref_only=true),";
+            cs << "single(sum([g(),weight(hcg,2)])),";
+            cs << "single(sum([g(),weight(hcg,2)]),pref_only=true),";
+            cs << "single(sum([g(),weight(hcea,2)])),";
+            cs << "single(sum([g(),weight(hcea,2)]),pref_only=true),";
+            cs << "single(sum([g(),weight(hgc,2)])),";
+            cs << "single(sum([g(),weight(hgc,2)]),pref_only=true)],";
+            cs << "boost=1000),";
+            cs << "preferred=[hcea,hgc],reopen_closed=true,cost_type=one)";
+            cs << "],repeat_last=true,continue_on_fail=true)";
+            cs << "\"";
+            break;
+    }
+
+    // Tell command what SAS file to use
+    cs << " < " << sas_file;
+
+    solver_command = cs.str();
+
+    std::stringstream ts;
+    ts << translator;
+    ts << " --sas-file " << sas_file << " " << domain_file << " " << problem_file;
+    translator_command = ts.str();
+
+    update();
+}
+
+FastDownwardPlanner::~FastDownwardPlanner()
+{
+    io::deleteFile(domain_file);
+    io::deleteFile(problem_file);
+    io::deleteFile(sas_file);
+
+    auto matches = io::glob("/tmp", output_file + ".*");
+    if (matches)
+    {
+        for (const auto &match : *matches)
+            io::deleteFile(match);
+    }
+}
+
+void FastDownwardPlanner::update(bool domain, bool problem) const
+{
+    // Serialize problem and domain
+
+    if (domain)
+    {
+        std::ofstream domain_out;
+        io::createFile(domain_out, domain_file);
+        problem_->domain->toPDDL(domain_out);
+        domain_out.close();
+    }
+
+    if (problem)
+    {
+        std::ofstream problem_out;
+        io::createFile(problem_out, problem_file);
+        problem_->toPDDL(problem_out);
+        problem_out.close();
+    }
+
+    if (domain or problem)
+    {
+        // Call fast downward
+        auto tr = io::runCommand(translator_command);
+        if (not tr)
+            throw std::runtime_error("Failed to translate problem and domain!");
+    }
+}
+
+bool FastDownwardPlanner::solve(Plan &plan)
+{
+    auto pr = io::runCommand(solver_command);
+    if (not pr)
+        return false;
+
+    // Parse output file
+    ast::Plan parsed;
+
+    auto matches = io::glob("/tmp", output_filename + ".*");
+    if (matches)
+    {
+        for (const auto &match : *matches)
+            std::cout << match << std::endl;
+
+        auto file = matches->back();
+
+        parseFile(file, parsed);
+
+        for (const auto &action : parsed.actions)
+        {
+            std::vector<std::string> objects;
+            for (const auto &tl : action.variables)
+                for (const auto &t : tl.types)
+                    objects.emplace_back(t);
+
+            plan.addStep(action.name, objects);
+        }
+    }
+
+    return true;
+}

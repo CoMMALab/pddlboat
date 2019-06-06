@@ -2,8 +2,15 @@
 
 #include <pddlboat/utility.h>
 
-using namespace pddlboat;
+#include <boost/regex.hpp>
 
+#include <boost/lexical_cast.hpp>
+
+#include <boost/uuid/uuid.hpp>
+#include <boost/uuid/uuid_generators.hpp>
+#include <boost/uuid/uuid_io.hpp>
+
+using namespace pddlboat;
 
 std::string log::formatRecurse(boost::format &f)
 {
@@ -99,7 +106,7 @@ std::string io::loadFileToString(const std::string &path)
     return std::string(bytes.data(), size);
 }
 
-std::string io::runCommand(const std::string &cmd)
+std::optional<std::string> io::runCommand(const std::string &cmd)
 {
     std::array<char, 128> buffer;
     std::string result;
@@ -107,7 +114,7 @@ std::string io::runCommand(const std::string &cmd)
     if (!pipe)
     {
         std::cerr << log::format("Failed to run command `%1%`!", cmd) << std::endl;
-        return "";
+        return std::nullopt;
     }
 
     while (!feof(pipe.get()))
@@ -116,7 +123,7 @@ std::string io::runCommand(const std::string &cmd)
             result += buffer.data();
     }
 
-    return result;
+    return std::optional{result};
 }
 
 void io::createFile(std::ofstream &out, const std::string &file)
@@ -133,21 +140,73 @@ void io::createFile(std::ofstream &out, const std::string &file)
     out.open(path.string(), std::ofstream::out | std::ofstream::trunc);
 }
 
-std::pair<bool, std::vector<std::string>> io::listDirectory(const std::string &directory)
+bool io::deleteFile(const std::string &file)
+{
+    boost::filesystem::path path(file);
+    path = expandHome(path);
+    path = expandSymlinks(path);
+
+    return boost::filesystem::remove(path);
+}
+
+std::optional<std::vector<std::string>> io::listDirectory(const std::string &directory)
 {
     std::vector<std::string> contents;
 
     const std::string full_path = resolvePath(directory);
     if (full_path.empty())
-        return std::make_pair(false, contents);
+        return std::nullopt;
 
     boost::filesystem::path path(full_path);
-    if (!boost::filesystem::is_directory(path))
-        return std::make_pair(false, contents);
+    if (not boost::filesystem::is_directory(path))
+        return std::nullopt;
 
     for (auto it = boost::filesystem::directory_iterator(path); it != boost::filesystem::directory_iterator();
          ++it)
         contents.emplace_back(expandPath(it->path()).string());
 
-    return std::make_pair(true, contents);
+    return std::optional{contents};
+}
+
+std::optional<std::vector<std::string>> io::glob(const std::string &directory, const std::string &wildcard)
+{
+    auto contents = listDirectory(directory);
+    if (not contents)
+        return std::nullopt;
+
+    std::vector<std::string> matches;
+
+    const boost::regex filter(wildcard);
+
+    // std::cout << wildcard << std::endl << std::endl;
+
+    for (const auto &entry : *contents)
+    {
+        boost::filesystem::path path(entry);
+
+        // Skip if not a file
+        if (not boost::filesystem::is_regular_file(path))
+            continue;
+
+        // std::cout << entry << std::endl;
+
+        boost::smatch what;
+        if (not boost::regex_match(path.filename().string(), what, filter))
+            continue;
+
+        // std::cout << entry << std::endl << std::endl;
+
+        // File matches, store it
+        matches.emplace_back(entry);
+    }
+
+    return std::optional{matches};
+}
+
+std::string io::generateUUID()
+{
+    boost::uuids::random_generator gen;
+    boost::uuids::uuid u = gen();
+
+    return boost::lexical_cast<std::string>(u);
 }

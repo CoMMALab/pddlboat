@@ -3,39 +3,38 @@
 #include <iostream>
 
 #include <boost/timer/timer.hpp>
-#include <pddlboat/parser/parser.h>
-#include <pddlboat/parser/translator.h>
-#include <pddlboat/solver/domain.h>
 
-int main(int argc, char **argv)
+#include <pddlboat/utility.h>
+#include <pddlboat/parser/parser.h>
+
+void testDomain(const std::string &file)
 {
     boost::timer::auto_cpu_timer t;
 
-    if (argc < 3)
-    {
-        std::cerr << "Must provide file names!" << std::endl;
-        return 1;
-    }
-
-    const std::string domainfile(argv[1]);
     pddlboat::ast::Domain domain;
-    bool r = pddlboat::parseFile(domainfile, domain);
-    std::cout << domainfile << ": " << (r ? "OK" : "FAILED") << std::endl;
+    bool r = pddlboat::parseFile(std::string(PDDLBOAT_RESOURCE_DIRECTORY "/") + file, domain);
     if (r)
-    {
-        auto loadedDomain = pddlboat::toDomain(domain);
-        loadedDomain->toPDDL();
+        domain.toString(std::cout) << std::endl << std::endl;
+}
 
-        const std::string problemfile(argv[2]);
-        pddlboat::ast::Problem problem;
-        bool r = pddlboat::parseFile(problemfile, problem);
-        std::cout << problemfile << ": " << (r ? "OK" : "FAILED") << std::endl;
-        if (r)
-        {
-            auto loadedProblem = pddlboat::toProblem(problem, loadedDomain);
-            loadedProblem->toPDDL();
-        }
-    }
+void testProblem(const std::string &file)
+{
+    boost::timer::auto_cpu_timer t;
+
+    pddlboat::ast::Problem problem;
+    bool r = pddlboat::parseFile(std::string(PDDLBOAT_RESOURCE_DIRECTORY "/") + file, problem);
+    if (r)
+        problem.toString(std::cout) << std::endl << std::endl;
+}
+
+int main(int argc, char **argv)
+{
+    for (unsigned int i = 1; i <= 26; ++i)
+        testDomain(pddlboat::log::format("domain_%1$02u.pddl", i));
+
+    testDomain("blocks/blockworld.pddl");
+    for (unsigned int i = 1; i <= 21; ++i)
+        testProblem(pddlboat::log::format("blocks/p%1$02u.pddl", i));
 
     return 0;
 }

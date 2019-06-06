@@ -1,13 +1,39 @@
 #include <iostream>
+
+#include <boost/program_options.hpp>
+
 #include <pddlboat/solver/expressions.h>
 #include <pddlboat/solver/domain.h>
 
+namespace po = boost::program_options;
 namespace pd = pddlboat;
 
 int main(int argc, char **argv)
 {
-    std::cout << "Hello world" << std::endl;
+    // Program Options
+    bool domainout, problemout;
+    po::options_description desc("PDDLBoat - Domain/Planning Building Demo");
+    desc.add_options()                       //
+        ("domain,d", po::bool_switch(&domainout),   //
+         "Print the domain as PDDL")         //
+        ("problem,p", po::bool_switch(&problemout),  //
+         "Print the problem as PDDL")        //
+        ;
 
+    po::variables_map vm;
+    po::store(po::parse_command_line(argc, argv, desc), vm);
+
+    if (vm.count("help"))
+    {
+        std::cout << desc << std::endl;
+        return 1;
+    }
+
+    po::notify(vm);
+
+    //
+    // Build Domain
+    //
     auto domain = std::make_shared<pd::Domain>("block-world");
     domain->addType("block");
 
@@ -80,10 +106,13 @@ int main(int argc, char **argv)
                                     pd::makeNot(p_empty->bind()),        //
                                     pd::makeNot(p_on->bind({"?x", "?y"}))}));
     domain->addAction(a_unstack);
-    domain->toPDDL();
 
-    std::cout << std::endl;
+    if (domainout)
+        domain->toPDDL(std::cout) << std::endl;
 
+    //
+    // Build Problem
+    //
     auto problem = std::make_shared<pd::Problem>("simple", domain);
     problem->addObject("a", "block");
     problem->addObject("b", "block");
@@ -106,5 +135,8 @@ int main(int argc, char **argv)
         p_on->bind({"b", "a"}, problem),
     });
 
-    problem->toPDDL();
+    if (problemout)
+        problem->toPDDL(std::cout) << std::endl;
+
+    return 0;
 }

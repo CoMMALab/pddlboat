@@ -69,7 +69,7 @@ namespace pddlboat
             std::vector<std::string> types;
             std::string parent{""};
 
-            std::string toString(bool isVariable = true) const;
+            std::ostream &toString(std::ostream &out, bool isVariable = true) const;
         };
 
         ///
@@ -82,7 +82,7 @@ namespace pddlboat
             std::string name;
             std::vector<TypedList> variables;
 
-            std::string toString() const;
+            std::ostream &toString(std::ostream &out) const;
         };
 
         class AtomicFormulaList : x3::position_tagged
@@ -91,7 +91,7 @@ namespace pddlboat
             std::vector<AtomicFormula> formulas;
             std::string parent{""};
 
-            std::string toString() const;
+            std::ostream &toString(std::ostream &out) const;
         };
 
         ///
@@ -133,7 +133,7 @@ namespace pddlboat
             std::vector<TypedList> parameters{};
             std::vector<Expression> terms{};
 
-            std::string toString(bool literal = false) const;
+            std::ostream& toString(std::ostream &out, bool literal = false) const;
         };
 
         class Action : x3::position_tagged
@@ -144,7 +144,7 @@ namespace pddlboat
             Expression precondition{};
             Expression effect{};
 
-            std::string toString() const;
+            std::ostream &toString(std::ostream &out) const;
         };
 
         ///
@@ -162,7 +162,7 @@ namespace pddlboat
             std::vector<AtomicFormulaList> functions;
             std::vector<Action> actions;
 
-            std::string toString() const;
+            std::ostream &toString(std::ostream &out) const;
         };
 
         ///
@@ -178,7 +178,19 @@ namespace pddlboat
             std::vector<AtomicFormula> initial{};
             Expression goal{};
 
-            std::string toString() const;
+            std::ostream &toString(std::ostream &out) const;
+        };
+
+        ///
+        /// Plan
+        ///
+
+        class Plan : x3::position_tagged
+        {
+        public:
+            std::vector<AtomicFormula> actions{};
+
+            std::ostream &toString(std::ostream &out) const;
         };
 
         using boost::fusion::operator<<;
