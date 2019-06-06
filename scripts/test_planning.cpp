@@ -1,9 +1,8 @@
 #include <iostream>
 
-#include <boost/chrono/chrono.hpp>
-#include <boost/timer/timer.hpp>
 #include <boost/program_options.hpp>
 
+#include <pddlboat/utility.h>
 #include <pddlboat/parser/parser.h>
 #include <pddlboat/parser/translator.h>
 #include <pddlboat/solver/expressions.h>
@@ -79,10 +78,13 @@ int main(int argc, char **argv)
         ;
 
     unsigned int horizon;
+    bool diagnostics;
     po::options_description z3opt("z3 Planner Options");
     z3opt.add_options()                                                     //
         ("horizon,z", po::value<unsigned int>(&horizon)->default_value(6),  //
          "Maximum planning horizon to use")                                 //
+        ("diagnostics,v", po::bool_switch(&diagnostics),                    //
+         "Print debugging statistics")                                      //
         ;
     desc.add(z3opt);
 
@@ -162,7 +164,7 @@ int main(int argc, char **argv)
     switch (plannertype)
     {
         case Z3:
-            planner = std::make_shared<pd::Z3Planner>(problem, horizon);
+            planner = std::make_shared<pd::Z3Planner>(problem, horizon, diagnostics);
             break;
         case FD:
             planner = std::make_shared<pd::FastDownwardPlanner>(problem, search);
@@ -182,13 +184,7 @@ int main(int argc, char **argv)
         if (timeout)
         {
             t.stop();
-            boost::chrono::duration<double> wall = boost::chrono::nanoseconds(t.elapsed().wall);
-            boost::chrono::duration<double> user = boost::chrono::nanoseconds(t.elapsed().user);
-            boost::chrono::duration<double> syst = boost::chrono::nanoseconds(t.elapsed().system);
-
-            std::cout << pd::log::format("Wall: %1%s, User: %2%s, System: %3%s",    //
-                                         wall.count(), user.count(), syst.count())  //
-                      << std::endl;
+            std::cout << pd::io::getTiming(t) << std::endl;
         }
     }
 

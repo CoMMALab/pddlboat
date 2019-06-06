@@ -1,28 +1,30 @@
 #ifndef PDDLBOAT_Z3_PLANNER_
 #define PDDLBOAT_Z3_PLANNER_
 
+#include <iostream>
+#include <sstream>
+
 #include <z3++.h>
+
 #include <pddlboat/utility.h>
 #include <pddlboat/parser/parser.h>
 #include <pddlboat/solver/expressions.h>
 #include <pddlboat/solver/domain.h>
 #include <pddlboat/solver/planner.h>
 
-#include <iostream>
-#include <sstream>
-#include <unordered_map>
-
 namespace pddlboat
 {
     class Z3Planner : public Planner
     {
         const Time horizon_;
+        const bool diagnostics_;
 
         z3::context *ctx_{nullptr};
         z3::solver *solver_{nullptr};
 
     public:
-        Z3Planner(const ProblemPtr problem, const Time horizon) : Planner(problem), horizon_(horizon)
+        Z3Planner(const ProblemPtr problem, const Time horizon, bool diagnostics = false)
+          : Planner(problem), horizon_(horizon), diagnostics_(diagnostics)
         {
             build();
         }
@@ -46,10 +48,19 @@ namespace pddlboat
 
         bool solve(Plan &plan) override
         {
+            boost::timer::cpu_timer t;
             if (not solver_)
                 return false;
 
-            switch (solver_->check())
+            auto result = solver_->check();
+
+            if (diagnostics_)
+            {
+                t.stop();
+                std::cout << "Solving Z3 Instance took: " << io::getTiming(t) << std::endl;
+            }
+
+            switch (result)
             {
                 case z3::sat:
                     std::cout << "planning instance is solved\n";
@@ -135,7 +146,8 @@ namespace pddlboat
             }
         }
 
-        bool predicateInEffect(const ExpressionPtr &expr, const Assignment &assignment, const std::string &predicate)
+        bool predicateInEffect(const ExpressionPtr &expr, const Assignment &assignment,
+                               const std::string &predicate)
         {
             switch (expr->type())
             {
@@ -204,6 +216,8 @@ namespace pddlboat
 
         void build()
         {
+            boost::timer::cpu_timer t;
+
             // First we build the context, grounding all actions and predicates.
             ctx_ = new z3::context;
             solver_ = new z3::solver(*ctx_);
@@ -239,6 +253,9 @@ namespace pddlboat
                             ground_actions.emplace_back(action_string);
                     }
                 }
+
+                if (diagnostics_ and step == 0)
+                    std::cout << "Z3 grounded " << ground_actions.size() << " actions" << std::endl;
 
                 for (const auto &name_predptr : problem_->domain->predicates)
                 {
@@ -295,6 +312,12 @@ namespace pddlboat
                     else
                         solver_->add(z3::expr(not p));
                 }
+            }
+
+            if (diagnostics_)
+            {
+                t.stop();
+                std::cout << "Building Z3 Instance took: " << io::getTiming(t) << std::endl;
             }
         }
     };

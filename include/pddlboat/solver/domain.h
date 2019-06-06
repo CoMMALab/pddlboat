@@ -72,53 +72,131 @@ namespace pddlboat
     /// Objects
     ///
 
+    /** \brief An object in the problem. Has a name and type.
+     */
     class Object
     {
     public:
+        /** \brief Constructor.
+         *  \param[in] name Name of object.
+         *  \param[in] type Type of object.
+         */
         Object(const std::string &name, const std::string &type);
 
-        std::string name;
-        std::string type{PDDLBOAT_OBJECT_CLASS};
+        std::string name;                         ///< Name
+        std::string type{PDDLBOAT_OBJECT_CLASS};  ///< Type
     };
 
+    /** \brief Factory function to create a new object.
+     *  \param[in] name Name of object.
+     *  \param[in] type Type of object.
+     */
     ObjectPtr makeObj(const std::string &name, const std::string &type = PDDLBOAT_OBJECT_CLASS);
 
     ///
     /// Variables
     ///
 
+    /** \brief A variable in a formula. Has a name and type.
+     */
     class Variable
     {
     public:
+        /** \brief Constructor.
+         *  \param[in] both A pair consisting of the name and type of the variable.
+         */
         Variable(const std::pair<std::string, std::string> &both);
+
+        /** \brief Constructor.
+         *  \param[in] name Name of the variable.
+         *  \param[in] type Type of the variable.
+         */
         Variable(const std::string &name, const std::string &type = PDDLBOAT_OBJECT_CLASS);
 
-        std::string name;
-        std::string type{PDDLBOAT_OBJECT_CLASS};
+        std::string name;                         ///< Name
+        std::string type{PDDLBOAT_OBJECT_CLASS};  ///< Type
 
+        /** \brief Less than operator for sorted storage classes.
+         *  \param[in] other Other variable to compare to.
+         *  \return Returns true if this is less than other, lexically by name.
+         */
         bool operator<(const Variable &other) const;
+
+        /** \brief Equality operator.
+         *  \param[in] other Other variable to compare to.
+         *  \return True if both name and type are the same, false otherwise.
+         */
         bool operator==(const Variable &other) const;
+
+        /** \brief Inquality operator.
+         *  \param[in] other Other variable to compare to.
+         *  \return True if either name and type are different, false otherwise.
+         */
         bool operator!=(const Variable &other) const;
     };
 
+    /** \brief A list of variables.
+     *  Generally used to store argument lists to expressions, actions, or predicates.
+     */
     using VariableList = std::vector<Variable>;
 
+    /** \brief A set of variables. Does not have order.
+     *  Generally used to check if the arguments for expressions match.
+     */
     class VariableSet
     {
     public:
-        std::set<Variable> variables;
+        std::set<Variable> variables;  ///< Variable set.
 
+        /** \brief Constructor.
+         */
         VariableSet();
+
+        /** \brief Constructor.
+         *  \param[in] variables A list of variables.
+         */
         VariableSet(const VariableList &variables);
 
+        /** \brief Merges another set of variables with this set.
+         *  \param[in] other Other set to merge.
+         */
         void merge(const VariableSet &other);
+
+        /** \brief Adds a variable to the variable set.
+         *  \param[in] var Variable to add.
+         *  \throw std::invalid_argument if you try to add a variable that already exists AND that variable
+         * has a different type.
+         */
         void addVariable(const Variable &var);
+
+        /** \brief Get the names of all the variables in the variable set.
+         *  \return The names of all the variables in the set.
+         */
         std::set<std::string> getNames() const;
+
+        /** \brief Search the set of variables for a variable with a specific name.
+         *  \param[in] name Name to search for.
+         *  \return The found variable.
+         *  \throw std::invalid_argument if the variable does not exist.
+         */
         const Variable &getVariable(const std::string &name) const;
 
+        /** \brief Serialize this set to PDDL.
+         *  \param[in,out] out Output stream to use.
+         *  \return The output stream.
+         */
         std::ostream &toPDDL(std::ostream &out = std::cout) const;
 
+        /** \brief Equality operator.
+         *  \param[in] other Set to compare against.
+         *  \return True if the sets are equal.
+         */
         bool operator==(const VariableSet &other) const;
+
+        /** \brief Inequality operator.
+         *  \param[in] other Set to compare against.
+         *  \return True if the sets are unequal.
+         */
         bool operator!=(const VariableSet &other) const;
     };
 
@@ -126,22 +204,53 @@ namespace pddlboat
     /// Assignment
     ///
 
+    /** \brief An assignment of variables to objects.
+     *  Used to ground expressions to a particular binding of variables to objects.
+     */
     class Assignment
     {
     public:
-        const Problem *problem;
-        std::map<std::string, ObjectPtr> varToObj{};
+        const Problem *problem; ///< The problem this assignment is from.
+        std::map<std::string, ObjectPtr> varToObj{}; ///< Mapping of variable name to objects.
 
+        /** \brief Constructor. Creates an empty assignment.
+         *  \param[in] problem Problem to create assignment for.
+         */
         Assignment(const Problem *problem);
+
+        /** \brief Copy constructor. Copies the assignment.
+         *  \param[in] other The assignment to copy.
+         */
         Assignment(const Assignment &other);
 
+        /** \brief Returns the arity of this assignment, i.e., the number of assignments.
+         * \return The number of assignments.
+         */
         unsigned int arity() const;
 
+        /** \brief Assign a variable \a var to an object \a obj.
+         *  \param[in] var Variable to assign.
+         *  \param[in] obj Object to assign to variable.
+         *  \throw std::invalid_argument if object \a obj does not exist.
+         */
         void assign(const std::string &var, const std::string &obj);
+
+        /** \brief Retrieve the object assigned to a variable.
+         *  \param[in] var Variable to retrieve.
+         *  \return The object assigned to a variable.
+         *  \throw std::invalid_argument if variable \a var is not assigned.
+         */
         const ObjectPtr &assigned(const std::string &var) const;
 
+        /** \brief Get the set of all names of variables assigned.
+         *  \return The set of all variables assigned.
+         */
         std::set<std::string> getVariables() const;
 
+        /** \brief Serialize this assignment.
+         *  \param[in,out] out Output stream to use.
+         *  \return The output stream.
+         */
         std::ostream &toString(std::ostream &out = std::cout) const;
     };
 

@@ -12,6 +12,8 @@
 #include <boost/filesystem.hpp>  // for filesystem paths
 #include <boost/format.hpp>      // for format
 
+#include <boost/timer/timer.hpp>
+
 namespace pddlboat
 {
     namespace log
@@ -49,6 +51,7 @@ namespace pddlboat
         std::optional<std::vector<std::string>> glob(const std::string &directory, const std::string &wildcard);
 
         std::string generateUUID();
+        std::string getTiming(const boost::timer::cpu_timer &timer);
     }  // namespace io
 }  // namespace pddlboat
 

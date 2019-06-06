@@ -6,6 +6,8 @@
 
 #include <boost/lexical_cast.hpp>
 
+#include <boost/chrono/chrono.hpp>
+
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
@@ -209,4 +211,15 @@ std::string io::generateUUID()
     boost::uuids::uuid u = gen();
 
     return boost::lexical_cast<std::string>(u);
+}
+
+std::string io::getTiming(const boost::timer::cpu_timer &timer)
+{
+    const auto elapsed = timer.elapsed();
+    boost::chrono::duration<double> wall = boost::chrono::nanoseconds(elapsed.wall);
+    boost::chrono::duration<double> user = boost::chrono::nanoseconds(elapsed.user);
+    boost::chrono::duration<double> syst = boost::chrono::nanoseconds(elapsed.system);
+
+    return log::format("Wall: %1%s, User: %2%s, System: %3%s",  //
+                       wall.count(), user.count(), syst.count());
 }
