@@ -81,7 +81,7 @@ int main(int argc, char **argv)
     unsigned int horizon;
     po::options_description z3opt("z3 Planner Options");
     z3opt.add_options()                                                     //
-        ("horizon,z", po::value<unsigned int>(&horizon)->default_value(1),  //
+        ("horizon,z", po::value<unsigned int>(&horizon)->default_value(6),  //
          "Maximum planning horizon to use")                                 //
         ;
     desc.add(z3opt);

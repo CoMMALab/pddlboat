@@ -8,9 +8,12 @@
 #include <pddlboat/solver/domain.h>
 #include <pddlboat/solver/planner.h>
 
+#include <iostream>
+#include <sstream>
+#include <unordered_map>
 
-namespace pddlboat {
-
+namespace pddlboat
+{
     class Z3Planner : public Planner
     {
         // We store a set of grounded actions and predicates (without the timestep)
@@ -34,6 +37,27 @@ namespace pddlboat {
             build();
         }
 
+        void printPlan()
+        {
+            auto m = solver_->get_model();
+            std::cout << "num funcs: " << m.num_funcs() << std::endl;
+            for (size_t i = 0; i < m.num_funcs(); i++)
+            {
+                auto f = m.get_func_interp(m.get_func_decl(i));
+                std::cout << f << std::endl;
+            }
+            std::cout << "num consts: " << m.num_consts() << std::endl;
+            for (size_t i = 0; i < m.num_consts(); i++)
+            {
+                z3::expr f = m.get_const_interp(m.get_const_decl(i));
+
+                if (f.is_true())
+                {
+                    std::cout << m.get_const_decl(i) << std::endl;
+                }
+            }
+        }
+
         bool solve(Plan &plan) override
         {
             if (not solver_)
@@ -41,14 +65,15 @@ namespace pddlboat {
 
             // Solve the problem
             std::cout << "solver: " << std::endl;
-            std::cout << *solver_ << "\n";
+            // std::cout << *solver_ << "\n";
             std::cout << "solver to smt2" << std::endl;
-            std::cout << solver_->to_smt2() << "\n";
+            // std::cout << solver_->to_smt2() << "\n";
 
             switch (solver_->check())
             {
                 case z3::sat:
                     std::cout << "planning instance is solved\n";
+                    printPlan();
                     return true;
                 case z3::unsat:
                     std::cout << "planning instance is not solved\n";
@@ -60,25 +85,66 @@ namespace pddlboat {
         }
 
     private:
+        bool isValidStringForZ3(const std::string &s)
+        {
+            if (s.find("ARGS:") == std::string::npos)
+            {  // At least one ARGS:
+                return false;
+            }
+            if (s.find("TIME:") == std::string::npos)
+            {  // At least one TIME:
+                return false;
+            }
+            if (s.find("ACTION:") == std::string::npos && s.find("PRED:") == std::string::npos)
+            {  // At least one ACTION: or PRED:
+                return false;
+            }
+            if (s.substr(s.find("ARGS:") + 5).find("ARGS:") != std::string::npos)
+            {  // At most one ARGS:
+                return false;
+            }
+            if (s.substr(s.find("TIME:") + 6).find("TIME:") != std::string::npos)
+            {  // At most one ARGS:
+                return false;
+            }
+            if (s.find("ACTION:") != std::string::npos && s.find("PRED:") != std::string::npos)
+            {  // not (ACTION: and PRED:)
+                return false;
+            }
+            if (s.substr(s.find("ACTION:") + 7).find("ACTION:") != std::string::npos)
+            {  // At most one ACTION:
+                return false;
+            }
+            if (s.substr(s.find("PRED:") + 6).find("PRED:") != std::string::npos)
+            {  // At most one PRED:
+                return false;
+            }
+            return true;
+        }
+
         z3::expr makeBool(const std::string &string)  // Should be renamed. Only makes new if doesn't exist.
         {
-            std::cout << "Creating bool: " << string << std::endl;
+            if (!isValidStringForZ3(string))
+            {
+                std::cout << "We have a malformed name for a Z3 variable: " << string << std::endl;
+                throw std::runtime_error("whoops!");
+            }
             return ctx_->bool_const(string.c_str());
         }
 
-        bool effectContainsProposition(const ActionPtr action, const std::vector<std::string> args,
-                                       std::string prop)
-        {
-            // TODO: Don't count the preconditions here
-            for (auto s : args)
-            {
-                if (s.find(prop) != std::string::npos)
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
+        // bool effectContainsProposition(const ActionPtr action, const std::vector<std::string> args,
+        //                                std::string prop)
+        // {
+        //     // TODO: Don't count the preconditions here
+        //     for (auto s : args)std::string(predicate->predicate->name
+        //     {
+        //         if (s.find(prop) != std::string::npos)
+        //         {
+        //             return true;
+        //         }
+        //     }
+        //     return false;
+        // }
         const ActionPtr getActionFromString(std::string string)
         {
             std::string str = string.substr(string.find("ACTION:") + 6, string.find("ARGS:"));
@@ -87,7 +153,7 @@ namespace pddlboat {
 
         const PredicatePtr getPredicateFromString(std::string string)
         {
-            std::string str = string.substr(string.find("PREDICATE:") + 9, string.find("ARGS:"));
+            std::string str = string.substr(string.find("PRED:") + 4, string.find("ARGS:"));
             return problem_->domain->predicates[str];
         }
 
@@ -101,6 +167,41 @@ namespace pddlboat {
         const std::string addTimeToString(std::string string, Time time)
         {
             return string + "TIME:" + std::to_string(time);
+        }
+
+        std::unordered_map<std::string, std::string> createMapping(std::vector<std::string> v1,
+                                                                   std::vector<std::string> v2)
+        {
+            std::unordered_map<std::string, std::string> my_map;
+            assert(v1.size() + 1 == v2.size());
+            for (size_t i = 0; i < v1.size(); i++)
+            {
+                my_map[v1[i]] = v2[i + 1];
+            }
+            return my_map;
+        }
+
+        // Map of names <from, to>
+        std::string createGroundedPredicateString(
+            const BoundPredicatePtr predicate, const std::unordered_map<std::string, std::string> &args_map,
+            const Time step)
+        {
+            std::string str;
+
+            for (size_t i = 0; i < predicate->bindings.size(); i++)
+            {
+                if (args_map.find(predicate->bindings[i].name) != args_map.end())
+                {
+                    auto s = args_map.find(predicate->bindings[i].name);
+                    str += s->second;
+                }
+                else
+                {
+                    std::cout << "We couldn't find variable " << predicate->bindings[i].name << std::endl;
+                }
+            }
+            return "PRED:" + std::string(predicate->getPredicateName()) + "ARGS:" + str +
+                   "TIME:" + std::to_string(step);
         }
 
         std::string createGroundedPredicateString(const PredicatePtr predicate,
@@ -135,60 +236,66 @@ namespace pddlboat {
                    "TIME:" + std::to_string(step);
         }
 
-        //TODO make a version that works for nary predicates
-        std::vector<std::vector<std::string>> getNAryObjectList(const PredicatePtr)
+        // TODO: How should this differ from the function for non-bound predicates
+        std::string createGroundedPredicateString(const BoundPredicatePtr predicate, const Time step)
         {
-          std::vector<std::vector<std::string>> list = {};
-            for (auto obj : problem_->objects)
+            std::string str;
+            for (auto const &val : predicate->bindings)
             {
-                std::vector<std::string> permutation;
-                permutation.emplace_back(obj->name);
-                list.emplace_back(permutation);
+                str += val.name;
             }
-            return list;
+            return "PRED:" + std::string(predicate->getPredicateName()) + "ARGS:" + str +
+                   "TIME:" + std::to_string(step);
         }
 
-        //TODO version that works for nary actions
-        std::vector<std::vector<std::string>> getNAryArgList(const ActionPtr)
+        // TODO version that does type checking
+        std::vector<std::vector<std::string>> getNAryArgList(const VariableList parameters,
+                                                             size_t start_mod = 0)
         {
-          std::vector<std::vector<std::string>> list = {};
-            for (auto obj : problem_->objects)
-            {
-                std::vector<std::string> permutation;
-                permutation.emplace_back(obj->name);
-                list.emplace_back(permutation);
-            }
-            return list;
-        }
+            std::vector<std::vector<std::string>> list = {};
 
-        /**
-         * For frame axioms, we need to know all actions that could change a proposition
-         * the time step is when the action is executed, so the change will be at the next time step
-         */
-        z3::expr getPossibleChangeActions(std::string proposition, const Time step_before)
-        {
-            z3::expr change_actions = ctx_->bool_val(false);
-            for (const auto name_actionptr : problem_->domain->actions)
+            size_t num_args = parameters.size() - start_mod;
+            if (num_args == 0)
             {
-                std::vector<std::vector<std::string>> nary_arg_assignment_list =
-                    getNAryArgList(name_actionptr.second);
-                for (const auto args_to_action : nary_arg_assignment_list)
+                return list = {{""}};
+            }
+            else
+            {
+                std::vector<std::vector<std::string>> list_of_list_of_names =
+                    getNAryArgList(parameters, start_mod + 1);
+                for (auto l : list_of_list_of_names)
                 {
-                    if (effectContainsProposition(name_actionptr.second, args_to_action, proposition))
+                    for (auto obj : problem_->objects)
                     {
-                        change_actions = change_actions or
-                                         makeBool(createGroundedActionString(name_actionptr.second,
-                                                                             args_to_action, step_before));
-                    }
-                    else
-                    {
-                        std::cout << log::format("Action %1% does not contain prop. %2%.",
-                                                 name_actionptr.first, proposition)
-                                  << std::endl;
+                        std::vector<std::string> new_list_of_names(l);
+                        new_list_of_names.emplace_back(obj->name);
+                        list.emplace_back(new_list_of_names);
                     }
                 }
+                return list;
             }
-            return change_actions;
+        }
+
+        std::string substituteString(std::string main_string, std::string find, std::string replace,
+                                     size_t start_index = 0,
+                                     size_t end_index = std::numeric_limits<size_t>::max())
+        {
+            std::string str = main_string;
+            size_t curr_index = start_index;
+            end_index = end_index == std::numeric_limits<size_t>::max() ? str.length() : end_index;
+            size_t i = 0;
+            while ((i = str.find(find, curr_index)) != std::string::npos)
+            {
+                if (i >= end_index)
+                {
+                    break;
+                }
+                std::string s1 = str.substr(0, i);
+                std::string s2 = str.substr(i + find.length());
+                str = s1 + replace + s2;
+                curr_index = i + replace.length();
+            }
+            return str;
         }
 
         /**
@@ -196,23 +303,24 @@ namespace pddlboat {
          * z3 bool_constants. We require that the expression does not contain any actions (all terminals
          * are state props).
          */
-        z3::expr exprAtTime(const ExpressionPtr &expr, std::vector<std::string> args_list, const Time step)
+        z3::expr exprAtTime(const ExpressionPtr &expr, std::unordered_map<std::string, std::string> args_map,
+                            const Time step)
         {
             switch (expr->type())
             {
                 case Expression::Type::PREDICATE:
                 {
                     const auto &predicate_expr = std::static_pointer_cast<BoundPredicate>(expr);
-                    return makeBool(createGroundedPredicateString(predicate_expr, args_list, step));
+                    return makeBool(createGroundedPredicateString(predicate_expr, args_map, step));
                 }
                 case Expression::Type::AND:
                 {
                     const auto &and_expr = std::static_pointer_cast<And>(expr);
-                    z3::expr car = exprAtTime(makeCAR(and_expr), args_list, step);
+                    z3::expr car = exprAtTime(makeCAR(and_expr), args_map, step);
                     auto cdr_expr = makeCDR(and_expr);
                     if (cdr_expr)
                     {
-                        z3::expr cdr = exprAtTime(cdr_expr, args_list, step);
+                        z3::expr cdr = exprAtTime(cdr_expr, args_map, step);
                         z3::expr clause = car and cdr;
                         return clause;
                     }
@@ -222,11 +330,11 @@ namespace pddlboat {
                 case Expression::Type::OR:
                 {
                     const auto &or_expr = std::static_pointer_cast<Or>(expr);
-                    z3::expr car = exprAtTime(or_expr->getTerms().back(), args_list, step);
+                    z3::expr car = exprAtTime(or_expr->getTerms().back(), args_map, step);
                     auto cdr_expr = makeCDR(or_expr);
                     if (or_expr)
                     {
-                        z3::expr cdr = exprAtTime(cdr_expr, args_list, step);
+                        z3::expr cdr = exprAtTime(cdr_expr, args_map, step);
                         z3::expr clause = car or cdr;
                         return clause;
                     }
@@ -236,7 +344,7 @@ namespace pddlboat {
                 case Expression::Type::NOT:
                 {
                     const auto &not_expr = std::static_pointer_cast<Not>(expr);
-                    z3::expr exp = exprAtTime(not_expr->getTerm(), args_list, step);
+                    z3::expr exp = exprAtTime(not_expr->getTerm(), args_map, step);
                     return not exp;
                 }
                 case Expression::Type::EXPRESSION:
@@ -249,6 +357,196 @@ namespace pddlboat {
             }
         }
 
+        z3::expr getGoalAsZ3Expr(const ExpressionPtr &expr, const Time step)
+        {
+            switch (expr->type())
+            {
+                case Expression::Type::PREDICATE:
+                {
+                    const auto &predicate_expr = std::static_pointer_cast<BoundPredicate>(expr);
+                    return makeBool(createGroundedPredicateString(predicate_expr, step));
+                }
+                case Expression::Type::AND:
+                {
+                    const auto &and_expr = std::static_pointer_cast<And>(expr);
+                    z3::expr car = getGoalAsZ3Expr(makeCAR(and_expr), step);
+                    auto cdr_expr = makeCDR(and_expr);
+                    if (cdr_expr)
+                    {
+                        z3::expr cdr = getGoalAsZ3Expr(cdr_expr, step);
+                        z3::expr clause = car and cdr;
+                        return clause;
+                    }
+                    else
+                        return car;
+                }
+                case Expression::Type::OR:
+                {
+                    const auto &or_expr = std::static_pointer_cast<Or>(expr);
+                    z3::expr car = getGoalAsZ3Expr(or_expr->getTerms().back(), step);
+                    auto cdr_expr = makeCDR(or_expr);
+                    if (or_expr)
+                    {
+                        z3::expr cdr = getGoalAsZ3Expr(cdr_expr, step);
+                        z3::expr clause = car or cdr;
+                        return clause;
+                    }
+                    else
+                        return car;
+                }
+                case Expression::Type::NOT:
+                {
+                    const auto &not_expr = std::static_pointer_cast<Not>(expr);
+                    z3::expr exp = getGoalAsZ3Expr(not_expr->getTerm(), step);
+                    return not exp;
+                }
+                case Expression::Type::EXPRESSION:
+                    std::cout << "Error, we do not currently support Expression types here." << std::endl;
+                    [[fallthrough]];  // sweet c++17 feature
+                default:
+                    std::cout << "We had an error in parsing the pddlboat expression to an expression for Z3."
+                              << std::endl;
+                    throw std::runtime_error("whoops!");
+            }
+        }
+
+        std::vector<std::string> getPredicateStrings(const ExpressionPtr &expr, const Time step)
+        {
+            switch (expr->type())
+            {
+                case Expression::Type::PREDICATE:
+                {
+                    const auto &predicate_expr = std::static_pointer_cast<BoundPredicate>(expr);
+                    return {createGroundedPredicateString(predicate_expr, step)};
+                }
+                case Expression::Type::AND:
+                {
+                    const auto &and_expr = std::static_pointer_cast<And>(expr);
+                    std::vector<std::string> car = getPredicateStrings(makeCAR(and_expr), step);
+                    auto cdr_expr = makeCDR(and_expr);
+                    if (cdr_expr)
+                    {
+                        std::vector<std::string> cdr = getPredicateStrings(cdr_expr, step);
+                        car.insert(car.end(), cdr.begin(), cdr.end());
+                        return car;
+                    }
+                    else
+                        return car;
+                }
+                case Expression::Type::OR:
+                {
+                    const auto &or_expr = std::static_pointer_cast<Or>(expr);
+                    std::vector<std::string> car = getPredicateStrings(or_expr->getTerms().back(), step);
+                    auto cdr_expr = makeCDR(or_expr);
+                    if (or_expr)
+                    {
+                        std::vector<std::string> cdr = getPredicateStrings(cdr_expr, step);
+                        car.insert(car.end(), cdr.begin(), cdr.end());
+                        return car;
+                    }
+                    else
+                        return car;
+                }
+                case Expression::Type::NOT:
+                {
+                    const auto &not_expr = std::static_pointer_cast<Not>(expr);
+                    return getPredicateStrings(not_expr->getTerm(), step);
+                }
+                case Expression::Type::EXPRESSION:
+                    std::cout << "Error, we do not currently support Expression types here." << std::endl;
+                    [[fallthrough]];  // sweet c++17 feature
+                default:
+                    std::cout << "We had an error in parsing the pddlboat expression to an expression for Z3."
+                              << std::endl;
+                    throw std::runtime_error("whoops!");
+            }
+        }
+
+        std::string toString(std::ostream &str)
+        {
+            std::ostringstream ss;
+            ss << str.rdbuf();
+            return ss.str();
+        }
+
+        void printVectorOfStrings(const std::vector<std::string> &vec)
+        {
+            for (auto s : vec)
+                std::cout << s << ", ";
+        }
+
+        std::vector<std::string> getEffectStringsFromGroundedAction(
+            const ActionPtr &action, const std::vector<std::string> &action_args, const Time step_before)
+        {
+            std::vector<std::string> vec_str = getPredicateStrings(action->effect, step_before + 1);
+            std::vector<Variable> var_list = action->parameters;
+
+            // We have an empty string as the base case for the arg list, so we add one.
+            if (var_list.size() + 1 != action_args.size())
+            {
+                std::cout << "Arg list size mismatch: " << var_list.size() << " vs " << action_args.size()
+                          << std::endl;
+                std::cout << var_list[0].name << std::endl;
+                std::cout << action_args[0] << std::endl;
+                std::cout << action_args[1] << std::endl;
+
+                std::cout << action->name << std::endl;
+                throw std::runtime_error("whoops!");
+            }
+
+            for (size_t i = 0; i < vec_str.size(); i++)
+            {
+                assert(action_args[0].length() == 0);  // The empty string should always be the first one
+                for (size_t j = 0; j < var_list.size(); j++)
+                {
+                    // Don't do anything for the empty string
+                    if (action_args[j + 1].length() > 0)
+                    {
+                        vec_str[i] = substituteString(vec_str[i], var_list[j].name, action_args[j + 1],
+                                                      vec_str[i].find("ARGS:") + 4, vec_str[i].find("TIME:"));
+                    }
+                }
+            }
+
+            return vec_str;
+        }
+
+        /**
+         * For frame axioms, we need to know all actions that could change a proposition
+         * the time step is when the action is executed, so the change will be at the next time step
+         */
+        z3::expr getPossibleChangeActions(std::string proposition, const Time step_before)
+        {
+            z3::expr change_actions = ctx_->bool_val(false);
+            for (const auto name_actionptr : problem_->domain->actions)
+            {
+                // TODO: This should only count effects
+                std::vector<std::vector<std::string>> nary_arg_assignment_list =
+                    getNAryArgList(name_actionptr.second->parameters);
+                for (const auto args_to_action : nary_arg_assignment_list)
+                {
+                    std::vector<std::string> effect_strs = getEffectStringsFromGroundedAction(
+                        name_actionptr.second, args_to_action, step_before);
+                    if (std::find(effect_strs.begin(), effect_strs.end(),
+                                  addTimeToString(proposition, step_before + 1)) != effect_strs.end())
+                    {
+                        change_actions = change_actions or
+                                         makeBool(createGroundedActionString(name_actionptr.second,
+                                                                             args_to_action, step_before));
+                    }
+                    else
+                    {
+                        // std::cout << log::format("Action %1% does not contain prop. %2%.",
+                        //                          name_actionptr.first, addTimeToString(proposition,
+                        //                          step_before+1)) << std::endl;
+                        // printVectorOfStrings(effect_strs);
+                        // std::cout<<std::endl;
+                    }
+                }
+            }
+            return change_actions;
+        }
+
         // We need to ground predicates for each timestep and each applicable set of object:
         void groundPredicates()
         {
@@ -257,7 +555,7 @@ namespace pddlboat {
                 for (const auto name_predptr : problem_->domain->predicates)
                 {
                     std::vector<std::vector<std::string>> nary_object_list =
-                        getNAryObjectList(name_predptr.second);
+                        getNAryArgList(name_predptr.second->variables);
                     for (const auto args_to_pred : nary_object_list)
                     {
                         // create a predicate:
@@ -267,7 +565,7 @@ namespace pddlboat {
                         makeBool(pred_string);
                         if (step == 0)
                         {
-                            grounded_predicates_.insert(pred_string.substr(0, pred_string.find(":TIME")));
+                            grounded_predicates_.insert(pred_string.substr(0, pred_string.find("TIME:")));
                         }
                     }
                 }
@@ -283,7 +581,7 @@ namespace pddlboat {
                 for (const auto name_actionptr : problem_->domain->actions)
                 {
                     std::vector<std::vector<std::string>> nary_arg_assignment_list =
-                        getNAryArgList(name_actionptr.second);
+                        getNAryArgList(name_actionptr.second->parameters);
                     for (const auto args_to_action : nary_arg_assignment_list)
                     {
                         // create an action:
@@ -294,7 +592,7 @@ namespace pddlboat {
                         makeBool(action_string);
                         if (step == 0)
                         {
-                            grounded_actions_.insert(action_string.substr(0, action_string.find(":TIME")));
+                            grounded_actions_.insert(action_string.substr(0, action_string.find("TIME:")));
                         }
                     }
                 }
@@ -306,9 +604,6 @@ namespace pddlboat {
             // First we build the context, grounding all actions and predicates.
             ctx_ = new z3::context;
             solver_ = new z3::solver(*ctx_);
-
-            // std::cout<< *ctx_ <<std::endl;
-            std::cout << *solver_ << std::endl;
 
             groundPredicates();
             groundActions();
@@ -322,18 +617,34 @@ namespace pddlboat {
                 // add clauses for preconditions and effects of actions
                 for (const auto name_actionptr : problem_->domain->actions)
                 {
-                    std::vector<std::vector<std::string>> nary_arg_assignment_list = getNAryArgList(name_actionptr.second);
+                    std::vector<std::vector<std::string>> nary_arg_assignment_list =
+                        getNAryArgList(name_actionptr.second->parameters);
                     for (const auto args_to_action : nary_arg_assignment_list)
                     {
+                        std::string my_str = "";
+                        for (auto s : args_to_action)
+                        {
+                            my_str += s;
+                        }
+
+                        std::vector<Variable> params = name_actionptr.second->parameters;
+                        std::vector<std::string> param_names = {};
+                        for (auto p : params)
+                        {
+                            param_names.push_back(p.name);
+                        }
+
+                        std::unordered_map<std::string, std::string> arg_map =
+                            createMapping(param_names, args_to_action);
+
                         // create an action:
                         // actions have variable names and assignments
                         // action name, arg0, arg1, ..., timestep
                         std::string action_string =
                             createGroundedActionString(name_actionptr.second, args_to_action, step);
                         z3::expr act = makeBool(action_string);
-                        z3::expr precond =
-                            exprAtTime(name_actionptr.second->precondition, args_to_action, step);
-                        z3::expr effects = exprAtTime(name_actionptr.second->effect, args_to_action, step);
+                        z3::expr precond = exprAtTime(name_actionptr.second->precondition, arg_map, step);
+                        z3::expr effects = exprAtTime(name_actionptr.second->effect, arg_map, step + 1);
 
                         /* z3::expr precond = makeBool(precondition_string); */
                         /* z3::expr effects = makeBool(effect_string); */
@@ -342,8 +653,8 @@ namespace pddlboat {
                         // action -> preconditions_t0 and effects_t1
                         z3::expr clause = (not act) or (precond and effects);
 
-                        std::cout << "Adding clause: " << std::endl;
-                        std::cout << clause << std::endl;
+                        // std::cout << "Adding clause: " << std::endl;
+                        // std::cout << clause << std::endl;
 
                         solver_->add(clause);
                     }
@@ -359,10 +670,10 @@ namespace pddlboat {
                     // changes to, because the clauses for precoditions and effects will ensure
                     // consistency
                     z3::expr clause =
-                        not(curr_prop != next_prop) or (getPossibleChangeActions("prop_string", step));
+                        not(curr_prop != next_prop) or (getPossibleChangeActions(predicate, step));
 
-                    std::cout << "Adding clause: " << std::endl;
-                    std::cout << clause << std::endl;
+                    // std::cout << "Adding clause: " << std::endl;
+                    // std::cout << clause << std::endl;
 
                     solver_->add(clause);
                 }
@@ -378,28 +689,58 @@ namespace pddlboat {
                             z3::expr other_e = makeBool(addTimeToString(other_action, step));
                             z3::expr clause = (not e) or (not other_e);
 
-                            std::cout << "Adding clause: " << std::endl;
-                            std::cout << clause << std::endl;
+                            // std::cout << "Adding clause: " << std::endl;
+                            // std::cout << clause << std::endl;
 
                             solver_->add(clause);
                         }
                     }
                 }
+            }  // end for timestep
 
-                // Add the goal
-                //                solver_->add(exprAtTime(problem_->goal, {""}, horizon_));
+            // Add the goal
+            solver_->add(getGoalAsZ3Expr(problem_->goal, horizon_));
 
-                // Add the start state
-                /* for (const auto &assgn : problem_->start->assignments) */
-                /* { */
-                /*     z3::expr p = makeBool(createGroundedPredicateString( */
-                /*         problem_->domain->predicates[assgn.first.first], assgn.first.second, 0)); */
-                /*     solver_->add(z3::expr((assgn.second) ? p : not p)); */
-                /* } */
+            std::cout << "Start state:" << std::endl;
+
+            problem_->start->toPDDL(std::cout);
+
+            // Add the start state
+            for (const auto name_predptr : problem_->domain->predicates)
+            {
+                std::vector<std::vector<std::string>> nary_arg_assignment_list =
+                    getNAryArgList(name_predptr.second->variables);
+
+                auto pred = *name_predptr.second;
+                for (const auto arg_list : nary_arg_assignment_list)
+                {
+                    std::vector<std::string> new_arg_list;
+                    for (auto s : arg_list)
+                    {
+                      if (s != "") {
+                        new_arg_list.push_back(s);
+                      }
+                    }
+
+                    if (problem_->start->isTrue(pred.name, new_arg_list))
+                    {
+                        z3::expr p =
+                            makeBool(createGroundedPredicateString(name_predptr.second, new_arg_list, 0));
+                        solver_->add(z3::expr(p));
+                        std::cout << z3::expr(p) << std::endl;
+                    }
+                    else
+                    {
+                        z3::expr p =
+                            makeBool(createGroundedPredicateString(name_predptr.second, new_arg_list, 0));
+                        solver_->add(z3::expr(not p));
+                        std::cout << z3::expr(not p) << std::endl;
+                    }
+                }
             }
         }
     };
 
-} // namespace pddlboat
+}  // namespace pddlboat
 
-#endif //include guard
+#endif  // include guard

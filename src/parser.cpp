@@ -29,11 +29,13 @@ namespace parser
         }
     };
 
-// #define PARSE(x)                                                \
-//     BOOST_SPIRIT_DEFINE(x);                                     \
-//     struct x##__class : error_handler, x3::annotate_on_success  \
-//     {                                                           \
-//     };
+    /*
+#define PARSE(x)                                                \
+    BOOST_SPIRIT_DEFINE(x);                                     \
+    struct x##__class : error_handler, x3::annotate_on_success  \
+    {                                                           \
+    };
+    */
 #define PARSE(x) BOOST_SPIRIT_DEFINE(x);
 
     ///
@@ -313,9 +315,8 @@ namespace parser
 
     struct plan_class;
     const x3::rule<plan_class, ast::Plan> plan = "plan";
-    const auto plan_def = //
-        *atomic_formula_name
-        ;
+    const auto plan_def =  //
+        *atomic_formula_name;
     PARSE(plan);
     struct plan_class : error_handler
     {
