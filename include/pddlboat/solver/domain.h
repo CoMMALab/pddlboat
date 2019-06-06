@@ -95,6 +95,8 @@ namespace pddlboat
         const ObjectPtr &assigned(const std::string &var) const;
 
         std::set<std::string> getVariables() const;
+
+        std::ostream &toString(std::ostream &out = std::cout) const;
     };
 
     ///
@@ -151,10 +153,9 @@ namespace pddlboat
         std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
                              unsigned int level = 0) const override;
 
-        std::string getPredicateName()
-        {
-            return predicate->name;
-        }
+
+        std::string toID(const Assignment &vars) const;
+        const std::string &getPredicateName() const;
 
     private:
         std::vector<std::string> getObjects(const Assignment &vars) const;
@@ -217,6 +218,8 @@ namespace pddlboat
 
         const std::vector<std::string> objectsOfType(const std::string &type) const;
 
+        const std::vector<Assignment> getGroundings(const VariableList &vars, unsigned int index = 0) const;
+
         StatePtr makeState() const;
 
         std::ostream &toPDDL(std::ostream &out = std::cout) const;
@@ -277,6 +280,8 @@ namespace pddlboat
         bool doAction(StatePtr &out, const StatePtr &in, const Assignment &vars) const;
 
         std::ostream &toPDDL(std::ostream &out = std::cout, unsigned int indent = 2) const;
+
+        std::string toID(const Assignment &vars) const;
 
         unsigned int arity() const;
     };

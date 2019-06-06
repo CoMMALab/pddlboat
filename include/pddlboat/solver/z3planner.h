@@ -660,33 +660,22 @@ namespace pddlboat
             for (Time step = 0; step < horizon_; ++step)
             {
                 // add clauses for preconditions and effects of actions
-                for (const auto name_actionptr : problem_->domain->actions)
+                for (const auto &name_actionptr : problem_->domain->actions)
                 {
-                    std::vector<std::vector<std::string>> nary_arg_assignment_list =
-                        getNAryArgList(name_actionptr.second->parameters);
-                    for (const auto args_to_action : nary_arg_assignment_list)
+                    const auto& assignments = problem_->getGroundings(name_actionptr.second->parameters);
+                    for (const auto &assignment : assignments)
                     {
-                        std::string my_str = "";
-                        for (auto s : args_to_action)
-                        {
-                            my_str += s;
-                        }
-
-                        std::vector<Variable> params = name_actionptr.second->parameters;
-                        std::vector<std::string> param_names = {};
-                        for (auto p : params)
-                        {
-                            param_names.push_back(p.name);
-                        }
-
-                        std::unordered_map<std::string, std::string> arg_map =
-                            createMapping(param_names, args_to_action);
+                        std::unordered_map<std::string, std::string> arg_map;
+                        for (const auto &[var, object] : assignment.varToObj)
+                            arg_map.emplace(var, object->name);
 
                         // create an action:
                         // actions have variable names and assignments
                         // action name, arg0, arg1, ..., timestep
-                        std::string action_string =
-                            createGroundedActionString(name_actionptr.second, args_to_action, step);
+                        // std::string action_string =
+                        //     createGroundedActionString(name_actionptr.second, args_to_action, step);
+
+                        std::string action_string = addTimeToString(name_actionptr.second->toID(assignment), step);
                         z3::expr act = makeBool(action_string);
                         z3::expr precond = exprAtTime(name_actionptr.second->precondition, arg_map, step);
                         z3::expr effects = exprAtTime(name_actionptr.second->effect, arg_map, step + 1);

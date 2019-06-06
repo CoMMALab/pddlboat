@@ -1,5 +1,7 @@
 /* Author: Zachary Kingston */
 
+#include <sstream>
+
 #include <pddlboat/utility.h>
 #include <pddlboat/solver/domain.h>
 
@@ -165,6 +167,15 @@ std::set<std::string> Assignment::getVariables() const
         variables.emplace(assgn.first);
 
     return variables;
+}
+
+std::ostream &Assignment::toString(std::ostream &out) const
+{
+    out << "(assignment";
+    for (const auto &[var, object] : varToObj)
+        out << " (" << var << " " << object->name << ")";
+    out << ")";
+    return out;
 }
 
 ///
@@ -337,6 +348,31 @@ std::ostream &BoundPredicate::toPDDL(std::ostream &out, unsigned int indent, uns
 
     out << ")";
     return out;
+}
+
+std::string BoundPredicate::toID(const Assignment &vars) const
+{
+    std::stringstream ss;
+    ss << "PRED:" << predicate->name;
+
+    ss << "ARGS:";
+    for (unsigned int i = 0; i < bindings.size(); ++i)
+    {
+        if (bindings[i].isVar)
+            ss << vars.assigned(bindings[i].name)->name;
+        else
+            ss << bindings[i].name;
+
+        if (i < bindings.size() - 1)
+            ss << ",";
+    }
+
+    return ss.str();
+}
+
+const std::string &BoundPredicate::getPredicateName() const
+{
+    return predicate->name;
 }
 
 ///
@@ -576,6 +612,34 @@ const std::vector<std::string> Problem::objectsOfType(const std::string &type) c
     return r;
 }
 
+const std::vector<Assignment> Problem::getGroundings(const VariableList &vars, unsigned int index) const
+{
+    std::vector<Assignment> assignments;
+
+    unsigned int remaining = vars.size() - index;
+    if (not remaining)
+    {
+        Assignment toAdd(this);
+        assignments.emplace_back(toAdd);
+        return assignments;
+    }
+
+    const auto &recurse = getGroundings(vars, index + 1);
+
+    const auto &car = vars[index];
+    for (const auto &object : objectsOfType(car.type))
+    {
+        for (const auto &assignment : recurse)
+        {
+            Assignment toAdd = assignment;
+            toAdd.assign(car.name, object);
+            assignments.emplace_back(toAdd);
+        }
+    }
+
+    return assignments;
+}
+
 StatePtr Problem::makeState() const
 {
     return std::make_shared<State>(this);
@@ -785,6 +849,22 @@ bool Action::doAction(StatePtr &out, const StatePtr &in, const Assignment &vars)
     out->fold(in);
 
     return true;
+}
+
+std::string Action::toID(const Assignment &vars) const
+{
+    std::stringstream ss;
+    ss << "ACTION:" << name;
+
+    ss << "ARGS:";
+    for (unsigned int i =0; i < parameters.size(); ++i)
+    {
+        ss << vars.assigned(parameters[i].name)->name;
+        // if (i < parameters.size() - 1)
+        //     ss << ",";
+    }
+
+    return ss.str();
 }
 
 ActionPtr pddlboat::makeAction(const std::string &name, const VariableList &parameters,
