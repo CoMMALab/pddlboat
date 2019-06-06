@@ -79,4 +79,18 @@ BOOST_FUSION_ADAPT_STRUCT(                                //
     (std::vector<pddlboat::ast::AtomicFormula>, actions)  //
 );
 
+BOOST_FUSION_ADAPT_STRUCT(            //
+    pddlboat::ast::z3Action,          //
+    (std::string, name)               //
+    (std::vector<std::string>, args)  //
+    (std::string, time)               //
+);
+
+BOOST_FUSION_ADAPT_STRUCT(            //
+    pddlboat::ast::z3Predicate,       //
+    (std::string, name)               //
+    (std::vector<std::string>, args)  //
+    (std::string, time)               //
+);
+
 #endif

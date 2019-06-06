@@ -321,6 +321,28 @@ namespace parser
     struct plan_class : error_handler
     {
     };
+
+    ///
+    /// Z3action
+    ///
+
+    struct z3action_class;
+    const x3::rule<z3action_class, ast::z3Action> z3action = "z3action";
+    const auto z3action_def =                                                                               //
+        x3::lit("ACTION:") >> name >> x3::lit(":ARGS:") >> -(name % ',') >> -(x3::lit(":TIME:") >> number)  //
+        ;
+    PARSE(z3action);
+
+    ///
+    /// Z3predicate
+    ///
+
+    struct z3predicate_class;
+    const x3::rule<z3predicate_class, ast::z3Predicate> z3predicate = "z3predicate";
+    const auto z3predicate_def =                                                                          //
+        x3::lit("PRED:") >> name >> x3::lit(":ARGS:") >> -(name % ',') >> -(x3::lit(":TIME:") >> number)  //
+        ;
+    PARSE(z3predicate);
 }  // namespace parser
 
 bool pddlboat::parseFile(const std::string &file, ast::Domain &domain)
@@ -339,21 +361,8 @@ bool pddlboat::parseFile(const std::string &file, ast::Domain &domain)
     error_handler_type error_handler(iter, end, std::cerr);
 
     domain = ast::Domain();  // Reset Domain
-
-    bool r = false;
-
-    // try
-    // {
-    r = x3::phrase_parse(iter, end, with<error_handler_tag>(std::ref(error_handler))[parser::domain],
-                         parser::skipper, domain);
-    // }
-    // catch (const x3::expectation_failure<std::string::const_iterator> &e)
-    // {
-    //     const char needle[] = {'\n'};
-    //     auto it = std::find_first_of(e.where(), end, needle, needle + 1);
-    //     std::cout << "Expected: " << e.which() << " at '" << std::string(e.where(), it) << "'\n";
-    // }
-
+    bool r = x3::phrase_parse(iter, end, with<error_handler_tag>(std::ref(error_handler))[parser::domain],
+                              parser::skipper, domain);
     return r && iter == end;
 }
 
@@ -373,24 +382,8 @@ bool pddlboat::parseFile(const std::string &file, ast::Problem &problem)
     error_handler_type error_handler(iter, end, std::cerr);
 
     problem = ast::Problem();  // Reset Problem
-
-    bool r = false;
-
-    // try
-    // {
-    // std::vector<pddlboat::ast::Expression> test;
-    // r = x3::phrase_parse(iter, end, with<error_handler_tag>(std::ref(error_handler))[parser::initial],
-    //                      parser::skipper, test);
-    r = x3::phrase_parse(iter, end, with<error_handler_tag>(std::ref(error_handler))[parser::problem],
-                         parser::skipper, problem);
-    // }
-    // catch (const x3::expectation_failure<std::string::const_iterator> &e)
-    // {
-    //     const char needle[] = {'\n'};
-    //     auto it = std::find_first_of(e.where(), end, needle, needle + 1);
-    //     std::cout << "Expected: " << e.which() << " at '" << std::string(e.where(), it) << "'\n";
-    // }
-
+    bool r = x3::phrase_parse(iter, end, with<error_handler_tag>(std::ref(error_handler))[parser::problem],
+                              parser::skipper, problem);
     return r && iter == end;
 }
 
@@ -410,23 +403,19 @@ bool pddlboat::parseFile(const std::string &file, ast::Plan &plan)
     error_handler_type error_handler(iter, end, std::cerr);
 
     plan = ast::Plan();  // Reset Plan
+    bool r = x3::phrase_parse(iter, end, with<error_handler_tag>(std::ref(error_handler))[parser::plan],
+                              parser::skipper, plan);
+    return r && iter == end;
+}
 
-    bool r = false;
+bool pddlboat::parseZ3Action(const std::string &string, ast::z3Action &action)
+{
+    typedef std::string::const_iterator iterator_type;
 
-    // try
-    // {
-    // std::vector<pddlboat::ast::Expression> test;
-    // r = x3::phrase_parse(iter, end, with<error_handler_tag>(std::ref(error_handler))[parser::initial],
-    //                      parser::skipper, test);
-    r = x3::phrase_parse(iter, end, with<error_handler_tag>(std::ref(error_handler))[parser::plan],
-                         parser::skipper, plan);
-    // }
-    // catch (const x3::expectation_failure<std::string::const_iterator> &e)
-    // {
-    //     const char needle[] = {'\n'};
-    //     auto it = std::find_first_of(e.where(), end, needle, needle + 1);
-    //     std::cout << "Expected: " << e.which() << " at '" << std::string(e.where(), it) << "'\n";
-    // }
+    iterator_type iter = string.begin();
+    const iterator_type end = string.end();
 
+    action = ast::z3Action();
+    bool r = x3::phrase_parse(iter, end, parser::z3action, parser::skipper, action);
     return r && iter == end;
 }

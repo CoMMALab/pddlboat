@@ -133,7 +133,7 @@ namespace pddlboat
             std::vector<TypedList> parameters{};
             std::vector<Expression> terms{};
 
-            std::ostream& toString(std::ostream &out, bool literal = false) const;
+            std::ostream &toString(std::ostream &out, bool literal = false) const;
         };
 
         class Action : x3::position_tagged
@@ -191,6 +191,30 @@ namespace pddlboat
             std::vector<AtomicFormula> actions{};
 
             std::ostream &toString(std::ostream &out) const;
+        };
+
+        ///
+        /// z3 Action
+        ///
+
+        class z3Action
+        {
+        public:
+            std::string name;
+            std::vector<std::string> args{};
+            std::string time{0};
+        };
+
+        ///
+        /// z3 Predicate
+        ///
+
+        class z3Predicate
+        {
+        public:
+            std::string name;
+            std::vector<std::string> args{};
+            std::string time{0};
         };
 
         using boost::fusion::operator<<;

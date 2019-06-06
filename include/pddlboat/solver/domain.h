@@ -243,6 +243,8 @@ namespace pddlboat
         void complement();
         void fold(const StatePtr &other);
 
+        bool isTrue(const PredicatePtr &predicate, const Assignment &assignment) const;
+        bool isTrue(const std::string &predicate, const Assignment &assignment) const;
         bool isTrue(const std::string &predicate, const std::vector<std::string> &objects) const;
 
         // Assign 0-ary pred.

@@ -11,6 +11,7 @@ namespace pddlboat
     bool parseFile(const std::string &file, ast::Domain &domain);
     bool parseFile(const std::string &file, ast::Problem &problem);
     bool parseFile(const std::string &file, ast::Plan &plan);
+    bool parseZ3Action(const std::string &string, ast::z3Action &action);
 }  // namespace pddlboat
 
 #endif

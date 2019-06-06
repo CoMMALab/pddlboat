@@ -271,7 +271,7 @@ std::string Predicate::toID(const Assignment &vars) const
     std::stringstream ss;
     ss << "PRED:" << name;
 
-    ss << "ARGS:";
+    ss << ":ARGS:";
     for (unsigned int i = 0; i < variables.size(); ++i)
     {
         ss << vars.assigned(variables[i].name)->name;
@@ -333,7 +333,6 @@ void BoundPredicate::getVariables(VariableSet &vars) const
             vars.addVariable({binding.name, binding.type});
 }
 
-
 VariableList BoundPredicate::arguments() const
 {
     VariableList list;
@@ -382,7 +381,7 @@ std::string BoundPredicate::toID(const Assignment &vars) const
     std::stringstream ss;
     ss << "PRED:" << predicate->name;
 
-    ss << "ARGS:";
+    ss << ":ARGS:";
     for (unsigned int i = 0; i < bindings.size(); ++i)
     {
         if (bindings[i].isVar)
@@ -742,6 +741,20 @@ void State::fold(const StatePtr &other)
     }
 }
 
+bool State::isTrue(const PredicatePtr &predicate, const Assignment &assignment) const
+{
+    std::vector<std::string> objects;
+    for (const auto &variable : predicate->variables)
+        objects.emplace_back(assignment.assigned(variable.name)->name);
+
+    return isTrue(predicate->name, objects);
+}
+
+bool State::isTrue(const std::string &predicate, const Assignment &assignment) const
+{
+    return isTrue(problem_->domain->getPredicate(predicate), assignment);
+}
+
 bool State::isTrue(const std::string &predicate, const std::vector<std::string> &objects) const
 {
     auto it = assignments.find(std::make_pair(predicate, objects));
@@ -883,8 +896,8 @@ std::string Action::toID(const Assignment &vars) const
     std::stringstream ss;
     ss << "ACTION:" << name;
 
-    ss << "ARGS:";
-    for (unsigned int i =0; i < parameters.size(); ++i)
+    ss << ":ARGS:";
+    for (unsigned int i = 0; i < parameters.size(); ++i)
     {
         ss << vars.assigned(parameters[i].name)->name;
         if (i < parameters.size() - 1)
