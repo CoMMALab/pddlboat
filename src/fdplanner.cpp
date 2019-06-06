@@ -20,6 +20,29 @@ FastDownwardPlanner::FastDownwardPlanner(const ProblemPtr &problem, const Search
   , sas_file(temporary + "/" + log::format(sas_file_template, uuid))
   , output_filename(log::format(output_file_template, uuid))
   , output_file(temporary + "/" + output_filename)
+  , solver_command(generateSolverCommand())
+  , translator_command(generateTranslatorCommand())
+{
+    // Fast Downward uses an intermediate format that needs to be generated
+    update();
+}
+
+FastDownwardPlanner::~FastDownwardPlanner()
+{
+    io::deleteFile(domain_file);
+    io::deleteFile(problem_file);
+    io::deleteFile(sas_file);
+
+    // Fast downward sometimes generates multiple output files as it refines its search
+    auto matches = io::glob("/tmp", output_file + ".*");
+    if (matches)
+    {
+        for (const auto &match : *matches)
+            io::deleteFile(match);
+    }
+}
+
+std::string FastDownwardPlanner::generateSolverCommand() const
 {
     std::stringstream cs;
     cs << solver;
@@ -27,9 +50,12 @@ FastDownwardPlanner::FastDownwardPlanner(const ProblemPtr &problem, const Search
     // Output file
     cs << " --internal-plan-file " << output_file;
 
+    // See http://www.fast-downward.org/PlannerUsage for more
+    // Also, the aliases.py file in the driver provided with fast downward
     switch (search)
     {
         case ASTAR:
+            // A* with landmark cut heuristic
             cs << " --search \"astar(lmcut())\"";
             break;
 
@@ -40,15 +66,13 @@ FastDownwardPlanner::FastDownwardPlanner(const ProblemPtr &problem, const Search
             cs << " --search \"lazy_greedy([hff, hcea], preferred=[hff, hcea])\"";
             break;
 
-        // Fast Downward Autotune 2
         case FDAT:
-            // Evaluators
+            // Fast Downward Autotune 2
             cs << " --evaluator \"hcea=cea(transform=adapt_costs(plusone))\"";
             cs << " --evaluator \"hcg=cg(transform=adapt_costs(one))\"";
             cs << " --evaluator \"hgc=goalcount(transform=adapt_costs(plusone))\"";
             cs << " --evaluator \"hff=ff()\"";
 
-            // Autotune Fast Downward Search
             cs << " --search ";
             cs << "\"";
             cs << "iterated([";
@@ -91,28 +115,16 @@ FastDownwardPlanner::FastDownwardPlanner(const ProblemPtr &problem, const Search
     // Tell command what SAS file to use
     cs << " < " << sas_file;
 
-    solver_command = cs.str();
+    return cs.str();
+}
 
+std::string FastDownwardPlanner::generateTranslatorCommand() const
+{
     std::stringstream ts;
     ts << translator;
     ts << " --sas-file " << sas_file << " " << domain_file << " " << problem_file;
-    translator_command = ts.str();
 
-    update();
-}
-
-FastDownwardPlanner::~FastDownwardPlanner()
-{
-    io::deleteFile(domain_file);
-    io::deleteFile(problem_file);
-    io::deleteFile(sas_file);
-
-    auto matches = io::glob("/tmp", output_file + ".*");
-    if (matches)
-    {
-        for (const auto &match : *matches)
-            io::deleteFile(match);
-    }
+    return ts.str();
 }
 
 void FastDownwardPlanner::update(bool domain, bool problem) const
@@ -156,9 +168,6 @@ bool FastDownwardPlanner::solve(Plan &plan)
     auto matches = io::glob("/tmp", output_filename + ".*");
     if (matches)
     {
-        for (const auto &match : *matches)
-            std::cout << match << std::endl;
-
         auto file = matches->back();
 
         parseFile(file, parsed);

@@ -5,6 +5,10 @@
 
 using namespace pddlboat;
 
+///
+/// Plan::Step
+///
+
 Plan::Step::Step(const ActionPtr &action, const Assignment &assignment, const StatePtr &state)
   : action(action), assignment(assignment), state(state)
 {
@@ -20,6 +24,15 @@ std::ostream &Plan::Step::toString(std::ostream &out) const
 
     return out;
 }
+
+std::ostream &pddlboat::operator<<(std::ostream &out, const Plan::Step &step)
+{
+    return step.toString(out);
+}
+
+///
+/// Plan
+///
 
 Plan::Plan(const ProblemPtr &problem) : problem_(problem)
 {
@@ -91,15 +104,14 @@ std::ostream &Plan::toString(std::ostream &out) const
     return out;
 }
 
-std::ostream &pddlboat::operator<<(std::ostream &out, const Plan::Step &step)
-{
-    return step.toString(out);
-}
-
 std::ostream &pddlboat::operator<<(std::ostream &out, const Plan &plan)
 {
     return plan.toString(out);
 }
+
+///
+/// Planner
+///
 
 Planner::Planner(const ProblemPtr &problem) : problem_(problem)
 {
