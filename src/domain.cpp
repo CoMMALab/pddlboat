@@ -860,8 +860,8 @@ std::string Action::toID(const Assignment &vars) const
     for (unsigned int i =0; i < parameters.size(); ++i)
     {
         ss << vars.assigned(parameters[i].name)->name;
-        // if (i < parameters.size() - 1)
-        //     ss << ",";
+        if (i < parameters.size() - 1)
+            ss << ",";
     }
 
     return ss.str();

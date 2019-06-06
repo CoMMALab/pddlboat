@@ -32,14 +32,24 @@ namespace pddlboat
 
         std::vector<std::string> getVectorOfArgs(std::string string)
         {
+
             std::string str =
                 string.substr(string.find("ARGS:") + 5, string.find("TIME:") - (string.find("ARGS:") + 5));
             std::vector<std::string> vec;
+
+            std::string s = "";
             for (size_t i = 0; i < str.length(); i++)
             {
-                std::string s = std::string(1, str.at(i));
+              std::string new_c = std::string(1, str.at(i));
+              if(new_c != ",")
+                s += new_c;
+              else {
                 vec.push_back(s);
+                s = "";
+              }
             }
+            vec.push_back(s);
+
             return vec;
         }
 
@@ -60,9 +70,7 @@ namespace pddlboat
                         std::string act_string = complete_act_string.substr(
                             complete_act_string.find("ACTION:") + 7,
                             complete_act_string.find("ARGS:") - (complete_act_string.find("ACTION:") + 7));
-
                         std::vector<std::string> args_strings = getVectorOfArgs(complete_act_string);
-
                         my_plan.addStep(act_string, args_strings);
                     }
                 }
@@ -174,13 +182,15 @@ namespace pddlboat
                 if (args_map.find(predicate->bindings[i].name) != args_map.end())
                 {
                     auto s = args_map.find(predicate->bindings[i].name);
-                    str += s->second;
+                    str += s->second + ",";
                 }
                 else
                 {
                     std::cout << "We couldn't find variable " << predicate->bindings[i].name << std::endl;
                 }
             }
+
+            str = str.substr(0, str.length()-1);
             return "PRED:" + std::string(predicate->getPredicateName()) + "ARGS:" + str +
                    "TIME:" + std::to_string(step);
         }
@@ -190,8 +200,13 @@ namespace pddlboat
                                                   const Time step)
         {
             std::string str;
-            for (auto const &s : args_to_pred)
-                str += s;
+            for (auto const &s : args_to_pred) {
+              if(s != "") {
+                str += s + ",";
+              }
+            }
+
+            str = str.substr(0, str.length()-1);
             return "PRED:" + std::string(predicate->name) + "ARGS:" + str + "TIME:" + std::to_string(step);
         }
 
@@ -200,8 +215,13 @@ namespace pddlboat
                                                const Time step)
         {
             std::string str;
-            for (auto const &s : args_to_action)
-                str += s;
+            for (auto const &s : args_to_action) {
+              if(s != "") {
+                str += s + ",";
+              }
+            }
+
+            str = str.substr(0, str.length()-1);
             return "ACTION:" + std::string(action->name) + "ARGS:" + str + "TIME:" + std::to_string(step);
         }
 
@@ -211,8 +231,13 @@ namespace pddlboat
                                                   const Time step)
         {
             std::string str;
-            for (auto const &s : args_to_pred)
-                str += s;
+            for (auto const &s : args_to_pred) {
+              if(s != "") {
+                str += s + ",";
+              }
+            }
+
+            str = str.substr(0, str.length()-1);
             return "PRED:" + std::string(predicate->getPredicateName()) + "ARGS:" + str +
                    "TIME:" + std::to_string(step);
         }
@@ -223,8 +248,9 @@ namespace pddlboat
             std::string str;
             for (auto const &val : predicate->bindings)
             {
-                str += val.name;
+                str += val.name + ",";
             }
+            str = str.substr(0, str.length()-1);
             return "PRED:" + std::string(predicate->getPredicateName()) + "ARGS:" + str +
                    "TIME:" + std::to_string(step);
         }
@@ -284,7 +310,7 @@ namespace pddlboat
          * z3 bool_constants. We require that the expression does not contain any actions (all terminals
          * are state props).
          */
-        z3::expr exprAtTime(const ExpressionPtr &expr, std::unordered_map<std::string, std::string> args_map,
+      z3::expr exprAtTime(const ExpressionPtr &expr, const Assignment &assignment,
                             const Time step)
         {
             switch (expr->type())
@@ -292,16 +318,16 @@ namespace pddlboat
                 case Expression::Type::PREDICATE:
                 {
                     const auto &predicate_expr = std::static_pointer_cast<BoundPredicate>(expr);
-                    return makeBool(createGroundedPredicateString(predicate_expr, args_map, step));
+                    return makeBool(addTimeToString(predicate_expr->toID(assignment), step));
                 }
                 case Expression::Type::AND:
                 {
                     const auto &and_expr = std::static_pointer_cast<And>(expr);
-                    z3::expr car = exprAtTime(makeCAR(and_expr), args_map, step);
+                    z3::expr car = exprAtTime(makeCAR(and_expr), assignment, step);
                     auto cdr_expr = makeCDR(and_expr);
                     if (cdr_expr)
                     {
-                        z3::expr cdr = exprAtTime(cdr_expr, args_map, step);
+                      z3::expr cdr = exprAtTime(cdr_expr, assignment, step);
                         z3::expr clause = car and cdr;
                         return clause;
                     }
@@ -311,11 +337,11 @@ namespace pddlboat
                 case Expression::Type::OR:
                 {
                     const auto &or_expr = std::static_pointer_cast<Or>(expr);
-                    z3::expr car = exprAtTime(or_expr->getTerms().back(), args_map, step);
+                    z3::expr car = exprAtTime(or_expr->getTerms().back(), assignment, step);
                     auto cdr_expr = makeCDR(or_expr);
                     if (or_expr)
                     {
-                        z3::expr cdr = exprAtTime(cdr_expr, args_map, step);
+                      z3::expr cdr = exprAtTime(cdr_expr, assignment, step);
                         z3::expr clause = car or cdr;
                         return clause;
                     }
@@ -325,60 +351,7 @@ namespace pddlboat
                 case Expression::Type::NOT:
                 {
                     const auto &not_expr = std::static_pointer_cast<Not>(expr);
-                    z3::expr exp = exprAtTime(not_expr->getTerm(), args_map, step);
-                    return not exp;
-                }
-                case Expression::Type::EXPRESSION:
-                    std::cout << "Error, we do not currently support Expression types here." << std::endl;
-                    [[fallthrough]];  // sweet c++17 feature
-                default:
-                    std::cout << "We had an error in parsing the pddlboat expression to an expression for Z3."
-                              << std::endl;
-                    throw std::runtime_error("whoops!");
-            }
-        }
-
-        z3::expr getGoalAsZ3Expr(const ExpressionPtr &expr, const Time step)
-        {
-            switch (expr->type())
-            {
-                case Expression::Type::PREDICATE:
-                {
-                    const auto &predicate_expr = std::static_pointer_cast<BoundPredicate>(expr);
-                    return makeBool(createGroundedPredicateString(predicate_expr, step));
-                }
-                case Expression::Type::AND:
-                {
-                    const auto &and_expr = std::static_pointer_cast<And>(expr);
-                    z3::expr car = getGoalAsZ3Expr(makeCAR(and_expr), step);
-                    auto cdr_expr = makeCDR(and_expr);
-                    if (cdr_expr)
-                    {
-                        z3::expr cdr = getGoalAsZ3Expr(cdr_expr, step);
-                        z3::expr clause = car and cdr;
-                        return clause;
-                    }
-                    else
-                        return car;
-                }
-                case Expression::Type::OR:
-                {
-                    const auto &or_expr = std::static_pointer_cast<Or>(expr);
-                    z3::expr car = getGoalAsZ3Expr(or_expr->getTerms().back(), step);
-                    auto cdr_expr = makeCDR(or_expr);
-                    if (or_expr)
-                    {
-                        z3::expr cdr = getGoalAsZ3Expr(cdr_expr, step);
-                        z3::expr clause = car or cdr;
-                        return clause;
-                    }
-                    else
-                        return car;
-                }
-                case Expression::Type::NOT:
-                {
-                    const auto &not_expr = std::static_pointer_cast<Not>(expr);
-                    z3::expr exp = getGoalAsZ3Expr(not_expr->getTerm(), step);
+                    z3::expr exp = exprAtTime(not_expr->getTerm(), assignment, step);
                     return not exp;
                 }
                 case Expression::Type::EXPRESSION:
@@ -579,9 +552,9 @@ namespace pddlboat
                     const auto& assignments = problem_->getGroundings(name_actionptr.second->parameters);
                     for (const auto &assignment : assignments)
                     {
-                        std::unordered_map<std::string, std::string> arg_map;
-                        for (const auto &[var, object] : assignment.varToObj)
-                            arg_map.emplace(var, object->name);
+                        // std::unordered_map<std::string, std::string> arg_map;
+                        // for (const auto &[var, object] : assignment.varToObj)
+                        //     arg_map.emplace(var, object->name);
 
                         // create an action:
                         // actions have variable names and assignments
@@ -591,8 +564,8 @@ namespace pddlboat
 
                         std::string action_string = addTimeToString(name_actionptr.second->toID(assignment), step);
                         z3::expr act = makeBool(action_string);
-                        z3::expr precond = exprAtTime(name_actionptr.second->precondition, arg_map, step);
-                        z3::expr effects = exprAtTime(name_actionptr.second->effect, arg_map, step + 1);
+                        z3::expr precond = exprAtTime(name_actionptr.second->precondition, assignment, step);
+                        z3::expr effects = exprAtTime(name_actionptr.second->effect, assignment, step + 1);
                         // action -> preconditions_t0 and effects_t1
                         z3::expr clause = (not act) or (precond and effects);
 
@@ -630,7 +603,8 @@ namespace pddlboat
             }  // end for timestep
 
             // Add the goal
-            solver_->add(getGoalAsZ3Expr(problem_->goal, horizon_));
+            Assignment empty_assgn(&*problem_);
+            solver_->add(exprAtTime(problem_->goal, empty_assgn, horizon_));
 
             // Add the start state
             for (const auto name_predptr : problem_->domain->predicates)
