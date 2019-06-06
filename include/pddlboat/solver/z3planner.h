@@ -88,7 +88,7 @@ namespace pddlboat
             {
                 case Expression::Type::PREDICATE:
                 {
-                    const auto &predicate_expr = std::static_pointer_cast<BoundPredicate>(expr);
+                    const auto &predicate_expr = std::static_pointer_cast<Predicate>(expr);
                     return makeBool(addTimeToString(predicate_expr->toID(assignment), step));
                 }
                 case Expression::Type::AND:
@@ -141,7 +141,7 @@ namespace pddlboat
             {
                 case Expression::Type::PREDICATE:
                 {
-                    const auto &predicate_expr = std::static_pointer_cast<BoundPredicate>(expr);
+                    const auto &predicate_expr = std::static_pointer_cast<Predicate>(expr);
                     return predicate_expr->toID(assignment) == predicate;
                 }
                 case Expression::Type::AND:

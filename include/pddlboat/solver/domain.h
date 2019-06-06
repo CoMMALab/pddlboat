@@ -16,15 +16,62 @@
 
 namespace pddlboat
 {
+    /** \cond IGNORE */
+    PDDLBOAT_CLASS_FORWARD(Object)
+    PDDLBOAT_CLASS_FORWARD(PredicateDefinition)
+    PDDLBOAT_CLASS_FORWARD(Predicate)
+    PDDLBOAT_CLASS_FORWARD(Domain)
     PDDLBOAT_CLASS_FORWARD(Problem)
     PDDLBOAT_CLASS_FORWARD(State)
     PDDLBOAT_CLASS_FORWARD(Action)
+    /** \endcond */
+
+    /** \class pddlboat::ObjectPtr
+        \brief A shared pointer wrapper for pddlboat::Object. */
+
+    /** \class pddlboat::ObjectConstPtr
+        \brief A const shared pointer wrapper for pddlboat::Object. */
+
+    /** \class pddlboat::PredicateDefinitionPtr
+        \brief A shared pointer wrapper for pddlboat::Predicate. */
+
+    /** \class pddlboat::PredicateDefinitionConstPtr
+        \brief A const shared pointer wrapper for pddlboat::Predicate. */
+
+    /** \class pddlboat::PredicatePtr
+        \brief A shared pointer wrapper for pddlboat::Predicate. */
+
+    /** \class pddlboat::PredicateConstPtr
+        \brief A const shared pointer wrapper for pddlboat::Predicate. */
+
+    /** \class pddlboat::DomainPtr
+        \brief A shared pointer wrapper for pddlboat::Domain. */
+
+    /** \class pddlboat::DomainConstPtr
+        \brief A const shared pointer wrapper for pddlboat::Domain. */
+
+    /** \class pddlboat::ProblemPtr
+        \brief A shared pointer wrapper for pddlboat::Problem. */
+
+    /** \class pddlboat::ProblemConstPtr
+        \brief A const shared pointer wrapper for pddlboat::Problem. */
+
+    /** \class pddlboat::StatePtr
+        \brief A shared pointer wrapper for pddlboat::State. */
+
+    /** \class pddlboat::StateConstPtr
+        \brief A const shared pointer wrapper for pddlboat::State. */
+
+    /** \class pddlboat::ActionPtr
+        \brief A shared pointer wrapper for pddlboat::Action. */
+
+    /** \class pddlboat::ActionConstPtr
+        \brief A const shared pointer wrapper for pddlboat::Action. */
 
     ///
     /// Objects
     ///
 
-    PDDLBOAT_CLASS_FORWARD(Object)
     class Object
     {
     public:
@@ -40,7 +87,6 @@ namespace pddlboat
     /// Variables
     ///
 
-    PDDLBOAT_CLASS_FORWARD(Variable)
     class Variable
     {
     public:
@@ -103,19 +149,16 @@ namespace pddlboat
     /// Predicates
     ///
 
-    PDDLBOAT_CLASS_FORWARD(Predicate)
-    PDDLBOAT_CLASS_FORWARD(BoundPredicate)
-    class Predicate
+    class PredicateDefinition
     {
     public:
         const std::string name;
         const VariableList variables;
 
-        Predicate(const std::string &name, const VariableList &variables);
+        PredicateDefinition(const std::string &name, const VariableList &variables);
 
-        BoundPredicatePtr bind() const;
-        BoundPredicatePtr bind(const std::vector<std::string> &bound,
-                               const ProblemPtr &problem = nullptr) const;
+        PredicatePtr bind() const;
+        PredicatePtr bind(const std::vector<std::string> &bound, const ProblemPtr &problem = nullptr) const;
 
         bool isValidAssignment(const Problem *problem, const std::vector<std::string> &objects) const;
 
@@ -125,9 +168,9 @@ namespace pddlboat
         std::string toID(const Assignment &vars) const;
     };
 
-    PredicatePtr makePred(const std::string &name, const VariableList &variables = {});
+    PredicateDefinitionPtr makePred(const std::string &name, const VariableList &variables = {});
 
-    class BoundPredicate : public Expression
+    class Predicate : public Expression
     {
     public:
         struct Value
@@ -140,7 +183,7 @@ namespace pddlboat
 
         const std::vector<Value> bindings;
 
-        BoundPredicate(const Predicate *predicate, const std::vector<Value> &bindings);
+        Predicate(const PredicateDefinition *predicate, const std::vector<Value> &bindings);
 
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
         void assign(StatePtr &out, const Assignment &vars) const override;
@@ -155,27 +198,25 @@ namespace pddlboat
         std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
                              unsigned int level = 0) const override;
 
-
         std::string toID(const Assignment &vars) const;
-        const std::string &getPredicateName() const;
+        const std::string &name() const;
 
     private:
         std::vector<std::string> getObjects(const Assignment &vars) const;
-        const Predicate *predicate;
+        const PredicateDefinition *predicate;
     };
 
     ///
     /// Domain
     ///
 
-    PDDLBOAT_CLASS_FORWARD(Domain)
     class Domain
     {
     public:
         const std::string name;
         std::map<std::string, std::string> types;  // type -> parent
         std::vector<ObjectPtr> constants;
-        std::map<std::string, PredicatePtr> predicates;
+        std::map<std::string, PredicateDefinitionPtr> predicates;
         std::map<std::string, ActionPtr> actions;
 
         Domain(const std::string &name);
@@ -190,8 +231,8 @@ namespace pddlboat
         bool isType(const std::string &type) const;
         bool isTypeOf(const std::string &type, const std::string &other) const;
 
-        void addPredicate(const PredicatePtr &predicate);
-        const PredicatePtr getPredicate(const std::string &name) const;
+        void addPredicate(const PredicateDefinitionPtr &predicate);
+        const PredicateDefinitionPtr getPredicate(const std::string &name) const;
 
         void addAction(const ActionPtr &action);
         const ActionPtr getAction(const std::string &name) const;
@@ -243,7 +284,7 @@ namespace pddlboat
         void complement();
         void fold(const StatePtr &other);
 
-        bool isTrue(const PredicatePtr &predicate, const Assignment &assignment) const;
+        bool isTrue(const PredicateDefinitionPtr &predicate, const Assignment &assignment) const;
         bool isTrue(const std::string &predicate, const Assignment &assignment) const;
         bool isTrue(const std::string &predicate, const std::vector<std::string> &objects) const;
 

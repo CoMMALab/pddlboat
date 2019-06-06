@@ -182,22 +182,22 @@ std::ostream &Assignment::toString(std::ostream &out) const
 /// Predicates
 ///
 
-Predicate::Predicate(const std::string &name, const VariableList &variables)
+PredicateDefinition::PredicateDefinition(const std::string &name, const VariableList &variables)
   : name(name), variables(variables)
 {
 }
 
-BoundPredicatePtr Predicate::bind() const
+PredicatePtr PredicateDefinition::bind() const
 {
     return bind(std::vector<std::string>{});
 }
 
-BoundPredicatePtr Predicate::bind(const std::vector<std::string> &bound, const ProblemPtr &problem) const
+PredicatePtr PredicateDefinition::bind(const std::vector<std::string> &bound, const ProblemPtr &problem) const
 {
     if (variables.size() != bound.size())
         throw std::invalid_argument("Cannot bind variables, size mismatch!");
 
-    std::vector<BoundPredicate::Value> toUse;
+    std::vector<Predicate::Value> toUse;
     for (unsigned int i = 0; i < bound.size(); ++i)
     {
         std::string b = bound[i];
@@ -223,10 +223,10 @@ BoundPredicatePtr Predicate::bind(const std::vector<std::string> &bound, const P
         toUse.emplace_back(isVar, b, type);
     }
 
-    return std::make_shared<BoundPredicate>(this, toUse);
+    return std::make_shared<Predicate>(this, toUse);
 }
 
-bool Predicate::isValidAssignment(const Problem *problem, const std::vector<std::string> &objects) const
+bool PredicateDefinition::isValidAssignment(const Problem *problem, const std::vector<std::string> &objects) const
 {
     if (objects.size() != arity())
         return false;
@@ -245,12 +245,12 @@ bool Predicate::isValidAssignment(const Problem *problem, const std::vector<std:
     return true;
 }
 
-unsigned int Predicate::arity() const
+unsigned int PredicateDefinition::arity() const
 {
     return variables.size();
 }
 
-std::ostream &Predicate::toPDDL(std::ostream &out) const
+std::ostream &PredicateDefinition::toPDDL(std::ostream &out) const
 {
     out << "(";
     out << name;
@@ -266,7 +266,7 @@ std::ostream &Predicate::toPDDL(std::ostream &out) const
     return out;
 }
 
-std::string Predicate::toID(const Assignment &vars) const
+std::string PredicateDefinition::toID(const Assignment &vars) const
 {
     std::stringstream ss;
     ss << "PRED:" << name;
@@ -282,22 +282,22 @@ std::string Predicate::toID(const Assignment &vars) const
     return ss.str();
 }
 
-PredicatePtr pddlboat::makePred(const std::string &name, const VariableList &variables)
+PredicateDefinitionPtr pddlboat::makePred(const std::string &name, const VariableList &variables)
 {
-    return std::make_shared<Predicate>(name, variables);
+    return std::make_shared<PredicateDefinition>(name, variables);
 }
 
-BoundPredicate::Value::Value(bool isVar, const std::string &name, const std::string &type)
+Predicate::Value::Value(bool isVar, const std::string &name, const std::string &type)
   : isVar(isVar), name(name), type(type)
 {
 }
 
-BoundPredicate::BoundPredicate(const Predicate *predicate, const std::vector<Value> &bindings)
+Predicate::Predicate(const PredicateDefinition *predicate, const std::vector<Value> &bindings)
   : bindings(bindings), predicate(predicate)
 {
 }
 
-std::vector<std::string> BoundPredicate::getObjects(const Assignment &vars) const
+std::vector<std::string> Predicate::getObjects(const Assignment &vars) const
 {
     std::vector<std::string> objects;
     for (const auto &binding : bindings)
@@ -311,29 +311,29 @@ std::vector<std::string> BoundPredicate::getObjects(const Assignment &vars) cons
     return objects;
 }
 
-bool BoundPredicate::evaluate(const StatePtr &state, const Assignment &vars) const
+bool Predicate::evaluate(const StatePtr &state, const Assignment &vars) const
 {
     return state->isTrue(predicate->name, getObjects(vars));
 }
 
-void BoundPredicate::assign(StatePtr &out, const Assignment &vars) const
+void Predicate::assign(StatePtr &out, const Assignment &vars) const
 {
     out->assignN(predicate->name, getObjects(vars), true);
 }
 
-Expression::Type BoundPredicate::type() const
+Expression::Type Predicate::type() const
 {
     return Expression::PREDICATE;
 }
 
-void BoundPredicate::getVariables(VariableSet &vars) const
+void Predicate::getVariables(VariableSet &vars) const
 {
     for (const auto &binding : bindings)
         if (binding.isVar)
             vars.addVariable({binding.name, binding.type});
 }
 
-VariableList BoundPredicate::arguments() const
+VariableList Predicate::arguments() const
 {
     VariableList list;
     for (const auto &binding : bindings)
@@ -343,7 +343,7 @@ VariableList BoundPredicate::arguments() const
     return list;
 }
 
-bool BoundPredicate::containsVariable(const std::string &variable) const
+bool Predicate::containsVariable(const std::string &variable) const
 {
     for (const auto &v : bindings)
         if (v.isVar and v.name == variable)
@@ -352,12 +352,12 @@ bool BoundPredicate::containsVariable(const std::string &variable) const
     return false;
 }
 
-bool BoundPredicate::containsPredicate(const std::string &pred) const
+bool Predicate::containsPredicate(const std::string &pred) const
 {
     return predicate->name == pred;
 }
 
-std::ostream &BoundPredicate::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
+std::ostream &Predicate::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
 {
     const std::string SPACE = std::string(indent, ' ');
     for (unsigned int i = 0; i < level; ++i)
@@ -376,7 +376,7 @@ std::ostream &BoundPredicate::toPDDL(std::ostream &out, unsigned int indent, uns
     return out;
 }
 
-std::string BoundPredicate::toID(const Assignment &vars) const
+std::string Predicate::toID(const Assignment &vars) const
 {
     std::stringstream ss;
     ss << "PRED:" << predicate->name;
@@ -396,7 +396,7 @@ std::string BoundPredicate::toID(const Assignment &vars) const
     return ss.str();
 }
 
-const std::string &BoundPredicate::getPredicateName() const
+const std::string &Predicate::name() const
 {
     return predicate->name;
 }
@@ -470,14 +470,14 @@ bool Domain::isTypeOf(const std::string &type, const std::string &other) const
     return r;
 }
 
-void Domain::addPredicate(const PredicatePtr &predicate)
+void Domain::addPredicate(const PredicateDefinitionPtr &predicate)
 {
     auto [it, r] = predicates.emplace(predicate->name, predicate);
     if (not r)
         it->second = predicate;
 }
 
-const PredicatePtr Domain::getPredicate(const std::string &name) const
+const PredicateDefinitionPtr Domain::getPredicate(const std::string &name) const
 {
     auto it = predicates.find(name);
     if (it == predicates.end())
@@ -741,7 +741,7 @@ void State::fold(const StatePtr &other)
     }
 }
 
-bool State::isTrue(const PredicatePtr &predicate, const Assignment &assignment) const
+bool State::isTrue(const PredicateDefinitionPtr &predicate, const Assignment &assignment) const
 {
     std::vector<std::string> objects;
     for (const auto &variable : predicate->variables)
