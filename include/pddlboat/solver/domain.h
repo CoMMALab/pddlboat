@@ -210,8 +210,8 @@ namespace pddlboat
     class Assignment
     {
     public:
-        const Problem *problem; ///< The problem this assignment is from.
-        std::map<std::string, ObjectPtr> varToObj{}; ///< Mapping of variable name to objects.
+        const Problem *problem;                       ///< The problem this assignment is from.
+        std::map<std::string, ObjectPtr> varToObj{};  ///< Mapping of variable name to objects.
 
         /** \brief Constructor. Creates an empty assignment.
          *  \param[in] problem Problem to create assignment for.
@@ -258,94 +258,352 @@ namespace pddlboat
     /// Predicates
     ///
 
+    /** \brief A definition of a predicate in a domain. Used to check types and validity of assignments.
+     * NOT an evaluatable expression. You must first bind a PredicateDefinition to be a Predicate. The binding
+     * maps specific variable names that exist in an Expression to the arguments of a PredicateDefinition.
+     */
     class PredicateDefinition
     {
     public:
-        const std::string name;
-        const VariableList variables;
+        const std::string name;        ///< Name of predicate.
+        const VariableList variables;  ///< Arguments to predicate.
 
+        /** \brief Constructor.
+         *  \param[in] name Name of predicate.
+         *  \param[in] variables Argument list of predicate.
+         */
         PredicateDefinition(const std::string &name, const VariableList &variables);
 
+        /** \brief Bind this 0-ary predicate to an evaluatable Predicate.
+         *  \return A bound version of a 0-ary predicate.
+         *  \throw std::invalid_argument if this is not a 0-ary predicate.
+         */
         PredicatePtr bind() const;
+
+        /** \brief Bind this n-ary predicate to an evaluatable Predicate.
+         *  Can be bound to either grounded variables or a named variable that exists in some expression.
+         *  The bound list consists of variables, e.g. ?x, ?y --- and objects, e.g, a, b.
+         *  If a `?` is in the first position, the label is bound as a variable.
+         *  Otherwise, it is bound as an object, and will throw an error if not a valid object to bind.
+         *  \param[in] bound List of bindings of variables and objects.
+         *  \param[in] problem Optional, but if any objects exist in the bindings the problem is required.
+         *  \return A bound version of a n-ary predicate.
+         *  \throw std::invalid_argument if this is not a valid binding.
+         */
         PredicatePtr bind(const std::vector<std::string> &bound, const ProblemPtr &problem = nullptr) const;
 
+        /** \brief Checks if the set of object names is a valid assignment to this predicate. That is, do
+         * their types match the argument types.
+         *  \param[in] problem Problem to check with.
+         *  \param[in] objects Objects to check against.
+         *  \return True if this is a valid binding, false otherwise.
+         */
         bool isValidAssignment(const Problem *problem, const std::vector<std::string> &objects) const;
 
+        /** \brief Returns the arity of this predicate, i.e., how many arguments.
+         *  \return The arity of the predicate.
+         */
         unsigned int arity() const;
 
+        /** \brief Outputs this predicate definition to PDDL.
+         *  \param[in,out] out Output stream to use.
+         *  \return The output stream.
+         */
         std::ostream &toPDDL(std::ostream &out = std::cout) const;
+
+        /** \brief Generates a unique ID for this predicate definition given a grounding.
+         *  \param[in] vars A grounding of this predicate.
+         *  \return ID of the grounded predicate.
+         */
         std::string toID(const Assignment &vars) const;
     };
 
+    /** \brief Helper function to create a predicate definition.
+     *  \param[in] name Name of the predicate to create.
+     *  \param[in] variables Arguments of the predicate.
+     *  \return The created predicate definition.
+     */
     PredicateDefinitionPtr makePred(const std::string &name, const VariableList &variables = {});
 
+    /** \brief A predicate that is `bound` to a set of variable names or objects. This bound predicate can be
+     * evaluated inside expressions, and all predicates within an expression should be bound to a shared set
+     * of variable names. Use a PredicateDefinition to create a new Predicate.
+     */
     class Predicate : public Expression
     {
     public:
+        /** \brief A bound value for the predicate.
+         */
         struct Value
         {
+            /** \brief Constructor.
+             *  \param[in] isVar Is this a variable name?
+             *  \param[in] name Name of variable or object.
+             *  \param[in] type Type of argument.
+             */
             Value(bool isVar, const std::string &name, const std::string &type);
-            bool isVar;
-            std::string name;
-            std::string type;
+
+            bool isVar;        ///< Is this value a variable to be substituted?
+            std::string name;  ///< Name of this value.
+            std::string type;  ///< Type of this value.
         };
 
-        const std::vector<Value> bindings;
+        const std::vector<Value> bindings;  ///< Argument bindings for the predicate.
 
+        /** \brief Constructor.
+         *  \param[in] predicate Predicate definition that this predicate is a binding for.
+         *  \param[in] bindings Argument bindings.
+         */
         Predicate(const PredicateDefinition *predicate, const std::vector<Value> &bindings);
 
-        bool evaluate(const StatePtr &state, const Assignment &vars) const override;
-        void assign(StatePtr &out, const Assignment &vars) const override;
-
-        Expression::Type type() const override;
-        void getVariables(VariableSet &vars) const override;
+        /** \brief Return the list of unbound arguments to this predicate.
+         *  \return The unbound variables for this predicate.
+         */
         VariableList arguments() const;
 
+        /** \brief Evaluate this predicate. Checks contents of state to see if the grounding is true.
+         *  \param[in] state State of the world.
+         *  \param[in] vars Grounding of the predicate.
+         *  \return True if this predicate is true, false otherwise.
+         */
+        bool evaluate(const StatePtr &state, const Assignment &vars) const override;
+
+        /** \brief Assigns this predicate to be true inside of a state given a grounding.
+         *  \param[out] out State to set.
+         *  \param[in] vars Grounding of this predicate.
+         */
+        void assign(StatePtr &out, const Assignment &vars) const override;
+
+        /** \brief Returns the type of this expression.
+         *  \return Expression type.
+         */
+        Expression::Type type() const override;
+
+        /** \brief Get the set of all ungrounded variables in this expression.
+         *  \param[out] vars Variables used in the expression.
+         */
+        void getVariables(VariableSet &vars) const override;
+
+        /** \brief Returns true if this expression contains the variable name.
+         *  \param[in] variable The variable name to search for.
+         *  \return True if the variable is in the expression.
+         */
         bool containsVariable(const std::string &variable) const override;
+
+        /** \brief Returns true if this expression contains the predicate name.
+         *  \param[in] predicate The predicate name to search for.
+         *  \return True if the predicate is in the expression.
+         */
         bool containsPredicate(const std::string &predicate) const override;
 
+        /** \brief Serializes this predicate to PDDL.
+         *  \param[in,out] out Output stream to use.
+         *  \param[in] indent Amount of indentation per level.
+         *  \param[in] level Level of indentation to output to.
+         *  \return The output stream.
+         */
         std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
                              unsigned int level = 0) const override;
 
+        /** \brief Convert this predicate to a grounded ID.
+         *  \param[in] vars Grounding to use for ID.
+         *  \return The ID of this grounded predicate.
+         */
         std::string toID(const Assignment &vars) const;
+
+        /** \brief Return the name of this predicate.
+         *  \return The name of the predicate.
+         */
         const std::string &name() const;
 
     private:
+        /** \brief For a grounding, create a list of all object names that correspond to the arguments of the
+         * predicate.
+         *  \param[in] vars Grounding of the predicate.
+         *  \return A vector of the grounded objects.
+         */
         std::vector<std::string> getObjects(const Assignment &vars) const;
-        const PredicateDefinition *predicate;
+
+        const PredicateDefinition *predicate;  ///< Definition of this predicate.
     };
+
+    ///
+    /// Action
+    ///
+
+    /** \brief An action in a domain. Mirrors the concept in PDDL closely.
+     */
+    class Action
+    {
+    public:
+        const std::string name;            ///< Name of the action.
+        const VariableList parameters;     ///< Parameters this action has.
+        const ExpressionPtr precondition;  ///< Precondition of this action.
+        const ExpressionPtr effect;        ///< Effect of this action.
+
+        /** \brief Constructor.
+         *  \param[in] name Name of the action.
+         *  \param[in] parameters Parameters of the action. Must match precondition and effect.
+         *  \param[in] precondition Expression composed of predicates in domain that must hold before effect.
+         *  \param[in] effect Expression composed of predicates in domain that change after acting.
+         */
+        Action(const std::string &name, const VariableList &parameters, const ExpressionPtr &precondition,
+               const ExpressionPtr &effect);
+
+        /** \brief Get the arity of this action, i.e., the number of parameters.
+         *  \return The arity of the action.
+         */
+        unsigned int arity() const;
+
+        /** \brief Checks if an action's preconditions hold at a world state and a grounding of the action.
+         *  \param[in] state State of the problem.
+         *  \param[in] vars Grounding of the action.
+         *  \return True if the preconditions of this grounded action hold.
+         */
+        bool holds(const StatePtr &state, const Assignment &vars) const;
+
+        /** \brief Apply the effects of this action grounded to an assignment to a state.
+         *  \param[out] out State that will have the effects of this action applied to \a in.
+         *  \param[in] in Starting state. Preconditions must hold.
+         *  \param[in] vars Grounding of this action.
+         *  \return True on success, false on failure.
+         */
+        bool doAction(StatePtr &out, const StatePtr &in, const Assignment &vars) const;
+
+        /** \brief Serializes this action to PDDL.
+         *  \param[in,out] out Output stream to use.
+         *  \param[in] indent Amount of indentation to use.
+         *  \return The output stream.
+         */
+        std::ostream &toPDDL(std::ostream &out = std::cout, unsigned int indent = 2) const;
+
+        /** \brief Generates a unique ID for this action given a grounding.
+         *  \param[in] vars A grounding of this action.
+         *  \return ID of the grounded action.
+         */
+        std::string toID(const Assignment &vars) const;
+    };
+
+    /** \brief Helper function to create an action.
+     *  \param[in] name Name of the action.
+     *  \param[in] parameters Parameters of the action. Must match precondition and effect.
+     *  \param[in] precondition Expression composed of predicates in domain that must hold before effect.
+     *  \param[in] effect Expression composed of predicates in domain that change after acting.
+     *  \return Newly created action.
+     */
+    ActionPtr makeAction(const std::string &name, const VariableList &parameters,
+                         const ExpressionPtr &precondition, const ExpressionPtr &effect);
 
     ///
     /// Domain
     ///
 
+    /** \brief A planning domain. Mirrors concepts in PDDL.
+     */
     class Domain
     {
     public:
-        const std::string name;
-        std::map<std::string, std::string> types;  // type -> parent
-        std::vector<ObjectPtr> constants;
-        std::map<std::string, PredicateDefinitionPtr> predicates;
-        std::map<std::string, ActionPtr> actions;
+        const std::string name;                                    ///< Name of this domain.
+        std::map<std::string, std::string> types;                  ///< Mapping of type to its parent type.
+        std::vector<ObjectPtr> constants;                          ///< Constants in this domain.
+        std::map<std::string, PredicateDefinitionPtr> predicates;  ///< Predicates defined in this domain.
+        std::map<std::string, ActionPtr> actions;                  ///< Actions defined in this domain.
 
+        /** \brief Constructor. Creates an empty domain.
+         *  \param[in] name Name of this domain
+         */
         Domain(const std::string &name);
 
+        /* \name Types
+           \{ */
+
+        /** \brief Define a new type in the domain.
+         *  \param[in] type Type name to add.
+         *  \param[in] parent Parent of this type in the type hierarchy.
+         */
         void addType(const std::string &type, const std::string &parent = PDDLBOAT_OBJECT_CLASS);
 
-        const ObjectPtr getConstant(const std::string &name) const;
-        void addConstant(const ObjectPtr &object);
-        void addConstant(const std::string &name, const std::string &type = PDDLBOAT_OBJECT_CLASS);
-
+        /** \brief Get a list of all types in the domain.
+         *  \return A list of all types in the domain.
+         */
         std::vector<std::string> getTypes() const;
+
+        /** \brief Check if a string is a type in the domain.
+         *  \param[in] type Type to check.
+         *  \return True if type, false otherwise.
+         */
         bool isType(const std::string &type) const;
+
+        /** \brief Checks if \a type is or is derived from \a other.
+         *  \param[in] type Type to check.
+         *  \param[in] other Type to check against.
+         *  \return True if type is of type other or is derived from other.
+         */
         bool isTypeOf(const std::string &type, const std::string &other) const;
 
-        void addPredicate(const PredicateDefinitionPtr &predicate);
-        const PredicateDefinitionPtr getPredicate(const std::string &name) const;
+        /** \} */
 
+        /* \name Types
+           \{ */
+
+        /** \brief Get a constant in this domain.
+         *  \param[in] name Name of constant.
+         *  \return The constant if it exists, nullptr otherwise.
+         */
+        const ObjectPtr getConstant(const std::string &name) const;
+
+        /** \brief Add a new constant to the domain.
+         *  \param[in] object The constant to add.
+         *  \throw std::invalid_argument If there already exists a constant with this name in the domain.
+         */
+        void addConstant(const ObjectPtr &object);
+
+        /** \brief Add a new constant to the domain.
+         *  \param[in] name Name of constant to add
+         *  \param[in] type Type of constant to add
+         *  \throw std::invalid_argument If there already exists a constant with this name in the domain.
+         */
+        void addConstant(const std::string &name, const std::string &type = PDDLBOAT_OBJECT_CLASS);
+
+        /** \} */
+
+        /* \name Predicates
+           \{ */
+
+        /** \brief Define a new predicate in the domain.
+         *  \param[in] predicate Predicate to add.
+         */
+        void addPredicate(const PredicateDefinitionPtr &predicate);
+
+        /** \brief Retrieve a predicate defined in the domain.
+         *  \param[in] name Name of predicate to retrieve.
+         *  \return The named predicate definition.
+         *  \throw std::invalid_argument if the predicate does not exist.
+         */
+        const PredicateDefinitionPtr getPredicate(const std::string &name) const;
+        /** \} */
+
+        /* \name Actions
+           \{ */
+
+        /** \brief Add an action to the domain.
+         *  \param[in] action Action to add.
+         */
         void addAction(const ActionPtr &action);
+
+        /** \brief Retrieve a action defined in the domain.
+         *  \param[in] name Name of action to retrieve.
+         *  \return The named action.
+         *  \throw std::invalid_argument if the action does not exist.
+         */
         const ActionPtr getAction(const std::string &name) const;
 
+        /** \} */
+
+        /** \brief Serializes this domain to PDDL.
+         *  \param[in,out] out Output stream to use.
+         *  \return The output stream.
+         */
         std::ostream &toPDDL(std::ostream &out = std::cout) const;
     };
 
@@ -353,27 +611,69 @@ namespace pddlboat
     /// Problem
     ///
 
+    /** \brief A planning problem in a domain. Mirrors the same concept in PDDL.
+     */
     class Problem
     {
     public:
-        const std::string name;
-        const DomainPtr domain;
-        std::vector<ObjectPtr> objects;
-        StatePtr start;
-        ExpressionPtr goal;
+        const std::string name;          ///< Name of this planning problem.
+        const DomainPtr domain;          ///< Domain this problem is foor.
+        std::vector<ObjectPtr> objects;  ///< Objects defined in this problem.
+        StatePtr start;                  ///< Starting state of the world.
+        ExpressionPtr goal;              ///< Goal to reach.
 
+        /** \brief Constructor.
+         *  \param[in] name Name of the planning problem.
+         *  \param[in] domain The domain of this problem.
+         */
         Problem(const std::string &name, const DomainPtr &domain);
 
+        /* \name Objects
+           \{ */
+
+        /** \brief Get object with a name.
+         *  \param[in] name Name of object to find.
+         *  \return The object if found, nullptr otherwise.
+         */
         const ObjectPtr getObject(const std::string &name) const;
+
+        /** \brief Add a new object to the problem.
+         *  \param[in] object The object to add.
+         *  \throw std::invalid_argument If there already exists a object with this name in the problem.
+         */
         void addObject(const ObjectPtr &object);
+
+        /** \brief Add a new object to the problem.
+         *  \param[in] name Name of object to add
+         *  \param[in] type Type of object to add
+         *  \throw std::invalid_argument If there already exists a object with this name in the problem.
+         */
         void addObject(const std::string &name, const std::string &type = PDDLBOAT_OBJECT_CLASS);
 
-        const std::vector<std::string> objectsOfType(const std::string &type) const;
+        /** \brief Return a list of all objects that are of a desired type, including those that are
+         * derived from the type. \param[in] type Type to get objects for. \return A vector of all object
+         * names that have the desired type.
+         */
+        std::vector<std::string> objectsOfType(const std::string &type) const;
 
-        const std::vector<Assignment> getGroundings(const VariableList &vars, unsigned int index = 0) const;
+        /** \} */
 
+        /** \brief Get all possible groundings of a variable list as assignments.
+         *  \param[in] vars The variables to find groundings for.
+         *  \param[in] index Recursive index in the list.
+         *  \return The groundings of all variables in vars, from index onward.
+         */
+        std::vector<Assignment> getGroundings(const VariableList &vars, unsigned int index = 0) const;
+
+        /** \brief Allocate a new state for this problem.
+         *  \return A new state.
+         */
         StatePtr makeState() const;
 
+        /** \brief Serializes this problem to PDDL.
+         *  \param[in,out] out Output stream to use.
+         *  \return The output stream.
+         */
         std::ostream &toPDDL(std::ostream &out = std::cout) const;
     };
 
@@ -381,66 +681,109 @@ namespace pddlboat
     /// State
     ///
 
+    /** \brief A state of the planning world for a problem. Contains information on whether grounded
+     * predicates are true or not.
+     */
     class State
     {
     public:
+        /** \brief The key into the assignment map. Contains the name of the predicate and its grounding
+         * (a vector of objects)
+         */
         using Key = std::pair<std::string, std::vector<std::string>>;
 
+        std::map<Key, bool> assignments;  ///< Map from grounded predicate to truth value.
+
+        /** \brief Constructor.
+         *  \param[in] problem Problem this state is for.
+         */
         State(const Problem *problem);
 
-        const Problem *getProblem() const;
+        /* \name Assignment Manipulations
+           \{ */
+
+        /** \brief Clear all assignments.
+         */
         void clear();
+
+        /** \brief Take the `complement` of this state, i.e., flip truth value of all propositions
+         * currently set. This is not a full complement as it only flips values that exist in the
+         * assignment map.
+         */
         void complement();
+
+        /** \brief `Fold` values from another state into this state. Additional grounded predicate values
+         * are only set if they do not already exist inside this state.
+         */
         void fold(const StatePtr &other);
 
-        bool isTrue(const PredicateDefinitionPtr &predicate, const Assignment &assignment) const;
-        bool isTrue(const std::string &predicate, const Assignment &assignment) const;
-        bool isTrue(const std::string &predicate, const std::vector<std::string> &objects) const;
-
-        // Assign 0-ary pred.
+        /** \brief Assign the truth value of a 0-ary predicate.
+         *  \param[in] predicate Name of predicate to assign.
+         *  \param[in] value Value to assign.
+         *  \throw std::invalid_argument If not a 0-ary predicate.
+         */
         void assign0(const std::string &predicate, bool value = true);
 
-        // Assign 1-ary pred.
+        /** \brief Assign the truth value of a 1-ary predicate.
+         *  \param[in] predicate Name of predicate to assign.
+         *  \param[in] object Object to ground to predicate.
+         *  \param[in] value Value to assign.
+         *  \throw std::invalid_argument If not a 1-ary predicate or not a valid assignment.
+         */
         void assign1(const std::string &predicate, const std::string &object, bool value = true);
 
-        // Assign n-ary pred.
+        /** \brief Assign the truth value of a n-ary predicate.
+         *  \param[in] predicate Name of predicate to assign.
+         *  \param[in] objects Objects to ground to predicate.
+         *  \param[in] value Value to assign.
+         *  \throw std::invalid_argument If not a valid assignment.
+         */
         void assignN(const std::string &predicate, const std::vector<std::string> &objects,
                      bool value = true);
 
+        /** \} */
+
+        /* \name Truth Evaluation
+           \{ */
+
+        /** \brief Checks if a predicate given an assignment is currently true in the state.
+         *  \param[in] predicate Predicate to check.
+         *  \param[in] assignment Grounding of predicate.
+         *  \return True if predicate is true in the state, false otherwise.
+         */
+        bool isTrue(const PredicateDefinitionPtr &predicate, const Assignment &assignment) const;
+
+        /** \brief Checks if a predicate given an assignment is currently true in the state.
+         *  \param[in] predicate Name of predicate to check.
+         *  \param[in] assignment Grounding of predicate.
+         *  \return True if predicate is true in the state, false otherwise.
+         */
+        bool isTrue(const std::string &predicate, const Assignment &assignment) const;
+
+        /** \brief Checks if a predicate given an assignment is currently true in the state.
+         *  \param[in] predicate Name of predicate to check.
+         *  \param[in] objects Grounding of predicate.
+         *  \return True if predicate is true in the state, false otherwise.
+         */
+        bool isTrue(const std::string &predicate, const std::vector<std::string> &objects) const;
+
+        /** \} */
+
+        /** \brief Serializes this state to PDDL.
+         *  \param[in,out] out Output stream to use.
+         *  \param[in] indent Amount of indentation to use.
+         *  \return The output stream.
+         */
         std::ostream &toPDDL(std::ostream &out = std::cout, unsigned int indent = 0) const;
 
-        std::map<Key, bool> assignments{};
+        /** \brief Get the problem this state is for.
+         *  \return The problem this state is for.
+         */
+        const Problem *getProblem() const;
 
     private:
-        const Problem *problem_;
+        const Problem *problem_;  ///< The problem this state is for.
     };
-
-    ///
-    /// Action
-    ///
-
-    class Action
-    {
-    public:
-        const std::string name;
-        const VariableList parameters;
-        const ExpressionPtr precondition;
-        const ExpressionPtr effect;
-
-        Action(const std::string &name, const VariableList &parameters, const ExpressionPtr &precondition,
-               const ExpressionPtr &effect);
-
-        bool holds(const StatePtr &state, const Assignment &vars) const;
-        bool doAction(StatePtr &out, const StatePtr &in, const Assignment &vars) const;
-
-        std::ostream &toPDDL(std::ostream &out = std::cout, unsigned int indent = 2) const;
-        std::string toID(const Assignment &vars) const;
-
-        unsigned int arity() const;
-    };
-
-    ActionPtr makeAction(const std::string &name, const VariableList &parameters,
-                         const ExpressionPtr &precondition, const ExpressionPtr &effect);
 }  // namespace pddlboat
 
 #endif

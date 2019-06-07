@@ -226,7 +226,8 @@ PredicatePtr PredicateDefinition::bind(const std::vector<std::string> &bound, co
     return std::make_shared<Predicate>(this, toUse);
 }
 
-bool PredicateDefinition::isValidAssignment(const Problem *problem, const std::vector<std::string> &objects) const
+bool PredicateDefinition::isValidAssignment(const Problem *problem,
+                                            const std::vector<std::string> &objects) const
 {
     if (objects.size() != arity())
         return false;
@@ -620,7 +621,7 @@ void Problem::addObject(const std::string &name, const std::string &type)
     addObject(makeObj(name, type));
 }
 
-const std::vector<std::string> Problem::objectsOfType(const std::string &type) const
+std::vector<std::string> Problem::objectsOfType(const std::string &type) const
 {
     std::vector<std::string> r;
     for (const auto &object : objects)
@@ -638,7 +639,7 @@ const std::vector<std::string> Problem::objectsOfType(const std::string &type) c
     return r;
 }
 
-const std::vector<Assignment> Problem::getGroundings(const VariableList &vars, unsigned int index) const
+std::vector<Assignment> Problem::getGroundings(const VariableList &vars, unsigned int index) const
 {
     std::vector<Assignment> assignments;
 
@@ -825,6 +826,8 @@ Action::Action(const std::string &name, const VariableList &parameters, const Ex
 
     if (effect)
         effect->getVariables(conditions);
+
+    // TODO: Validate that precondition and effect only use predicates from domain when added.
 
     if (conditions != input)
         throw std::invalid_argument(

@@ -8,10 +8,6 @@
 
 namespace pddlboat
 {
-    /** \brief Time step in a plan.
-     */
-    using Time = std::size_t;
-
     /** \cond IGNORE */
     PDDLBOAT_CLASS_FORWARD(Plan)
     /** \endcond */

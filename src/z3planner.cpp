@@ -40,6 +40,7 @@ void Z3Planner::buildPlan(Plan &plan)
 {
     auto m = solver_->get_model();
 
+    // As actions may appear `out of order`, we first collect them all.
     std::vector<ast::z3Action> actions;
     actions.reserve(horizon_);
 
@@ -50,6 +51,8 @@ void Z3Planner::buildPlan(Plan &plan)
         if (f.is_true())
         {
             const std::string name = m.get_const_decl(i).name().str();
+
+            // Parse name of Z3 boolean to a grounded action.
             ast::z3Action action;
             if (parseZ3Action(name, action))
             {
@@ -59,14 +62,15 @@ void Z3Planner::buildPlan(Plan &plan)
         }
     }
 
+    // Sort the actions according to time.
     std::sort(actions.begin(), actions.end(), [](const auto &a, const auto &b) { return a.conv < b.conv; });
 
+    // Add each step to return plan.
     for (const auto &action : actions)
         plan.addStep(action.name, action.args);
 }
 
-z3::expr Z3Planner::toBool(const std::string &string)  // Should be renamed. Only makes new if doesn't
-                                                       // exist.
+z3::expr Z3Planner::toBool(const std::string &string)
 {
     return ctx_->bool_const(string.c_str());
 }
@@ -371,6 +375,8 @@ void Z3Planner::startState()
         {
             std::string pred_string = name_predptr.second->toID(assignment);
             z3::expr p = toBool(addTimeToString(pred_string, 0));
+
+            // Anything that is not true is false within the initial state.
             z3::expr clause = (problem_->start->isTrue(name_predptr.second, assignment)) ? p : not p;
 
             solver_->add(clause);
@@ -405,14 +411,18 @@ void Z3Planner::build()
 
     // Now that we have built the context, we need to add constraints. These are clauses that ensure:
     // (1) an action implies its precondition is true and its effects will be true next time step
-    // (2) if a proposition changes, then an action must have changed it
-    // (3) only one action is taken at each time step
-
-    // Diagnostic counter reset
     actionImplications();
+
+    // (2) if a proposition changes, then an action must have changed it
     frameAxioms();
+
+    // (3) only one action is taken at each time step
     mutualExclusion();
+
+    // (4) that we reach the goal at the time horizon, and
     goalExpression();
+
+    // (5) that we start with the grounded predicates as declared in the start state.
     startState();
 
     if (diagnostics_)

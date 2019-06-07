@@ -10,12 +10,16 @@
 
 #include <pddlboat/utility.h>
 #include <pddlboat/parser/parser.h>
-#include <pddlboat/solver/expressions.h>
 #include <pddlboat/solver/domain.h>
+#include <pddlboat/solver/expressions.h>
 #include <pddlboat/solver/planner.h>
 
 namespace pddlboat
 {
+    /** \brief Time step in a plan.
+     */
+    using Time = std::size_t;
+
     /** \brief A planner that uses Z3 to solve SAT plan representations of a planning problem.
      */
     class Z3Planner : public Planner
