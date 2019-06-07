@@ -57,6 +57,7 @@ list(APPEND SOURCES
     src/parser.cpp
     src/planner.cpp
     src/fdplanner.cpp
+    src/z3planner.cpp
     )
 
 add_definitions(-DPDDLBOAT_RESOURCE_DIRECTORY="${CMAKE_CURRENT_LIST_DIR}/resources")
