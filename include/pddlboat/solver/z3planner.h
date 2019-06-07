@@ -18,13 +18,24 @@ namespace pddlboat
     {
         const Time horizon_;
         const bool diagnostics_;
+        const bool dump_clauses_;
 
         z3::context *ctx_{nullptr};
         z3::solver *solver_{nullptr};
 
+        // Diagnostic count_ers
+        unsigned int action_imply_count_ = 0, action_imply_total_ = 0,  //
+            frame_axiom_count_ = 0, frame_axiom_total_ = 0,             //
+            mutual_exclusion_count_ = 0, mutual_exclusion_total_ = 0,   //
+            start_proposition_count_ = 0;
+
+        // We store a vector of grounded actions (without the timestep)
+        std::vector<std::string> ground_actions_;
+
     public:
-        Z3Planner(const ProblemPtr problem, const Time horizon, bool diagnostics = false)
-          : Planner(problem), horizon_(horizon), diagnostics_(diagnostics)
+        Z3Planner(const ProblemPtr problem, const Time horizon, bool diagnostics = false,
+                  bool dump_clauses = false)
+          : Planner(problem), horizon_(horizon), diagnostics_(diagnostics), dump_clauses_(dump_clauses)
         {
             build();
         }
@@ -32,6 +43,10 @@ namespace pddlboat
         void buildPlan(Plan &plan)
         {
             auto m = solver_->get_model();
+
+            std::vector<ast::z3Action> actions;
+            actions.reserve(horizon_);
+
             for (size_t i = 0; i < m.num_consts(); i++)
             {
                 z3::expr f = m.get_const_interp(m.get_const_decl(i));
@@ -41,9 +56,18 @@ namespace pddlboat
                     const std::string name = m.get_const_decl(i).name().str();
                     ast::z3Action action;
                     if (parseZ3Action(name, action))
-                        plan.addStep(action.name, action.args);
+                    {
+                        action.conv = std::stoi(action.time);
+                        actions.emplace_back(action);
+                    }
                 }
             }
+
+            std::sort(actions.begin(), actions.end(),
+                      [](const auto &a, const auto &b) { return a.conv < b.conv; });
+
+            for (const auto &action : actions)
+                plan.addStep(action.name, action.args);
         }
 
         bool solve(Plan &plan) override
@@ -146,6 +170,52 @@ namespace pddlboat
             }
         }
 
+        void actionImplications()
+        {
+            boost::timer::cpu_timer t;
+            action_imply_count_ = action_imply_total_ = 0;
+
+            if (dump_clauses_)
+                std::cout << "Action Implications:" << std::endl;
+
+            // add clauses for preconditions and effects of actions
+            for (const auto &name_actionptr : problem_->domain->actions)
+            {
+                const auto &assignments = problem_->getGroundings(name_actionptr.second->parameters);
+                for (const auto &assignment : assignments)
+                {
+                    std::string action_string = name_actionptr.second->toID(assignment);
+
+                    for (Time step = 0; step < horizon_; ++step)
+                    {
+                        std::string action_string_time = addTimeToString(action_string, step);
+
+                        z3::expr act = makeBool(action_string_time);
+                        z3::expr precond = exprAtTime(name_actionptr.second->precondition, assignment, step);
+                        z3::expr effects = exprAtTime(name_actionptr.second->effect, assignment, step + 1);
+
+                        // action -> preconditions_t0 and effects_t1
+                        z3::expr clause = (not act) or (precond and effects);
+
+                        solver_->add(clause);
+
+                        action_imply_total_++;
+                        if (dump_clauses_)
+                            std::cout << clause << std::endl;
+                    }
+
+                    ground_actions_.emplace_back(action_string);
+                    action_imply_count_++;
+                }
+            }
+
+            if (diagnostics_)
+            {
+                t.stop();
+                std::cout << "Building Z3 Action Implications took: " << io::getTiming(t) << std::endl;
+            }
+        }
+
         bool predicateInEffect(const ExpressionPtr &expr, const Assignment &assignment,
                                const std::string &predicate)
         {
@@ -214,56 +284,23 @@ namespace pddlboat
             return change_actions;
         }
 
-        void build()
+        void frameAxioms()
         {
             boost::timer::cpu_timer t;
+            frame_axiom_count_ = frame_axiom_total_ = 0;
 
-            // First we build the context, grounding all actions and predicates.
-            ctx_ = new z3::context;
-            solver_ = new z3::solver(*ctx_);
+            if (dump_clauses_)
+                std::cout << "Frame Axioms:" << std::endl;
 
-            // We store a set of grounded actions and predicates (without the timestep)
-            std::vector<std::string> ground_actions;
-
-            // Now that we have built the context, we need to add constraints. These are clauses that ensure:
-            // (1) an action implies its precondition is true and its effects will be true next time step
-            // (2) if a proposition changes, then an action must have changed it
-            // (3) only one action is taken at each time step
-            for (Time step = 0; step < horizon_; ++step)
+            for (const auto &name_predptr : problem_->domain->predicates)
             {
-                // add clauses for preconditions and effects of actions
-                for (const auto &name_actionptr : problem_->domain->actions)
+                const auto &assignments = problem_->getGroundings(name_predptr.second->variables);
+                for (const auto &assignment : assignments)
                 {
-                    const auto &assignments = problem_->getGroundings(name_actionptr.second->parameters);
-                    for (const auto &assignment : assignments)
+                    std::string pred_string = name_predptr.second->toID(assignment);
+
+                    for (Time step = 0; step < horizon_; ++step)
                     {
-                        std::string action_string = name_actionptr.second->toID(assignment);
-                        std::string action_string_time = addTimeToString(action_string, step);
-
-                        z3::expr act = makeBool(action_string_time);
-                        z3::expr precond = exprAtTime(name_actionptr.second->precondition, assignment, step);
-                        z3::expr effects = exprAtTime(name_actionptr.second->effect, assignment, step + 1);
-
-                        // action -> preconditions_t0 and effects_t1
-                        z3::expr clause = (not act) or (precond and effects);
-
-                        solver_->add(clause);
-
-                        if (step == 0)
-                            ground_actions.emplace_back(action_string);
-                    }
-                }
-
-                if (diagnostics_ and step == 0)
-                    std::cout << "Z3 grounded " << ground_actions.size() << " actions" << std::endl;
-
-                for (const auto &name_predptr : problem_->domain->predicates)
-                {
-                    const auto &assignments = problem_->getGroundings(name_predptr.second->variables);
-                    for (const auto &assignment : assignments)
-                    {
-                        std::string pred_string = name_predptr.second->toID(assignment);
-
                         // add frame axioms
                         // if the prop changed, then an action changed it. it doesn't matter what the value
                         // changes to, because the clauses for precoditions and effects will ensure
@@ -274,29 +311,93 @@ namespace pddlboat
                             not(curr_prop != next_prop) or (getPossibleChangeActions(pred_string, step));
 
                         solver_->add(clause);
+
+                        frame_axiom_total_++;
+                        if (dump_clauses_)
+                            std::cout << clause << std::endl;
                     }
+
+                    frame_axiom_count_++;
                 }
+            }
 
-                // add mutual exclusion axioms, i.e., we only take one action each time step
-                for (unsigned int i = 0; i < ground_actions.size(); ++i)
+            if (diagnostics_)
+            {
+                t.stop();
+                std::cout << "Building Z3 Frame Axioms took: " << io::getTiming(t) << std::endl;
+            }
+        }
+
+        void mutualExclusion()
+        {
+            boost::timer::cpu_timer t;
+            mutual_exclusion_count_ = mutual_exclusion_total_ = 0;
+
+            if (dump_clauses_)
+                std::cout << "Mutual Exclusion:" << std::endl;
+
+            // add mutual exclusion axioms, i.e., we only take one action each time step
+            for (unsigned int i = 0; i < ground_actions_.size(); ++i)
+            {
+                const auto &action = ground_actions_[i];
+                for (unsigned int j = i + 1; j < ground_actions_.size(); ++j)
                 {
-                    const auto &action = ground_actions[i];
-                    for (unsigned int j = i + 1; j < ground_actions.size(); ++j)
-                    {
-                        const auto &other_action = ground_actions[j];
+                    const auto &other_action = ground_actions_[j];
 
+                    for (Time step = 0; step < horizon_; ++step)
+                    {
                         z3::expr e = makeBool(addTimeToString(action, step));
                         z3::expr other_e = makeBool(addTimeToString(other_action, step));
                         z3::expr clause = (not e) or (not other_e);
 
                         solver_->add(clause);
+
+                        mutual_exclusion_total_++;
+                        if (dump_clauses_)
+                            std::cout << clause << std::endl;
                     }
+
+                    mutual_exclusion_count_++;
                 }
-            }  // end for timestep
+            }
+
+            if (diagnostics_)
+            {
+                t.stop();
+                std::cout << "Building Z3 Mutual Exclusion Clauses took: " << io::getTiming(t) << std::endl;
+            }
+        }
+
+        void goalExpression()
+        {
+            boost::timer::cpu_timer t;
 
             // Add the goal
             Assignment empty_assgn(&*problem_);
-            solver_->add(exprAtTime(problem_->goal, empty_assgn, horizon_));
+            z3::expr clause = exprAtTime(problem_->goal, empty_assgn, horizon_);
+            solver_->add(clause);
+
+            if (dump_clauses_)
+            {
+                std::cout << "Goal:" << std::endl;
+                std::cout << clause << std::endl;
+            }
+
+            if (diagnostics_)
+            {
+                t.stop();
+                std::cout << "Building Z3 Goal Expression took: " << io::getTiming(t) << std::endl;
+            }
+        }
+
+        void startState()
+        {
+            boost::timer::cpu_timer t;
+
+            start_proposition_count_ = 0;
+
+            if (dump_clauses_)
+                std::cout << "Start State:" << std::endl;
 
             // Add the start state
             for (const auto &name_predptr : problem_->domain->predicates)
@@ -306,18 +407,66 @@ namespace pddlboat
                 {
                     std::string pred_string = name_predptr.second->toID(assignment);
                     z3::expr p = makeBool(addTimeToString(pred_string, 0));
+                    z3::expr clause = (problem_->start->isTrue(name_predptr.second, assignment)) ? p : not p;
 
-                    if (problem_->start->isTrue(name_predptr.second, assignment))
-                        solver_->add(z3::expr(p));
-                    else
-                        solver_->add(z3::expr(not p));
+                    solver_->add(clause);
+
+                    start_proposition_count_++;
+                    if (dump_clauses_)
+                        std::cout << clause << std::endl;
                 }
             }
 
             if (diagnostics_)
             {
                 t.stop();
-                std::cout << "Building Z3 Instance took: " << io::getTiming(t) << std::endl;
+                std::cout << "Building Z3 Start State took: " << io::getTiming(t) << std::endl;
+            }
+        }
+
+        void build()
+        {
+            boost::timer::cpu_timer t;
+
+            // First we build the context.
+            if (ctx_)
+                delete ctx_;
+
+            ctx_ = new z3::context;
+
+            if (solver_)
+                delete solver_;
+
+            solver_ = new z3::solver(*ctx_);
+
+            // Now that we have built the context, we need to add constraints. These are clauses that ensure:
+            // (1) an action implies its precondition is true and its effects will be true next time step
+            // (2) if a proposition changes, then an action must have changed it
+            // (3) only one action is taken at each time step
+
+            // Diagnostic counter reset
+            actionImplications();
+            frameAxioms();
+            mutualExclusion();
+            goalExpression();
+            startState();
+
+            if (diagnostics_)
+            {
+                t.stop();
+                std::cout << "Building Total Z3 Instance took: " << io::getTiming(t) << std::endl;
+
+                std::cout << log::format("Z3 has %1% action implication clauses per step (%2% total)",
+                                         action_imply_count_, action_imply_total_)
+                          << std::endl;
+                std::cout << log::format("Z3 has %1% frame axiom clauses per step (%2% total)",
+                                         frame_axiom_count_, frame_axiom_total_)
+                          << std::endl;
+                std::cout << log::format("Z3 has %1% mutual exclusion clauses per step (%2% total)",
+                                         mutual_exclusion_count_, mutual_exclusion_total_)
+                          << std::endl;
+                std::cout << log::format("Z3 has %1% start state clauses", start_proposition_count_)
+                          << std::endl;
             }
         }
     };

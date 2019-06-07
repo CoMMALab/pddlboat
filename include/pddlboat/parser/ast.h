@@ -202,7 +202,8 @@ namespace pddlboat
         public:
             std::string name;
             std::vector<std::string> args{};
-            std::string time{0};
+            std::string time;
+            unsigned int conv{0};
         };
 
         ///
@@ -214,7 +215,7 @@ namespace pddlboat
         public:
             std::string name;
             std::vector<std::string> args{};
-            std::string time{0};
+            std::string time{""};
         };
 
         using boost::fusion::operator<<;

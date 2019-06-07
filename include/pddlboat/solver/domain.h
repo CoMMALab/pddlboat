@@ -434,7 +434,6 @@ namespace pddlboat
         bool doAction(StatePtr &out, const StatePtr &in, const Assignment &vars) const;
 
         std::ostream &toPDDL(std::ostream &out = std::cout, unsigned int indent = 2) const;
-
         std::string toID(const Assignment &vars) const;
 
         unsigned int arity() const;

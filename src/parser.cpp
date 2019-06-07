@@ -328,8 +328,8 @@ namespace parser
 
     struct z3action_class;
     const x3::rule<z3action_class, ast::z3Action> z3action = "z3action";
-    const auto z3action_def =                                                                               //
-        x3::lit("ACTION:") >> name >> x3::lit(":ARGS:") >> -(name % ',') >> -(x3::lit(":TIME:") >> number)  //
+    const auto z3action_def =                                                                            //
+        x3::lit("ACTION:") >> name >> x3::lit(":ARGS:") >> -(name % ',') >> x3::lit(":TIME:") >> number  //
         ;
     PARSE(z3action);
 

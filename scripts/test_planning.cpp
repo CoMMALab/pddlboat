@@ -52,7 +52,10 @@ namespace pddlboat
 
 int main(int argc, char **argv)
 {
+    //
     // Program Options
+    //
+
     std::string domainfile, problemfile;
     bool domainout, problemout, planout, stepsout, timeout;
     Planner plannertype;
@@ -78,13 +81,15 @@ int main(int argc, char **argv)
         ;
 
     unsigned int horizon;
-    bool diagnostics;
+    bool diagnostics, dump_clauses;
     po::options_description z3opt("z3 Planner Options");
     z3opt.add_options()                                                     //
         ("horizon,z", po::value<unsigned int>(&horizon)->default_value(6),  //
          "Maximum planning horizon to use")                                 //
-        ("diagnostics,v", po::bool_switch(&diagnostics),                    //
+        ("diagnostics,w", po::bool_switch(&diagnostics),                    //
          "Print debugging statistics")                                      //
+        ("dump_clauses,v", po::bool_switch(&dump_clauses),                  //
+         "Print all constituent clauses in plan")                           //
         ;
     desc.add(z3opt);
 
@@ -109,7 +114,10 @@ int main(int argc, char **argv)
 
     po::notify(vm);
 
+    //
     // Parse the domain
+    //
+
     pd::ast::Domain domain_ast;
     if (not pd::parseFile(domainfile, domain_ast))
     {
@@ -135,7 +143,10 @@ int main(int argc, char **argv)
         std::cout << std::endl;
     }
 
+    //
     // Parse the problem
+    //
+
     pd::ast::Problem problem_ast;
     if (not pd::parseFile(problemfile, problem_ast))
     {
@@ -160,11 +171,15 @@ int main(int argc, char **argv)
         std::cout << std::endl;
     }
 
+    //
+    // Create the planner
+    //
+
     pd::PlannerPtr planner;
     switch (plannertype)
     {
         case Z3:
-            planner = std::make_shared<pd::Z3Planner>(problem, horizon, diagnostics);
+            planner = std::make_shared<pd::Z3Planner>(problem, horizon, diagnostics, dump_clauses);
             break;
         case FD:
             planner = std::make_shared<pd::FastDownwardPlanner>(problem, search);
@@ -173,6 +188,10 @@ int main(int argc, char **argv)
             std::cerr << "Unknown planner type. Exiting." << std::endl;
             return 1;
     }
+
+    //
+    // Do some planning
+    //
 
     bool r;
     pd::Plan plan(problem);
