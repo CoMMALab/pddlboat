@@ -62,20 +62,26 @@ namespace pddlboat
         /** \brief From a solved Z3 instance, create a plan.
          *  \param[out] plan Plan to fill in.
          */
-        void buildPlan(Plan &plan);
+        void buildPlan(Plan &plan) const;
 
         /** \brief Create a Z3 boolean from a string ID.
          *  \param[in] string String to convert.
          *  \return A Z3 boolean with the same ID as the string.
          */
-        z3::expr toBool(const std::string &string);
+        z3::expr toBool(const std::string &string) const;
+
+        /** \brief Returns true if a Z3 expression is true.
+         *  \param[in] expr Expression to check if true.
+         *  \return True if the expression is true, false otherwise.
+         */
+        bool isTrue(const z3::expr &expr) const;
 
         /** \brief Suffix a timestamp onto a string.
          *  \param[in] string String to suffix.
          *  \param[in] time Time to suffix.
          *  \return The time-suffixed string.
          */
-        const std::string addTimeToString(const std::string &string, Time time);
+        std::string addTimeToString(const std::string &string, Time time) const;
 
         /** \brief Create a Z3 expression from an expression, given a grounding, at a time.
          *  \param[in] expr Expression to generate from.
@@ -83,7 +89,7 @@ namespace pddlboat
          *  \param[in] step Timestep to generate expression at.
          *  \return The generated Z3 expression.
          */
-        z3::expr exprAtTime(const ExpressionPtr &expr, const Assignment &assignment, const Time step);
+        z3::expr exprAtTime(const ExpressionPtr &expr, const Assignment &assignment, const Time step) const;
 
         /** \brief Returns true if a predicate string (from PredicateDefinition::toID()) is within a grounded
          * expression.
@@ -96,7 +102,7 @@ namespace pddlboat
          *  \return True if grounded predicate is in grounded expression.
          */
         bool predicateInEffect(const ExpressionPtr &expr, const Assignment &assignment,
-                               const std::string &predicate);
+                               const std::string &predicate) const;
 
         /** \brief Retrieves an expression that is a disjunction of all actions that could change a predicate.
          *
@@ -106,7 +112,7 @@ namespace pddlboat
          *  \param[in] step_before The step before the predicate is changed.
          *  \return Disjunction of all actions that effect a predicate.
          */
-        z3::expr getPossibleChangeActions(const std::string &predicate, const Time step_before);
+        z3::expr getPossibleChangeActions(const std::string &predicate, const Time step_before) const;
 
         /** \brief Generate all action implication constraints for the plan.
          */

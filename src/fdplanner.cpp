@@ -34,7 +34,7 @@ FastDownwardPlanner::~FastDownwardPlanner()
     io::deleteFile(sas_file);
 
     // Fast downward sometimes generates multiple output files as it refines its search
-    auto matches = io::glob("/tmp", output_file + ".*");
+    auto matches = io::glob("/tmp", output_filename + ".*");
     if (matches)
     {
         for (const auto &match : *matches)
@@ -168,7 +168,9 @@ bool FastDownwardPlanner::solve(Plan &plan)
     auto matches = io::glob("/tmp", output_filename + ".*");
     if (matches)
     {
-        auto file = matches->back();
+        auto files = *matches;
+        std::sort(files.begin(), files.end());
+        auto file = files.back();
 
         parseFile(file, parsed);
 

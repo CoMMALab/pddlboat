@@ -36,7 +36,7 @@ bool Z3Planner::solve(Plan &plan)
     }
 }
 
-void Z3Planner::buildPlan(Plan &plan)
+void Z3Planner::buildPlan(Plan &plan) const
 {
     auto m = solver_->get_model();
 
@@ -47,8 +47,7 @@ void Z3Planner::buildPlan(Plan &plan)
     for (size_t i = 0; i < m.num_consts(); i++)
     {
         z3::expr f = m.get_const_interp(m.get_const_decl(i));
-
-        if (f.is_true())
+        if (isTrue(f))
         {
             const std::string name = m.get_const_decl(i).name().str();
 
@@ -70,12 +69,18 @@ void Z3Planner::buildPlan(Plan &plan)
         plan.addStep(action.name, action.args);
 }
 
-z3::expr Z3Planner::toBool(const std::string &string)
+z3::expr Z3Planner::toBool(const std::string &string) const
 {
     return ctx_->bool_const(string.c_str());
 }
 
-const std::string Z3Planner::addTimeToString(const std::string &string, Time time)
+bool Z3Planner::isTrue(const z3::expr &expr) const
+{
+    // As is_true() is apparently a bleeding edge feature
+    return expr.is_app() and Z3_OP_TRUE == expr.decl().decl_kind();
+}
+
+std::string Z3Planner::addTimeToString(const std::string &string, Time time) const
 {
     return string + ":TIME:" + std::to_string(time);
 }
@@ -85,7 +90,7 @@ const std::string Z3Planner::addTimeToString(const std::string &string, Time tim
  * z3 bool_constants. We require that the expression does not contain any actions (all terminals
  * are state props).
  */
-z3::expr Z3Planner::exprAtTime(const ExpressionPtr &expr, const Assignment &assignment, const Time step)
+z3::expr Z3Planner::exprAtTime(const ExpressionPtr &expr, const Assignment &assignment, Time step) const
 {
     switch (expr->type())
     {
@@ -185,7 +190,7 @@ void Z3Planner::actionImplications()
 }
 
 bool Z3Planner::predicateInEffect(const ExpressionPtr &expr, const Assignment &assignment,
-                                  const std::string &predicate)
+                                  const std::string &predicate) const
 {
     switch (expr->type())
     {
@@ -231,7 +236,7 @@ bool Z3Planner::predicateInEffect(const ExpressionPtr &expr, const Assignment &a
  * For frame axioms, we need to know all actions that could change a proposition
  * the time step is when the action is executed, so the change will be at the next time step
  */
-z3::expr Z3Planner::getPossibleChangeActions(const std::string &predicate, const Time step_before)
+z3::expr Z3Planner::getPossibleChangeActions(const std::string &predicate, const Time step_before) const
 {
     z3::expr change_actions = ctx_->bool_val(false);
 
