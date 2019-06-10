@@ -46,10 +46,11 @@ namespace pddlboat
         /** \brief Constructor.
          *  \param[in] problem Problem to solve.
          *  \param[in] horizon Maximum planning horizon.
+         *  \param[in] parallel Use Z3's built in parallel solver.
          *  \param[in] diagnostics If true, print diagnostics.
          *  \param[in] dump_clauses If true, print all clauses in plan.
          */
-        Z3Planner(const ProblemPtr problem, const Time horizon, bool diagnostics = false,
+        Z3Planner(const ProblemPtr problem, Time horizon, bool parallel = false, bool diagnostics = false,
                   bool dump_clauses = false);
 
         /** \brief Solve the planning problem.

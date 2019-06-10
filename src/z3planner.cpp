@@ -4,9 +4,11 @@
 
 using namespace pddlboat;
 
-Z3Planner::Z3Planner(const ProblemPtr problem, const Time horizon, bool diagnostics, bool dump_clauses)
+Z3Planner::Z3Planner(const ProblemPtr problem, Time horizon, bool parallel, bool diagnostics, bool dump_clauses)
   : Planner(problem), horizon_(horizon), diagnostics_(diagnostics), dump_clauses_(dump_clauses)
 {
+    if (parallel)
+        z3::set_param("parallel.enable", true);
     build();
 }
 bool Z3Planner::solve(Plan &plan)

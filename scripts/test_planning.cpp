@@ -81,11 +81,13 @@ int main(int argc, char **argv)
         ;
 
     unsigned int horizon;
-    bool diagnostics, dump_clauses;
+    bool parallel, diagnostics, dump_clauses;
     po::options_description z3opt("z3 Planner Options");
     z3opt.add_options()                                                     //
         ("horizon,z", po::value<unsigned int>(&horizon)->default_value(6),  //
          "Maximum planning horizon to use")                                 //
+        ("parallel,x", po::bool_switch(&parallel),                          //
+         "Use Z3's cube-and-conquer parallelism")                           //
         ("diagnostics,w", po::bool_switch(&diagnostics),                    //
          "Print debugging statistics")                                      //
         ("dump_clauses,v", po::bool_switch(&dump_clauses),                  //
@@ -179,7 +181,7 @@ int main(int argc, char **argv)
     switch (plannertype)
     {
         case Z3:
-            planner = std::make_shared<pd::Z3Planner>(problem, horizon, diagnostics, dump_clauses);
+            planner = std::make_shared<pd::Z3Planner>(problem, horizon, parallel, diagnostics, dump_clauses);
             break;
         case FD:
             planner = std::make_shared<pd::FastDownwardPlanner>(problem, search);
