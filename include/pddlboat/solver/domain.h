@@ -325,9 +325,9 @@ namespace pddlboat
      */
     PredicateDefinitionPtr makePred(const std::string &name, const VariableList &variables = {});
 
-    /** \brief A predicate that is `bound` to a set of variable names or objects. This bound predicate can be
-     * evaluated inside expressions, and all predicates within an expression should be bound to a shared set
-     * of variable names. Use a PredicateDefinition to create a new Predicate.
+    /** \brief A predicate whose arguments are bound or grounded to a set of variable names or objects. This predicate can be
+     * evaluated inside expressions, and all predicates within an expression should have arguments bound to a shared set
+     * of variable names. Use a PredicateDefinition to create a new Predicate without bound/grounded arguments.
      */
     class Predicate : public Expression
     {

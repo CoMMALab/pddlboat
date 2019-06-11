@@ -95,8 +95,6 @@ namespace pddlboat
         /** \brief Returns true if a predicate string (from PredicateDefinition::toID()) is within a grounded
          * expression.
          *
-         *  This is the part of the core bottleneck of frameAxioms(). Should be changed later.
-         *
          *  \param[in] expr Expression to search.
          *  \param[in] assignment Grounding of the expression.
          *  \param[in] predicate Predicate ID to check for.
@@ -105,15 +103,23 @@ namespace pddlboat
         bool predicateInEffect(const ExpressionPtr &expr, const Assignment &assignment,
                                const std::string &predicate) const;
 
-        /** \brief Retrieves an expression that is a disjunction of all actions that could change a predicate.
+        /** \brief Retrieves a vector of all actions that could change a predicate. The actions are given as ID strings.
          *
          *  This is the part of the core bottleneck of frameAxioms(). Should be changed later.
          *
          *  \param[in] predicate Predicate ID string.
          *  \param[in] step_before The step before the predicate is changed.
-         *  \return Disjunction of all actions that effect a predicate.
+         *  \return Vector of actions that effect the predicate. The actions are given as ID strings.
          */
-        z3::expr getPossibleChangeActions(const std::string &predicate, const Time step_before) const;
+        std::vector<std::string> getPossibleChangeActions(const std::string &predicate, const Time step_before) const;
+
+        /** \brief Returns a disjunction of the z3 expression corresponding to the actions at the given time step.
+         *
+         * \param[in] action_list List of actions ginev by their ID strings (optionally timestamped).
+         * \param[in] step The timestep to use for the actions.
+         * \return Disjunction of all actions at the given time step.
+         */
+        z3::expr getActionsAtTime(std::vector<std::string> action_list, Time step);
 
         /** \brief Generate all action implication constraints for the plan.
          */

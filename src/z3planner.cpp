@@ -238,9 +238,9 @@ bool Z3Planner::predicateInEffect(const ExpressionPtr &expr, const Assignment &a
  * For frame axioms, we need to know all actions that could change a proposition
  * the time step is when the action is executed, so the change will be at the next time step
  */
-z3::expr Z3Planner::getPossibleChangeActions(const std::string &predicate, const Time step_before) const
+std::vector<std::string> Z3Planner::getPossibleChangeActions(const std::string &predicate, const Time step_before) const
 {
-    z3::expr change_actions = ctx_->bool_val(false);
+  std::vector<std::string> change_actions;
 
     for (const auto &name_actionptr : problem_->domain->actions)
     {
@@ -251,12 +251,21 @@ z3::expr Z3Planner::getPossibleChangeActions(const std::string &predicate, const
             {
                 std::string action_string =
                     addTimeToString(name_actionptr.second->toID(assignment), step_before);
-                change_actions = change_actions or toBool(action_string);
+                change_actions.push_back(action_string);
             }
         }
     }
 
     return change_actions;
+}
+
+z3::expr Z3Planner::getActionsAtTime(std::vector<std::string> action_list, Time step) {
+  z3::expr expr = ctx_->bool_val(false);
+  for(auto str : action_list) {
+    std::string new_str = str.substr(0, str.find(":TIME:")); //Gets the whole string if no timestamp
+    expr = expr or toBool(addTimeToString(new_str, step));
+  }
+  return expr;
 }
 
 void Z3Planner::frameAxioms()
@@ -273,6 +282,7 @@ void Z3Planner::frameAxioms()
         for (const auto &assignment : assignments)
         {
             std::string pred_string = name_predptr.second->toID(assignment);
+            std::vector<std::string> change_acts_zero = getPossibleChangeActions(pred_string, 0);
 
             for (Time step = 0; step < horizon_; ++step)
             {
@@ -283,7 +293,7 @@ void Z3Planner::frameAxioms()
                 z3::expr curr_prop = toBool(addTimeToString(pred_string, step));
                 z3::expr next_prop = toBool(addTimeToString(pred_string, step + 1));
                 z3::expr clause =
-                    not(curr_prop != next_prop) or (getPossibleChangeActions(pred_string, step));
+                    not(curr_prop != next_prop) or (getActionsAtTime(change_acts_zero, step));
 
                 solver_->add(clause);
 
