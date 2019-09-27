@@ -9,6 +9,9 @@
 
 using namespace pddlboat;
 
+const std::string FastDownwardPlanner::FastDownwardPlanner::directory =
+    PDDLBOAT_FASTDOWNWARD_LOCATION;  ///< Directory where the fast downward
+
 FastDownwardPlanner::FastDownwardPlanner(const ProblemPtr &problem, const Search &search)
   : Planner(problem)
   , search(search)

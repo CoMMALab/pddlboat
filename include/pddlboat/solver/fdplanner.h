@@ -60,7 +60,7 @@ namespace pddlboat
 
         const Search search{LAZYGREEDY};  ///< Search method to use.
 
-        const std::string directory{PDDLBOAT_FASTDOWNWARD_LOCATION};  ///< Directory where the fast downward
+        const static std::string directory;
                                                                       ///< binary is located.
         const std::string temporary{"/tmp"};  ///< Scratch directory to generate intermediate files.
 
