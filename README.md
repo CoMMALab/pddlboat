@@ -12,13 +12,142 @@ More are planned soon.
 ## Concepts
 
 The main concepts in _PDDLboat_ attempt to match the intuition for their definition in the PDDL language as closely as possible.
-To this end, the main object that describes a planning domain is `pddlboat::Domain`.
+
+### Overview
+
+The main object that describes a planning domain is `pddlboat::Domain`.
 The domain has methods to add logical structures, such as `addType()` to add new object types, `addPredicate()` to add new predicates, and so on.
 Many helper constructor functions are provided for creating types, such as `pddlboat::makePred()` to make a predicate, `pddlboat::makeAction()` to make an action, and so on.
 Expressions, which can exist in actions, goals, and so on, are encapsulated by the abstract `pddlboat::Expression` type.
+Expressions can be evaluated for their truth value with `evaluate()`, which returns true or false given a current world state `pddlboat::State`.
+Expressions can also be used to assign the value of predicates in a new state with `assign()`.
 Predicates can be made into expressions by `bind()`, which binds their variables to specific names within an action.
 A problem is defined with `pddlboat::Problem`, which contains the objects, start state, and goal expression for a problem.
 Given a problem, a `pddlboat::Planner` can generate a `pddlboat::Plan`.
+
+### Parsers
+
+Parsers for common PDDL structures are provided in:
+```cpp
+#include <pddlboat/parser/parser.h>
+```
+
+These parsers will load the contents of a PDDL definition file (for a domain, problem, or plan) into an intermediate representation in the `pddlboat::ast` (for abstract syntax tree) namespace.
+These intermediate structures can be converted into the actual _PDDLboat_ types easily, for example:
+
+```cpp
+pddlboat::ast::Domain ast;
+pddlboat::parseFile("domain.pddl", ast);
+pddlboat::DomainPtr domain = pddlboat::toDomain(ast);
+```
+
+Also, note that all `pddlboat::*` classes typically have a `toPDDL()` function to output them back to a file.
+
+### Planners
+
+There are two planners provided in _PDDLboat_, which implement a simple abstract interface: `plan()`, which returns a `pddlboat::Plan` given a `pddlboat::Problem`.
+The two planners are one based on Z3 and one based on Fast Downward.
+Both of these implement different options, but the defaults generally work well.
+Some notes about each:
+- Z3 requires providing a planning horizon, which is the maximum number of steps a plan can take. If a plan is not found, this number should be increased.
+- Fast Downward has many different kinds of heuristics, a few defaults of which can be selected via the `pddlboat::FastDownwardPlanner::Search` enumerated type.
+
+An example of planning once a problem has been defined:
+```cpp
+#include <pddlboat/solver/planner.h>
+#include <pddlboat/solver/fdplanner.h>
+...
+pddlboat::ProblemPtr problem;
+...
+pddlboat::FastDownwardPlanner planner(problem, search);
+pddlboat::Plan plan(problem);
+bool r = planner.solve(plan);
+```
+
+### Constructing Block World Example
+
+Let's construct a simple blockworld domain using the _PDDLboat_ API!
+First, we must create our domain:
+```cpp
+auto domain = std::make_shared<pd::Domain>("block-world");
+```
+Then, we add an object type to our domain:
+```cpp
+domain->addType("block");
+```
+This would look like the following in a PDDL file:
+```lisp
+(:types block)
+```
+
+Let's add some predicates to this domain that allow us to describe the state of the world.
+We want to be able to describe where every block is, either on the table or on another block.
+```cpp
+auto p_on = pd::makePred("on", {{"x", "block"}, {"y", "block"}});
+domain->addPredicate(p_on);
+
+auto p_ontable = pd::makePred("ontable", {{"x", "block"}});
+domain->addPredicate(p_ontable);
+```
+Here, we make the `on` and `ontable` predicates, and give them some variables with types.
+The `pd::makePred()` makes this easy.
+We finish up declaring our predicates to describe when blocks do not have something stacked on top of them, when the robot's gripper is empty, and if the robot is grasping a block:
+```cpp
+auto p_clear = pd::makePred("clear", {{"x", "block"}});
+domain->addPredicate(p_clear);
+
+auto p_empty = pd::makePred("handempty");
+domain->addPredicate(p_empty);
+
+auto p_holding = pd::makePred("holding", {{"x", "block"}});
+domain->addPredicate(p_holding);
+```
+Within an actual PDDL file, these predicates would be defined as follows:
+```lisp
+(:predicates (on ?x - block ?y - block)
+             (ontable ?x - block)
+             (clear ?x - block)
+             (handempty)
+             (holding ?x - block))
+```
+
+Now, let's add an action to our domain.
+Here we create an action to describe picking up a block.
+```cpp
+auto a_pickup =  //
+    pd::makeAction("pick-up",
+                   // Parameters
+                   {{"x", "block"}},  //
+                   // Precondition
+                   pd::makeAnd({p_clear->bind({"?x"}), p_ontable->bind({"?x"}), p_empty->bind()}),
+                   // Effect
+                   pd::makeAnd({pd::makeNot(p_clear->bind({"?x"})),    //
+                                pd::makeNot(p_ontable->bind({"?x"})),  //
+                                pd::makeNot(p_empty->bind()),          //
+                                p_holding->bind({"?x"})}));
+domain->addAction(a_pickup);
+```
+There is a lot going on in this call.
+First, the high level structure is based in the `pd::makeAction()` function, which takes in the function name, action parameters (a typed list), action preconditions (an expression), and the action effect (another expression).
+See how all predicate objects called are used with `bind()`?
+`bind()` creates an executable expression from a predicate, and binds a specific variable name (in this case, `?x`) to the predicate.
+What this means is, whatever `?x` is when the action is grounded is what will be used to check that predicate's truth value.
+For example, if this action `pick-up` is grounded as `(pick-up a)`, all the `?x` bound predicates will check their truth value using `?x = a`.
+
+This action would be defined as follows in a PDDL file:
+```lisp
+(:action pick-up
+         :parameters (?x - block)
+         :precondition (and (clear ?x) (ontable ?x) (handempty))
+         :effect
+         (and (not (ontable ?x))
+              (not (clear ?x))
+              (not (handempty))
+              (holding ?x)))
+```
+
+As you can see, the in line syntax for _PDDLboat_ is very similar to how PDDL files are structured.
+This example can be seen in its complete form in `scripts/test_building.cpp`, and its complimentary PDDL domain can be found in `resources/blocks/blockworld.pddl`.
 
 ## Libraries
 
