@@ -59,7 +59,7 @@ namespace pddlboat
          */
         std::string generateTranslatorCommand() const;
 
-        const Search search{LAZYGREEDY};  ///< Search method to use.
+        const Search search{FDAT};  ///< Search method to use.
 
         const static std::string directory;
         ///< binary is located.
