@@ -4,13 +4,15 @@
 
 using namespace pddlboat;
 
-Z3Planner::Z3Planner(const ProblemPtr problem, Time horizon, bool parallel, bool diagnostics, bool dump_clauses)
+Z3Planner::Z3Planner(const ProblemPtr problem, Time horizon, bool parallel, bool diagnostics,
+                     bool dump_clauses)
   : Planner(problem), horizon_(horizon), diagnostics_(diagnostics), dump_clauses_(dump_clauses)
 {
     if (parallel)
         z3::set_param("parallel.enable", true);
     build();
 }
+
 bool Z3Planner::solve(Plan &plan)
 {
     boost::timer::cpu_timer t;
@@ -104,6 +106,9 @@ z3::expr Z3Planner::exprAtTime(const ExpressionPtr &expr, const Assignment &assi
         case Expression::Type::AND:
         {
             const auto &and_expr = std::static_pointer_cast<And>(expr);
+            if (and_expr->getTerms().empty())
+                return ctx_->bool_val(true);
+
             z3::expr car = exprAtTime(makeCAR(and_expr), assignment, step);
             auto cdr_expr = makeCDR(and_expr);
             if (cdr_expr)
@@ -118,6 +123,9 @@ z3::expr Z3Planner::exprAtTime(const ExpressionPtr &expr, const Assignment &assi
         case Expression::Type::OR:
         {
             const auto &or_expr = std::static_pointer_cast<Or>(expr);
+            if (or_expr->getTerms().empty())
+                return ctx_->bool_val(false);
+
             z3::expr car = exprAtTime(or_expr->getTerms().back(), assignment, step);
             auto cdr_expr = makeCDR(or_expr);
             if (or_expr)
@@ -238,9 +246,10 @@ bool Z3Planner::predicateInEffect(const ExpressionPtr &expr, const Assignment &a
  * For frame axioms, we need to know all actions that could change a proposition
  * the time step is when the action is executed, so the change will be at the next time step
  */
-std::vector<std::string> Z3Planner::getPossibleChangeActions(const std::string &predicate, const Time step_before) const
+std::vector<std::string> Z3Planner::getPossibleChangeActions(const std::string &predicate,
+                                                             const Time step_before) const
 {
-  std::vector<std::string> change_actions;
+    std::vector<std::string> change_actions;
 
     for (const auto &name_actionptr : problem_->domain->actions)
     {
@@ -259,13 +268,15 @@ std::vector<std::string> Z3Planner::getPossibleChangeActions(const std::string &
     return change_actions;
 }
 
-z3::expr Z3Planner::getActionsAtTime(std::vector<std::string> action_list, Time step) {
-  z3::expr expr = ctx_->bool_val(false);
-  for(auto str : action_list) {
-    std::string new_str = str.substr(0, str.find(":TIME:")); //Gets the whole string if no timestamp
-    expr = expr or toBool(addTimeToString(new_str, step));
-  }
-  return expr;
+z3::expr Z3Planner::getActionsAtTime(std::vector<std::string> action_list, Time step)
+{
+    z3::expr expr = ctx_->bool_val(false);
+    for (auto str : action_list)
+    {
+        std::string new_str = str.substr(0, str.find(":TIME:"));  // Gets the whole string if no timestamp
+        expr = expr or toBool(addTimeToString(new_str, step));
+    }
+    return expr;
 }
 
 void Z3Planner::frameAxioms()
@@ -292,8 +303,7 @@ void Z3Planner::frameAxioms()
                 // consistency
                 z3::expr curr_prop = toBool(addTimeToString(pred_string, step));
                 z3::expr next_prop = toBool(addTimeToString(pred_string, step + 1));
-                z3::expr clause =
-                    not(curr_prop != next_prop) or (getActionsAtTime(change_acts_zero, step));
+                z3::expr clause = not(curr_prop != next_prop) or (getActionsAtTime(change_acts_zero, step));
 
                 solver_->add(clause);
 

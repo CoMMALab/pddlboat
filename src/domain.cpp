@@ -915,3 +915,9 @@ ActionPtr pddlboat::makeAction(const std::string &name, const VariableList &para
 {
     return std::make_shared<Action>(name, parameters, preconditions, effects);
 }
+
+
+ActionPtr pddlboat::makeNoOpAction(const std::string &name)
+{
+    return makeAction(name, {{}}, makeAnd({}), makeAnd({}));
+}

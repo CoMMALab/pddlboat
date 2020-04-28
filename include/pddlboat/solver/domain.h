@@ -325,9 +325,10 @@ namespace pddlboat
      */
     PredicateDefinitionPtr makePred(const std::string &name, const VariableList &variables = {});
 
-    /** \brief A predicate whose arguments are bound or grounded to a set of variable names or objects. This predicate can be
-     * evaluated inside expressions, and all predicates within an expression should have arguments bound to a shared set
-     * of variable names. Use a PredicateDefinition to create a new Predicate without bound/grounded arguments.
+    /** \brief A predicate whose arguments are bound or grounded to a set of variable names or objects. This
+     * predicate can be evaluated inside expressions, and all predicates within an expression should have
+     * arguments bound to a shared set of variable names. Use a PredicateDefinition to create a new Predicate
+     * without bound/grounded arguments.
      */
     class Predicate : public Expression
     {
@@ -493,6 +494,12 @@ namespace pddlboat
      */
     ActionPtr makeAction(const std::string &name, const VariableList &parameters,
                          const ExpressionPtr &precondition, const ExpressionPtr &effect);
+
+    /** \brief Helper function to create a no-op action.
+     *  \param[in] name Name of the action.
+     *  \return Newly created action.
+     */
+    ActionPtr makeNoOpAction(const std::string &name = "no-op");
 
     ///
     /// Domain

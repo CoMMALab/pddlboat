@@ -14,6 +14,8 @@ set(CMAKE_MODULE_PATH
 include(CompilerSettings)
 include(FeatureSummary)
 
+message(STATUS "Building ${CMAKE_BUILD_TYPE}")
+
 include_directories(${CMAKE_CURRENT_LIST_DIR}/include)
 
 SET (BOOST_MIN_VERSION "1.65.0")
