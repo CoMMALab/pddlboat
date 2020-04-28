@@ -29,12 +29,12 @@ void testProblem(const std::string &file)
 
 int main(int argc, char **argv)
 {
-    for (unsigned int i = 1; i <= 26; ++i)
-        testDomain(pddlboat::log::format("domain_%1$02u.pddl", i));
+    for (unsigned int i = 1; i <= 27; ++i)
+        testDomain(pddlboat::log::format("parsing/domain_%1$02u.pddl", i));
 
-    testDomain("blocks/blockworld.pddl");
-    for (unsigned int i = 1; i <= 21; ++i)
-        testProblem(pddlboat::log::format("blocks/p%1$02u.pddl", i));
+    // testDomain("blocks/blockworld.pddl");
+    // for (unsigned int i = 1; i <= 21; ++i)
+    //     testProblem(pddlboat::log::format("blocks/p%1$02u.pddl", i));
 
     return 0;
 }
