@@ -21,7 +21,8 @@ namespace pddlboat
         {
             ASTAR,       ///< A*
             LAZYGREEDY,  ///< Lazy greedy best-first search with preferred operators and queue alternation
-            FDAT         ///< Fast Downward Autotune 2
+            FDAT,        ///< Fast Downward Autotune 2
+            LAMA,        ///< LAMA 2011
         };
 
         /** \brief Constructor.
@@ -61,7 +62,7 @@ namespace pddlboat
         const Search search{LAZYGREEDY};  ///< Search method to use.
 
         const static std::string directory;
-                                                                      ///< binary is located.
+        ///< binary is located.
         const std::string temporary{"/tmp"};  ///< Scratch directory to generate intermediate files.
 
         const std::string domain_file_template{"pddlboat_domain_%1%.pddl"};    ///< Template domain name.

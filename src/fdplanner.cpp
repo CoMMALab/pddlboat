@@ -113,6 +113,42 @@ std::string FastDownwardPlanner::generateSolverCommand() const
             cs << "],repeat_last=true,continue_on_fail=true)";
             cs << "\"";
             break;
+
+        case LAMA:
+            cs << " --if-unit-cost";
+            cs << " --evaluator \"hlm=lmcount(lm_rhw(reasonable_orders=true),pref=true)\"";
+            cs << " --evaluator \"hff=ff()\"";
+            cs << " --search ";
+            cs << "\"";
+            cs << "iterated([";
+            cs << "lazy_greedy([hff,hlm],preferred=[hff,hlm]),";
+            cs << "lazy_wastar([hff,hlm],preferred=[hff,hlm],w=5),";
+            cs << "lazy_wastar([hff,hlm],preferred=[hff,hlm],w=3),";
+            cs << "lazy_wastar([hff,hlm],preferred=[hff,hlm],w=2),";
+            cs << "lazy_wastar([hff,hlm],preferred=[hff,hlm],w=1)";
+            cs << "],repeat_last=true,continue_on_fail=true)";
+            cs << "\"";
+
+            cs << " --if-non-unit-cost";
+            cs << " --evaluator "
+                  "\"hlm1=lmcount(lm_rhw(reasonable_orders=true),transform=adapt_costs(one),pref=true)\"";
+            cs << " --evaluator \"hff1=ff(transform=adapt_costs(one))\"";
+            cs << " --evaluator "
+                  "\"hlm2=lmcount(lm_rhw(reasonable_orders=true),transform=adapt_costs(plusone),pref=true)\"";
+            cs << " --evaluator \"hff2=ff(transform=adapt_costs(plusone))\"";
+            cs << " --search ";
+            cs << "\"";
+            cs << "iterated([";
+            cs << "lazy_greedy([hff1,hlm1],preferred=[hff1,hlm1],cost_type=one,reopen_closed=false),";
+            cs << "lazy_greedy([hff2,hlm2],preferred=[hff2,hlm2],reopen_closed=false),";
+            cs << "lazy_wastar([hff2,hlm2],preferred=[hff2,hlm2],w=5),";
+            cs << "lazy_wastar([hff2,hlm2],preferred=[hff2,hlm2],w=3),";
+            cs << "lazy_wastar([hff2,hlm2],preferred=[hff2,hlm2],w=2),";
+            cs << "lazy_wastar([hff2,hlm2],preferred=[hff2,hlm2],w=1)";
+            cs << "],repeat_last=true,continue_on_fail=true)";
+            cs << "\"";
+            cs << " --always";
+            break;
     }
 
     // Tell command what SAS file to use

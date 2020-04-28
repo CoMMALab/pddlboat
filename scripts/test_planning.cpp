@@ -44,6 +44,8 @@ namespace pddlboat
             unit = pd::FastDownwardPlanner::Search::LAZYGREEDY;
         else if (token == "fd")
             unit = pd::FastDownwardPlanner::Search::FDAT;
+        else if (token == "lama")
+            unit = pd::FastDownwardPlanner::Search::LAMA;
         else
             in.setstate(std::ios_base::failbit);
         return in;
@@ -100,8 +102,8 @@ int main(int argc, char **argv)
     fdopt.add_options()  //
         ("search,y",
          po::value<pd::FastDownwardPlanner::Search>(&search)->default_value(
-             pd::FastDownwardPlanner::Search::LAZYGREEDY),              //
-         "Search algorithm for FD. Can be `astar`, `greedy`, or `fd`")  //
+             pd::FastDownwardPlanner::Search::LAZYGREEDY),                      //
+         "Search algorithm for FD. Can be `astar`, `greedy`, `fd`, or `lama`")  //
         ;
     desc.add(fdopt);
 
