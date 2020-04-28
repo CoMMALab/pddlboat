@@ -10,7 +10,7 @@
 #include <type_traits>
 
 #include <pddlboat/utility.h>
-#include <pddlboat/solver/expressions.h>
+#include <pddlboat/solver/expression.h>
 
 #define PDDLBOAT_OBJECT_CLASS "object"
 
@@ -198,6 +198,12 @@ namespace pddlboat
          *  \return True if the sets are unequal.
          */
         bool operator!=(const VariableSet &other) const;
+
+        /** \brief Checks containment of another set.
+         *  \param[in] other Set to compare against.
+         *  \return True if other is contained in this set.
+         */
+        bool contains(const VariableSet &other) const;
     };
 
     ///
@@ -287,10 +293,13 @@ namespace pddlboat
          *  Otherwise, it is bound as an object, and will throw an error if not a valid object to bind.
          *  \param[in] bound List of bindings of variables and objects.
          *  \param[in] problem Optional, but if any objects exist in the bindings the problem is required.
+         *  \param[in] domain Optional, but if any constants exist without a problem the domain is required.
+         *                    Not needed if a problem is provided.
          *  \return A bound version of a n-ary predicate.
          *  \throw std::invalid_argument if this is not a valid binding.
          */
-        PredicatePtr bind(const std::vector<std::string> &bound, const ProblemPtr &problem = nullptr) const;
+        PredicatePtr bind(const std::vector<std::string> &bound, const ProblemPtr &problem = nullptr,
+                          const DomainPtr &domain = nullptr) const;
 
         /** \brief Checks if the set of object names is a valid assignment to this predicate. That is, do
          * their types match the argument types.
@@ -333,21 +342,6 @@ namespace pddlboat
     class Predicate : public Expression
     {
     public:
-        /** \brief A bound value for the predicate.
-         */
-        struct Value
-        {
-            /** \brief Constructor.
-             *  \param[in] isVar Is this a variable name?
-             *  \param[in] name Name of variable or object.
-             *  \param[in] type Type of argument.
-             */
-            Value(bool isVar, const std::string &name, const std::string &type);
-
-            bool isVar;        ///< Is this value a variable to be substituted?
-            std::string name;  ///< Name of this value.
-            std::string type;  ///< Type of this value.
-        };
 
         const std::vector<Value> bindings;  ///< Argument bindings for the predicate.
 
@@ -638,7 +632,7 @@ namespace pddlboat
         /* \name Objects
            \{ */
 
-        /** \brief Get object with a name.
+        /** \brief Get object with a name. Will also grab domain constants if they exist.
          *  \param[in] name Name of object to find.
          *  \return The object if found, nullptr otherwise.
          */

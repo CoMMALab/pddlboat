@@ -75,3 +75,13 @@ void Operators::initialize()
     map.insert(bimap::value_type("increase", Operators::INCREASE));      //
     map.insert(bimap::value_type("decrease", Operators::DECREASE));      //
 }
+
+
+Operators::Keyword Operators::getKeyword(const std::string &string)
+{
+    auto result = Operators::getMap().left.find(string);
+    if (result == Operators::getMap().left.end())
+        return Operators::LITERAL;
+
+    return result->second;
+}

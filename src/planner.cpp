@@ -62,11 +62,8 @@ void Plan::addStep(const std::string &action_name, const std::vector<std::string
         if (not(obj = problem_->getObject(object_name)))
         {
             // If not an object, may be a constant
-            if (not(obj = problem_->domain->getConstant(object_name)))
-            {
-                throw std::invalid_argument(
-                    log::format("Cannot do action with object %1%, does not exist!", object_name));
-            }
+            throw std::invalid_argument(
+                log::format("Cannot do action with object %1%, does not exist!", object_name));
         }
 
         // Check type

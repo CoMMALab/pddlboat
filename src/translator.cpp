@@ -5,8 +5,70 @@
 #include <pddlboat/parser/ast.h>
 #include <pddlboat/parser/translator.h>
 #include <pddlboat/solver/domain.h>
+#include <pddlboat/solver/expressions.h>
 
 using namespace pddlboat;
+
+const static bool debug = true;
+
+namespace
+{
+    std::vector<Variable> getVariables(const std::vector<ast::TypedList> &parsed)
+    {
+        std::vector<Variable> variables;
+
+        for (const auto &list : parsed)
+        {
+            const auto &parent = (list.parent != "") ? list.parent : PDDLBOAT_OBJECT_CLASS;
+            for (const auto &variable : list.types)
+                variables.emplace_back(variable, parent);
+        }
+
+        return variables;
+    }
+
+    bool isVariable(const std::string &name, const std::vector<Variable> &variables)
+    {
+        auto vit = std::find_if(variables.begin(), variables.end(),
+                                [&name](const auto &var) { return var.name == name; });
+
+        return vit != variables.end();
+    }
+
+    bool isObject(const std::string &name, const DomainPtr &domain, const ProblemPtr &problem)
+    {
+        if (domain)
+        {
+            auto constant = domain->getConstant(name);
+            if (constant)
+                return true;
+        }
+
+        if (problem)
+        {
+            auto obj = problem->getObject(name);
+            if (obj)
+                return true;
+        }
+
+        return false;
+    }
+
+    std::string parseArgument(const ast::Expression &term, const std::vector<Variable> &variables, const DomainPtr &domain, const ProblemPtr &problem)
+    {
+        if (term.op.toOp() != Operators::LITERAL)
+            return "";
+
+        const auto &name = term.op.toString();
+        if (isVariable(name, variables))
+            return "?" + name;
+
+        if (isObject(name, domain, problem))
+            return name;
+
+        return "";
+    }
+}  // namespace
 
 pddlboat::ExpressionPtr pddlboat::toExpression(const ast::Expression &expression,
                                                const std::vector<Variable> &variables,
@@ -18,6 +80,9 @@ pddlboat::ExpressionPtr pddlboat::toExpression(const ast::Expression &expression
         {
             const auto &s = expression.op.toString();
 
+            if (debug)
+                std::cout << "Translating Literal " << s << std::endl;
+
             auto pred = domain->getPredicate(s);
             if (pred)
             {
@@ -25,38 +90,23 @@ pddlboat::ExpressionPtr pddlboat::toExpression(const ast::Expression &expression
 
                 for (const auto &term : expression.terms)
                 {
-                    if (term.op.toOp() != Operators::LITERAL)
-                        throw std::invalid_argument(log::format("Invalid predicate %1%!", s));
+                    const auto &name = parseArgument(term, variables, domain, problem);
+                    if (name.empty())
+                        throw std::invalid_argument(log::format("Invalid term %1% in predicate!", s));
 
-                    const auto &name = term.op.toString();
-                    auto vit = std::find_if(variables.begin(), variables.end(),
-                                            [&name](const auto &var) { return var.name == name; });
-                    if (vit != variables.end())
-                    {
-                        bindings.emplace_back("?" + name);
-                        continue;
-                    }
-
-                    if (problem)
-                    {
-                        auto obj = problem->getObject(name);
-                        if (obj)
-                        {
-                            bindings.emplace_back(name);
-                            continue;
-                        }
-                    }
-
-                    throw std::invalid_argument(log::format("Invalid term %2% in predicate %1%!", s, name));
+                    bindings.emplace_back(name);
                 }
 
-                return pred->bind(bindings, problem);
+                return pred->bind(bindings, problem, domain);
             }
             else
                 throw std::invalid_argument(log::format("Invalid literal %1%!", s));
         }
         case Operators::AND:
         {
+            if (debug)
+                std::cout << "Translating And" << std::endl;
+
             std::vector<ExpressionPtr> terms;
             for (const auto &term : expression.terms)
                 terms.emplace_back(toExpression(term, variables, domain, problem));
@@ -65,6 +115,9 @@ pddlboat::ExpressionPtr pddlboat::toExpression(const ast::Expression &expression
         }
         case Operators::OR:
         {
+            if (debug)
+                std::cout << "Translating Or" << std::endl;
+
             std::vector<ExpressionPtr> terms;
             for (const auto &term : expression.terms)
                 terms.emplace_back(toExpression(term, variables, domain, problem));
@@ -73,6 +126,9 @@ pddlboat::ExpressionPtr pddlboat::toExpression(const ast::Expression &expression
         }
         case Operators::NOT:
         {
+            if (debug)
+                std::cout << "Translating Not" << std::endl;
+
             if (expression.terms.size() != 1)
                 throw std::invalid_argument("Expression Not can only have one term!");
 
@@ -80,11 +136,80 @@ pddlboat::ExpressionPtr pddlboat::toExpression(const ast::Expression &expression
         }
         case Operators::IMPLY:
         {
+            if (debug)
+                std::cout << "Translating Imply" << std::endl;
+
             if (expression.terms.size() != 2)
                 throw std::invalid_argument("Expression Imply must have two terms!");
 
             return pddlboat::makeImply(toExpression(expression.terms[0], variables, domain, problem),
                                        toExpression(expression.terms[1], variables, domain, problem));
+        }
+        case Operators::FORALL:
+        {
+            if (debug)
+                std::cout << "Translating Forall" << std::endl;
+
+            if (expression.parameters.empty())
+                throw std::invalid_argument("Expression Forall must have parameters!");
+
+            if (expression.terms.size() != 1)
+                throw std::invalid_argument("Expression Forall must have one term!");
+
+            const auto &quant = getVariables(expression.parameters);
+            auto combined = quant;
+            combined.insert(combined.end(), variables.begin(), variables.end());
+
+            return pddlboat::makeForall(quant, toExpression(expression.terms[0], combined, domain, problem));
+        }
+        case Operators::EXISTS:
+        {
+            if (debug)
+                std::cout << "Translating Exists" << std::endl;
+
+            if (expression.parameters.empty())
+                throw std::invalid_argument("Expression Forall must have parameters!");
+
+            if (expression.terms.size() != 1)
+                throw std::invalid_argument("Expression Forall must have one term!");
+
+            const auto &quant = getVariables(expression.parameters);
+            auto combined = quant;
+            combined.insert(combined.end(), variables.begin(), variables.end());
+
+            return pddlboat::makeExists(quant, toExpression(expression.terms[0], combined, domain, problem));
+        }
+        case Operators::WHEN:
+        {
+            if (debug)
+                std::cout << "Translating When" << std::endl;
+
+            if (expression.terms.size() != 2)
+                throw std::invalid_argument("Expression When must have two terms!");
+
+            return pddlboat::makeWhen(toExpression(expression.terms[0], variables, domain, problem),
+                                      toExpression(expression.terms[1], variables, domain, problem));
+        }
+        case Operators::EQUAL:
+        {
+            if (debug)
+                std::cout << "Translating Equal" << std::endl;
+
+            if (expression.terms.size() != 2)
+                throw std::invalid_argument("Expression Equal must have two terms!");
+
+            auto &e1 = expression.terms[0];
+            auto &e2 = expression.terms[1];
+
+            auto e1t = parseArgument(e1, variables, domain, problem);
+            auto e2t = parseArgument(e2, variables, domain, problem);
+
+            if (e1t.empty())
+                throw std::invalid_argument(log::format("Invalid first Equal variable!"));
+            if (e2t.empty())
+                throw std::invalid_argument(log::format("Invalid second Equal variable!"));
+
+            return pddlboat::makeEquals(getValue(e1t, nullptr, problem, domain), getValue(e2t, nullptr, problem, domain));
         }
         default:
             throw std::invalid_argument(
@@ -96,15 +221,7 @@ pddlboat::ExpressionPtr pddlboat::toExpression(const ast::Expression &expression
 
 pddlboat::ActionPtr pddlboat::toAction(const ast::Action &action, const DomainPtr &domain)
 {
-    std::vector<Variable> variables;
-
-    for (const auto &list : action.parameters)
-    {
-        const auto &parent = (list.parent != "") ? list.parent : PDDLBOAT_OBJECT_CLASS;
-        for (const auto &variable : list.types)
-            variables.emplace_back(variable, parent);
-    }
-
+    const auto &variables = getVariables(action.parameters);
     return makeAction(action.name, variables,  //
                       toExpression(action.precondition, variables, domain),
                       toExpression(action.effect, variables, domain));

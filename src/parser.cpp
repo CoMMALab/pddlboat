@@ -60,7 +60,10 @@ namespace parser
     struct namelist_class;
     const x3::rule<name_class, std::string> name = "name";
     const x3::rule<namelist_class, std::vector<std::string>> namelist = "namelist";
-    const auto name_identifier = ascii::alpha >> *(ascii::alnum | x3::char_("_-"));
+
+    auto name_symbols1 = x3::char_("*+/><=_");
+    auto name_symbols2 = x3::char_("*+/><=_-");
+    const auto name_identifier = (ascii::alpha | name_symbols1) >> *(ascii::alnum | name_symbols2);
     const auto name_def = x3::lexeme[name_identifier];
     const auto namelist_def = +name;
     PARSE(name);

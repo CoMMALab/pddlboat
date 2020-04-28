@@ -1,9 +1,11 @@
 /* Author: Zachary Kingston */
 
 #include <sstream>
+#include <boost/algorithm/string.hpp>
 
 #include <pddlboat/utility.h>
 #include <pddlboat/solver/domain.h>
+#include <pddlboat/solver/expressions.h>
 
 using namespace pddlboat;
 
@@ -11,7 +13,8 @@ using namespace pddlboat;
 /// Objects
 ///
 
-Object::Object(const std::string &name, const std::string &type) : name(name), type(type)
+Object::Object(const std::string &name, const std::string &type)
+  : name(boost::algorithm::to_lower_copy(name)), type(type)
 {
 }
 
@@ -24,11 +27,12 @@ ObjectPtr pddlboat::makeObj(const std::string &name, const std::string &type)
 /// VariableSet
 ///
 
-Variable::Variable(const std::pair<std::string, std::string> &both) : name(both.first), type(both.second)
+Variable::Variable(const std::pair<std::string, std::string> &both) : Variable(both.first, both.second)
 {
 }
 
-Variable::Variable(const std::string &name, const std::string &type) : name(name), type(type)
+Variable::Variable(const std::string &name, const std::string &type)
+  : name(boost::algorithm::to_lower_copy(name)), type(type)
 {
 }
 
@@ -67,9 +71,10 @@ void VariableSet::addVariable(const Variable &var)
                            [&var](const Variable &other) { return var.name == other.name; });
     if (it != variables.end())
     {
-        if (var.type != it->type)
-            throw std::invalid_argument(
-                log::format("Variable %1% has inconsistent types! %2% / %3%", var.name, var.type, it->type));
+        // if (it->type != PDDLBOAT_OBJECT_CLASS and var.type != it->type)
+        //     throw std::invalid_argument(
+        //         log::format("Variable %1% has inconsistent types! %2% / %3%", var.name, var.type,
+        //         it->type));
     }
     else
         variables.emplace(var);
@@ -86,7 +91,7 @@ std::set<std::string> VariableSet::getNames() const
 
 const Variable &VariableSet::getVariable(const std::string &name) const
 {
-    auto it = variables.find(name);
+    auto it = variables.find(boost::algorithm::to_lower_copy(name));
     if (it != variables.end())
         return *it;
 
@@ -121,6 +126,15 @@ bool VariableSet::operator==(const VariableSet &other) const
 bool VariableSet::operator!=(const VariableSet &other) const
 {
     return variables != other.variables;
+}
+
+bool VariableSet::contains(const VariableSet &other) const
+{
+    for (const auto &ov : other.variables)
+        if (variables.find(ov) == variables.end())
+            return false;
+
+    return true;
 }
 
 ///
@@ -183,7 +197,7 @@ std::ostream &Assignment::toString(std::ostream &out) const
 ///
 
 PredicateDefinition::PredicateDefinition(const std::string &name, const VariableList &variables)
-  : name(name), variables(variables)
+  : name(boost::algorithm::to_lower_copy(name)), variables(variables)
 {
 }
 
@@ -192,36 +206,15 @@ PredicatePtr PredicateDefinition::bind() const
     return bind(std::vector<std::string>{});
 }
 
-PredicatePtr PredicateDefinition::bind(const std::vector<std::string> &bound, const ProblemPtr &problem) const
+PredicatePtr PredicateDefinition::bind(const std::vector<std::string> &bound, const ProblemPtr &problem,
+                                       const DomainPtr &domain) const
 {
     if (variables.size() != bound.size())
         throw std::invalid_argument("Cannot bind variables, size mismatch!");
 
-    std::vector<Predicate::Value> toUse;
+    std::vector<Value> toUse;
     for (unsigned int i = 0; i < bound.size(); ++i)
-    {
-        std::string b = bound[i];
-        std::string type = PDDLBOAT_OBJECT_CLASS;
-        bool isVar = io::isPrefix("?", b);
-        if (isVar)
-        {
-            b.erase(0, 1);
-            type = variables[i].type;
-        }
-        else
-        {
-            if (not problem)
-                throw std::invalid_argument(log::format("Cannot bind object %1% without problem!", b));
-
-            auto obj = problem->getObject(b);
-            if (not obj)
-                throw std::invalid_argument(log::format("Cannot bind object %1%, does not exist!", b));
-
-            type = obj->type;
-        }
-
-        toUse.emplace_back(isVar, b, type);
-    }
+        toUse.emplace_back(getValue(bound[i], &variables[i], problem, domain));
 
     return std::make_shared<Predicate>(this, toUse);
 }
@@ -236,10 +229,9 @@ bool PredicateDefinition::isValidAssignment(const Problem *problem,
     {
         ObjectPtr obj;
         if (not(obj = problem->getObject(objects[i])))
-            if (not(obj = problem->domain->getConstant(objects[i])))
-                return false;
+            return false;
 
-        if (variables[i].type != obj->type)
+        if (not problem->domain->isTypeOf(obj->type, variables[i].type))
             return false;
     }
 
@@ -286,11 +278,6 @@ std::string PredicateDefinition::toID(const Assignment &vars) const
 PredicateDefinitionPtr pddlboat::makePred(const std::string &name, const VariableList &variables)
 {
     return std::make_shared<PredicateDefinition>(name, variables);
-}
-
-Predicate::Value::Value(bool isVar, const std::string &name, const std::string &type)
-  : isVar(isVar), name(name), type(type)
-{
 }
 
 Predicate::Predicate(const PredicateDefinition *predicate, const std::vector<Value> &bindings)
@@ -406,7 +393,7 @@ const std::string &Predicate::name() const
 /// Domain
 ///
 
-Domain::Domain(const std::string &name) : name(name)
+Domain::Domain(const std::string &name) : name(boost::algorithm::to_lower_copy(name))
 {
 }
 
@@ -415,8 +402,10 @@ const ObjectPtr Domain::getConstant(const std::string &name) const
     if (constants.empty())
         return nullptr;
 
+    const std::string lower = boost::algorithm::to_lower_copy(name);
+
     auto it = std::find_if(constants.begin(), constants.end(),
-                           [&name](const ObjectPtr &other) { return name == other->name; });
+                           [&lower](const ObjectPtr &other) { return lower == other->name; });
 
     if (it != constants.end())
         return *it;
@@ -448,21 +437,28 @@ void Domain::addConstant(const std::string &name, const std::string &type)
 
 void Domain::addType(const std::string &type, const std::string &parent)
 {
-    auto [it, r] = types.emplace(type, parent);
+    const std::string typel = boost::algorithm::to_lower_copy(type);
+    const std::string parentl = boost::algorithm::to_lower_copy(parent);
+
+    auto [it, r] = types.emplace(typel, parentl);
     if (not r)
-        it->second = parent;
+        it->second = parentl;
 }
 
 bool Domain::isType(const std::string &type) const
 {
-    return types.find(type) != types.end();
+    return types.find(boost::algorithm::to_lower_copy(type)) != types.end();
 }
 
 bool Domain::isTypeOf(const std::string &type, const std::string &other) const
 {
     bool r = false;
-    auto view = std::cref(type);
-    while (not(r = view.get() != other) and view.get() != PDDLBOAT_OBJECT_CLASS)
+
+    const std::string typel = boost::algorithm::to_lower_copy(type);
+    const std::string otherl = boost::algorithm::to_lower_copy(other);
+
+    auto view = std::cref(typel);
+    while (not(r = view.get() != otherl) and view.get() != PDDLBOAT_OBJECT_CLASS)
     {
         auto it = types.find(view);
         view = std::cref(it->second);
@@ -480,9 +476,11 @@ void Domain::addPredicate(const PredicateDefinitionPtr &predicate)
 
 const PredicateDefinitionPtr Domain::getPredicate(const std::string &name) const
 {
-    auto it = predicates.find(name);
+    const std::string namel = boost::algorithm::to_lower_copy(name);
+
+    auto it = predicates.find(namel);
     if (it == predicates.end())
-        throw std::invalid_argument(log::format("Predicate %1% does not exist!", name));
+        throw std::invalid_argument(log::format("Predicate %1% does not exist!", namel));
 
     return it->second;
 }
@@ -496,16 +494,18 @@ void Domain::addAction(const ActionPtr &action)
 
 const ActionPtr Domain::getAction(const std::string &name) const
 {
-    auto it = actions.find(name);
+    const std::string namel = boost::algorithm::to_lower_copy(name);
+
+    auto it = actions.find(namel);
     if (it == actions.end())
-        throw std::invalid_argument(log::format("Action %1% does not exist!", name));
+        throw std::invalid_argument(log::format("Action %1% does not exist!", namel));
 
     return it->second;
 }
 
 std::ostream &Domain::toPDDL(std::ostream &out) const
 {
-    const unsigned int INDENT = 4;
+    const unsigned int INDENT = 2;
     const std::string SPACE = std::string(INDENT, ' ');
 
     out << "(define (domain " << name << ")" << std::endl;
@@ -570,14 +570,20 @@ std::ostream &Domain::toPDDL(std::ostream &out) const
 ///
 
 Problem::Problem(const std::string &name, const DomainPtr &domain)
-  : name(name), domain(domain), start(makeState())
+  : name(boost::algorithm::to_lower_copy(name)), domain(domain), start(makeState())
 {
 }
 
 const ObjectPtr Problem::getObject(const std::string &name) const
 {
+    const std::string &namel = boost::algorithm::to_lower_copy(name);
+
+    const auto &constant = domain->getConstant(namel);
+    if (constant)
+        return constant;
+
     auto it = std::find_if(objects.begin(), objects.end(),
-                           [&name](const ObjectPtr &other) { return name == other->name; });
+                           [&namel](const ObjectPtr &other) { return namel == other->name; });
 
     if (it != objects.end())
         return *it;
@@ -784,12 +790,16 @@ void State::assignN(const std::string &predicate, const std::vector<std::string>
 {
     const auto &pred = problem_->domain->getPredicate(predicate);
 
-    if (not pred->isValidAssignment(problem_, objects))
+    std::vector<std::string> objectsl;
+    for (const auto &obj : objects)
+        objectsl.emplace_back(boost::algorithm::to_lower_copy(obj));
+
+    if (not pred->isValidAssignment(problem_, objectsl))
         throw std::invalid_argument(log::format("Invalid assignment to predicate %1%!", predicate));
 
     auto [it, r] =
         assignments.emplace(std::piecewise_construct,  //
-                            std::forward_as_tuple(predicate, objects), std::forward_as_tuple(value));
+                            std::forward_as_tuple(predicate, objectsl), std::forward_as_tuple(value));
     if (not r)
         it->second = value;
 }
@@ -817,7 +827,10 @@ std::ostream &State::toPDDL(std::ostream &out, unsigned int indent) const
 
 Action::Action(const std::string &name, const VariableList &parameters, const ExpressionPtr &precondition,
                const ExpressionPtr &effect)
-  : name(name), parameters(parameters), precondition(precondition), effect(effect)
+  : name(boost::algorithm::to_lower_copy(name))
+  , parameters(parameters)
+  , precondition(precondition)
+  , effect(effect)
 {
     VariableSet conditions, input(parameters);
 
@@ -829,9 +842,9 @@ Action::Action(const std::string &name, const VariableList &parameters, const Ex
 
     // TODO: Validate that precondition and effect only use predicates from domain when added.
 
-    if (conditions != input)
-        throw std::invalid_argument(
-            log::format("Action %1%'s parameter set does not match expressions!", name));
+    // if (input.contains(conditions))
+    //     throw std::invalid_argument(
+    //         log::format("Action %1%'s parameter set does not match expressions!", name));
 }
 
 std::ostream &Action::toPDDL(std::ostream &out, unsigned int indent) const
@@ -915,7 +928,6 @@ ActionPtr pddlboat::makeAction(const std::string &name, const VariableList &para
 {
     return std::make_shared<Action>(name, parameters, preconditions, effects);
 }
-
 
 ActionPtr pddlboat::makeNoOpAction(const std::string &name)
 {

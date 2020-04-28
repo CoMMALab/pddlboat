@@ -99,7 +99,7 @@ pddlboat::Operators::Keyword ExpressionOperator::toOp() const
 
         Operators::Keyword operator()(const std::string &v) const
         {
-            return Operators::LITERAL;
+            return Operators::getKeyword(v);
         }
     };
 

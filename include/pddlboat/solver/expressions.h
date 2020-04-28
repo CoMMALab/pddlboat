@@ -10,44 +10,11 @@
 #include <type_traits>
 
 #include <pddlboat/macros.h>
+#include <pddlboat/solver/expression.h>
+#include <pddlboat/solver/domain.h>
 
 namespace pddlboat
 {
-    PDDLBOAT_CLASS_FORWARD(Assignment)
-    PDDLBOAT_CLASS_FORWARD(VariableSet)
-    PDDLBOAT_CLASS_FORWARD(Problem)
-    PDDLBOAT_CLASS_FORWARD(State)
-
-    ///
-    /// Expressions
-    ///
-
-    PDDLBOAT_CLASS_FORWARD(Expression)
-    class Expression
-    {
-    public:
-        enum Type
-        {
-            EXPRESSION,
-            PREDICATE,
-            VARIADIC,
-            AND,
-            OR,
-            NOT,
-            EQUALS,
-            IMPLY
-        };
-
-        virtual bool evaluate(const StatePtr &state, const Assignment &vars) const = 0;
-        virtual void assign(StatePtr &out, const Assignment &vars) const;
-        virtual Type type() const;
-        virtual void getVariables(VariableSet &vars) const;
-        virtual bool containsVariable(const std::string &variable) const;
-        virtual bool containsPredicate(const std::string &predicate) const;
-        virtual std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
-                                     unsigned int level = 0) const = 0;
-    };
-
     ///
     /// Variadic Expression
     ///
@@ -191,6 +158,118 @@ namespace pddlboat
     };
 
     ImplyPtr makeImply(const ExpressionPtr &left, const ExpressionPtr &right);
+
+    ///
+    /// When
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(When)
+    class When : public Expression
+    {
+    public:
+        When(const ExpressionPtr &left, const ExpressionPtr &right);
+
+        const ExpressionPtr getLeft() const;
+        const ExpressionPtr getRight() const;
+
+        bool evaluate(const StatePtr &state, const Assignment &vars) const override;
+        Expression::Type type() const override;
+
+        void getVariables(VariableSet &vars) const override;
+        bool containsVariable(const std::string &variable) const override;
+        bool containsPredicate(const std::string &predicate) const override;
+        std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
+                             unsigned int level = 0) const override;
+
+    private:
+        const ExpressionPtr left_, right_;
+    };
+
+    WhenPtr makeWhen(const ExpressionPtr &left, const ExpressionPtr &right);
+
+    ///
+    /// QuantifierExpression
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(QuantifierExpression)
+    class QuantifierExpression : public Expression
+    {
+    public:
+        QuantifierExpression(const VariableSet &domain, const ExpressionPtr &formula);
+
+        Expression::Type type() const override;
+        void getVariables(VariableSet &vars) const override;
+        bool containsVariable(const std::string &variable) const override;
+        bool containsPredicate(const std::string &predicate) const override;
+
+    protected:
+        VariableSet domain_;
+        ExpressionPtr formula_;
+    };
+
+    ///
+    /// Exists
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(Exists)
+    class Exists : public QuantifierExpression
+    {
+    public:
+        Exists(const VariableSet &domain, const ExpressionPtr &formula);
+
+        bool evaluate(const StatePtr &state, const Assignment &vars) const override;
+        void assign(StatePtr &out, const Assignment &vars) const override;
+        Expression::Type type() const override;
+        std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
+                             unsigned int level = 0) const override;
+    };
+
+    ExistsPtr makeExists(const VariableSet &domain, const ExpressionPtr &formula);
+
+    ///
+    /// Forall
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(Forall)
+    class Forall : public QuantifierExpression
+    {
+    public:
+        Forall(const VariableSet &domain, const ExpressionPtr &formula);
+
+        bool evaluate(const StatePtr &state, const Assignment &vars) const override;
+        void assign(StatePtr &out, const Assignment &vars) const override;
+        Expression::Type type() const override;
+        std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
+                             unsigned int level = 0) const override;
+    };
+
+    ForallPtr makeForall(const VariableSet &domain, const ExpressionPtr &formula);
+
+    ///
+    /// Equals
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(Equals)
+    class Equals : public Expression
+    {
+    public:
+        Equals(const Value &term1, const Value &term2);
+
+        bool evaluate(const StatePtr &state, const Assignment &vars) const override;
+        void assign(StatePtr &out, const Assignment &vars) const override;
+        Expression::Type type() const override;
+        void getVariables(VariableSet &vars) const override;
+        bool containsVariable(const std::string &variable) const override;
+        bool containsPredicate(const std::string &predicate) const override;
+        std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
+                             unsigned int level = 0) const override;
+
+    private:
+        const Value term1_;
+        const Value term2_;
+    };
+
+    EqualsPtr makeEquals(const Value &term1, const Value &term2);
 
 }  // namespace pddlboat
 

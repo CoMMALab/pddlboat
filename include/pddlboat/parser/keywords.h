@@ -81,6 +81,8 @@ namespace pddlboat
         static bimap &getMap();
         static const std::string &toString(Keyword op);
         static void initialize();
+
+        static Operators::Keyword getKeyword(const std::string &string);
     };
 }  // namespace pddlboat
 
