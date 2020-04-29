@@ -162,12 +162,12 @@ z3::expr Z3Planner::exprAtTime(const ExpressionPtr &expr, const Assignment &assi
             const auto &exists_expr = std::static_pointer_cast<Exists>(expr);
 
             auto copy = assignment;
-            const auto &groundings = exists_expr->getGroundings(problem_->start);
+            const auto &groundings = problem_->getGroundings(exists_expr->getDomain());
 
             z3::expr exp = ctx_->bool_val(false);
             for (const auto &grounding : groundings)
             {
-                exists_expr->groundAssignment(grounding, copy);
+                copy.fold(grounding);
                 exp = exp or exprAtTime(exists_expr->getFormula(), copy, step);
             }
 
@@ -178,12 +178,12 @@ z3::expr Z3Planner::exprAtTime(const ExpressionPtr &expr, const Assignment &assi
             const auto &forall_expr = std::static_pointer_cast<Forall>(expr);
 
             auto copy = assignment;
-            const auto &groundings = forall_expr->getGroundings(problem_->start);
+            const auto &groundings = problem_->getGroundings(forall_expr->getDomain());
 
             z3::expr exp = ctx_->bool_val(true);
             for (const auto &grounding : groundings)
             {
-                forall_expr->groundAssignment(grounding, copy);
+                copy.fold(grounding);
                 exp = exp and exprAtTime(forall_expr->getFormula(), copy, step);
             }
 

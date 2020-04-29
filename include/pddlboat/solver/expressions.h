@@ -201,15 +201,13 @@ namespace pddlboat
     public:
         QuantifierExpression(const VariableSet &domain, const ExpressionPtr &formula);
 
-        ExpressionPtr getFormula() const;
+        const VariableList &getDomain() const;
+        const ExpressionPtr &getFormula() const;
 
         Expression::Type type() const override;
         void getVariables(VariableSet &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
-
-        std::vector<std::vector<std::string>> getGroundings(const StatePtr &state) const;
-        void groundAssignment(const std::vector<std::string> &grounding, Assignment &assignment) const;
 
     protected:
         VariableList domain_;

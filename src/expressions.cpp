@@ -514,7 +514,13 @@ QuantifierExpression::QuantifierExpression(const VariableSet &domain, const Expr
         throw std::runtime_error("Domain for quantifier must be non-empty!");
 }
 
-ExpressionPtr QuantifierExpression::getFormula() const
+
+const VariableList &QuantifierExpression::getDomain() const
+{
+    return domain_;
+}
+
+const ExpressionPtr &QuantifierExpression::getFormula() const
 {
     return formula_;
 }
@@ -540,40 +546,6 @@ bool QuantifierExpression::containsPredicate(const std::string &predicate) const
     return formula_->containsPredicate(predicate);
 }
 
-std::vector<std::vector<std::string>> QuantifierExpression::getGroundings(const StatePtr &state) const
-{
-    auto problem = state->getProblem();
-
-    std::vector<std::vector<std::string>> groundings, prev;
-
-    auto objects = problem->objectsOfType(domain_[0].type);
-    std::transform(objects.begin(), objects.end(), std::back_inserter(groundings),
-                   [](const std::string &s) { return std::vector<std::string>{s}; });
-
-    for (std::size_t i = 1; i < domain_.size(); ++i)
-    {
-        auto objects = problem->objectsOfType(domain_[i].type);
-        for (auto grounding : groundings)
-            for (const auto &obj : objects)
-            {
-                grounding.emplace_back(obj);
-                prev.emplace_back(grounding);
-            }
-
-        groundings = prev;
-        prev.clear();
-    }
-
-    return groundings;
-}
-
-void QuantifierExpression::groundAssignment(const std::vector<std::string> &grounding,
-                                            Assignment &assignment) const
-{
-    for (std::size_t i = 0; i < domain_.size(); ++i)
-        assignment.assign(domain_[i].name, grounding[i]);
-}
-
 ///
 /// Exists
 ///
@@ -586,12 +558,12 @@ Exists::Exists(const VariableSet &domain, const ExpressionPtr &formula)
 bool Exists::evaluate(const StatePtr &state, const Assignment &vars) const
 {
     auto copy = vars;
-    const auto &groundings = getGroundings(state);
+    const auto &groundings = state->getProblem()->getGroundings(domain_);
 
     bool r = false;
     for (const auto &grounding : groundings)
     {
-        groundAssignment(grounding, copy);
+        copy.fold(grounding);
         if (formula_->evaluate(state, copy))
         {
             r = true;
@@ -649,12 +621,12 @@ Forall::Forall(const VariableSet &domain, const ExpressionPtr &formula)
 bool Forall::evaluate(const StatePtr &state, const Assignment &vars) const
 {
     auto copy = vars;
-    const auto &groundings = getGroundings(state);
+    const auto &groundings = state->getProblem()->getGroundings(domain_);
 
     bool r = true;
     for (const auto &grounding : groundings)
     {
-        groundAssignment(grounding, copy);
+        copy.fold(grounding);
         if (not formula_->evaluate(state, copy))
         {
             r = false;
@@ -677,11 +649,11 @@ bool Forall::evaluate(const StatePtr &state, const Assignment &vars) const
 void Forall::assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const
 {
     auto copy = vars;
-    const auto &groundings = getGroundings(out);
+    const auto &groundings = in->getProblem()->getGroundings(domain_);
 
     for (const auto &grounding : groundings)
     {
-        groundAssignment(grounding, copy);
+        copy.fold(grounding);
         formula_->assign(out, in, copy);
     }
 }
@@ -689,11 +661,11 @@ void Forall::assign(StatePtr &out, const StatePtr &in, const Assignment &vars) c
 void Forall::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const
 {
     auto copy = vars;
-    const auto &groundings = getGroundings(state);
+    const auto &groundings = state->getProblem()->getGroundings(domain_);
 
     for (const auto &grounding : groundings)
     {
-        groundAssignment(grounding, copy);
+        copy.fold(grounding);
         formula_->getAssignedPredicates(predicates, state, copy);
     }
 }

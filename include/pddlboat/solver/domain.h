@@ -249,6 +249,11 @@ namespace pddlboat
          */
         Assignment(const Assignment &other);
 
+        /** \brief Take in and add another assignments contents to this assignment.
+         *  \param[in] other The assignment to add.
+         */
+        void fold(const Assignment &other);
+
         /** \brief Returns the arity of this assignment, i.e., the number of assignments.
          * \return The number of assignments.
          */

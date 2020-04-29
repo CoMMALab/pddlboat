@@ -186,6 +186,12 @@ Assignment::Assignment(const Assignment &other) : problem(other.problem), varToO
 {
 }
 
+void Assignment::fold(const Assignment &other)
+{
+    for (const auto &[name, obj] : other.varToObj)
+        assign(name, obj->name);
+}
+
 unsigned int Assignment::arity() const
 {
     return varToObj.size();
