@@ -6,7 +6,19 @@ The goal of _PDDLboat_ is to make it easy to add PDDL-based problem modeling and
 _PDDLboat_ also plays nice with ROS, and can be used as a [catkin package](http://wiki.ros.org/catkin/conceptual_overview).
 For more on PDDL's grammar, see the [BNF description](https://helios.hud.ac.uk/scommv/IPC-14/repository/kovacs-pddl-3.1-2011.pdf).
 
-Currently, _PDDLboat_ supports `:strips`, `:typing`, `:negative-preconditions`, and `:disjunctive-preconditions`.
+Currently, _PDDLboat_ supports the following PDDL `:requirements`:
+
+- `:strips`: Basic STRIPS style planning.
+- `:typing`: Object and variable types.
+- `:negative-preconditions`: `not` is allowed in goals and preconditions.
+- `:disjunctive-preconditions`: `or` is allowed in goals and preconditions.
+- `:equality`: `(= ?a ?b)` is supported as a built-in predicate.
+- `:existential-preconditions`: `exists` is allowed in goals and action preconditions.
+- `:universal-preconditions`: `forall` is allowed in goals, action preconditions, and action effects.
+- `:quantified-preconditions`: Both `:existential-preconditions` and `:universal-preconditions` are supported.
+- `:conditional-effects`: `when` is allowed in action effects.
+- `:adl`: All of the above are supported.
+
 More are planned soon.
 
 ## Concepts
@@ -50,6 +62,7 @@ The two planners are one based on Z3 and one based on Fast Downward.
 Both of these implement different options, but the defaults generally work well.
 Some notes about each:
 - Z3 requires providing a planning horizon, which is the maximum number of steps a plan can take. If a plan is not found, this number should be increased.
+- Z3 also does not support quantifiers, conditional effects, or equality currently.
 - Fast Downward has many different kinds of heuristics, a few defaults of which can be selected via the `pddlboat::FastDownwardPlanner::Search` enumerated type.
 
 An example of planning once a problem has been defined:

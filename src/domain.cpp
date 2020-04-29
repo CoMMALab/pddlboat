@@ -16,7 +16,7 @@ static const bool debug = false;
 ///
 
 Object::Object(const std::string &name, const std::string &type)
-  : name(boost::algorithm::to_lower_copy(name)), type(type)
+  : name(boost::algorithm::to_lower_copy(name)), type(boost::algorithm::to_lower_copy(type))
 {
 }
 

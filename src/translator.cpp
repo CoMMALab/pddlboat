@@ -1,5 +1,7 @@
 /** Author: Zachary Kingston */
 
+#include <boost/algorithm/string.hpp>
+
 #include <pddlboat/utility.h>
 
 #include <pddlboat/parser/ast.h>
@@ -269,7 +271,7 @@ pddlboat::DomainPtr pddlboat::toDomain(const ast::Domain &domain)
 pddlboat::ProblemPtr pddlboat::toProblem(const ast::Problem &problem, const DomainPtr &domain)
 {
     auto r = std::make_shared<Problem>(problem.name, domain);
-    if (domain->name != problem.domain)
+    if (domain->name != boost::algorithm::to_lower_copy(problem.domain))
         throw std::invalid_argument(
             log::format("Problem domain %1% does not match %2%!", problem.domain, domain->name));
 
