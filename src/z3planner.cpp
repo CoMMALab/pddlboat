@@ -143,6 +143,62 @@ z3::expr Z3Planner::exprAtTime(const ExpressionPtr &expr, const Assignment &assi
             z3::expr exp = exprAtTime(not_expr->getTerm(), assignment, step);
             return not exp;
         }
+        case Expression::Type::IMPLY:
+        {
+            const auto &imply_expr = std::static_pointer_cast<Imply>(expr);
+            z3::expr exp = (not exprAtTime(imply_expr->getLeft(), assignment, step))  //
+                           or exprAtTime(imply_expr->getRight(), assignment, step);
+            return exp;
+        }
+        case Expression::Type::WHEN:
+        {
+            const auto &when_expr = std::static_pointer_cast<When>(expr);
+            z3::expr exp = (not exprAtTime(when_expr->getLeft(), assignment, step))  //
+                           or exprAtTime(when_expr->getRight(), assignment, step);
+            return exp;
+        }
+        case Expression::Type::EXISTS:
+        {
+            const auto &exists_expr = std::static_pointer_cast<Exists>(expr);
+
+            auto copy = assignment;
+            const auto &groundings = exists_expr->getGroundings(problem_->start);
+
+            z3::expr exp = ctx_->bool_val(false);
+            for (const auto &grounding : groundings)
+            {
+                exists_expr->groundAssignment(grounding, copy);
+                exp = exp or exprAtTime(exists_expr->getFormula(), copy, step);
+            }
+
+            return exp;
+        }
+        case Expression::Type::FORALL:
+        {
+            const auto &forall_expr = std::static_pointer_cast<Forall>(expr);
+
+            auto copy = assignment;
+            const auto &groundings = forall_expr->getGroundings(problem_->start);
+
+            z3::expr exp = ctx_->bool_val(true);
+            for (const auto &grounding : groundings)
+            {
+                forall_expr->groundAssignment(grounding, copy);
+                exp = exp and exprAtTime(forall_expr->getFormula(), copy, step);
+            }
+
+            return exp;
+        }
+        case Expression::Type::EQUALS:
+        {
+            const auto &equals_expr = std::static_pointer_cast<Equals>(expr);
+            const auto &[t1, t2] = equals_expr->getTerms();
+
+            auto t1o = equals_expr->getObject(t1, assignment);
+            auto t2o = equals_expr->getObject(t2, assignment);
+
+            return ctx_->bool_val(t1o == t2o);
+        }
         case Expression::Type::EXPRESSION:
             std::cout << "Error, we do not currently support Expression types here." << std::endl;
             [[fallthrough]];  // sweet c++17 feature
@@ -199,86 +255,6 @@ void Z3Planner::actionImplications()
     }
 }
 
-bool Z3Planner::predicateInEffect(const ExpressionPtr &expr, const Assignment &assignment,
-                                  const std::string &predicate) const
-{
-    switch (expr->type())
-    {
-        case Expression::Type::PREDICATE:
-        {
-            const auto &predicate_expr = std::static_pointer_cast<Predicate>(expr);
-            return predicate_expr->toID(assignment) == predicate;
-        }
-        case Expression::Type::AND:
-        {
-            const auto &and_expr = std::static_pointer_cast<And>(expr);
-            for (const auto &term : and_expr->getTerms())
-                if (predicateInEffect(term, assignment, predicate))
-                    return true;
-
-            return false;
-        }
-        case Expression::Type::OR:
-        {
-            const auto &or_expr = std::static_pointer_cast<Or>(expr);
-            for (const auto &term : or_expr->getTerms())
-                if (predicateInEffect(term, assignment, predicate))
-                    return true;
-
-            return false;
-        }
-        case Expression::Type::NOT:
-        {
-            const auto &not_expr = std::static_pointer_cast<Not>(expr);
-            return predicateInEffect(not_expr->getTerm(), assignment, predicate);
-        }
-        case Expression::Type::EXPRESSION:
-            std::cout << "Error, we do not currently support Expression types here." << std::endl;
-            [[fallthrough]];  // sweet c++17 feature
-        default:
-            std::cout << "We had an error in parsing the pddlboat expression to an expression for Z3."
-                      << std::endl;
-            throw std::runtime_error("whoops!");
-    }
-}
-
-/**
- * For frame axioms, we need to know all actions that could change a proposition
- * the time step is when the action is executed, so the change will be at the next time step
- */
-std::vector<std::string> Z3Planner::getPossibleChangeActions(const std::string &predicate,
-                                                             const Time step_before) const
-{
-    std::vector<std::string> change_actions;
-
-    for (const auto &name_actionptr : problem_->domain->actions)
-    {
-        const auto &assignments = problem_->getGroundings(name_actionptr.second->parameters);
-        for (const auto &assignment : assignments)
-        {
-            if (predicateInEffect(name_actionptr.second->effect, assignment, predicate))
-            {
-                std::string action_string =
-                    addTimeToString(name_actionptr.second->toID(assignment), step_before);
-                change_actions.push_back(action_string);
-            }
-        }
-    }
-
-    return change_actions;
-}
-
-z3::expr Z3Planner::getActionsAtTime(std::vector<std::string> action_list, Time step)
-{
-    z3::expr expr = ctx_->bool_val(false);
-    for (auto str : action_list)
-    {
-        std::string new_str = str.substr(0, str.find(":TIME:"));  // Gets the whole string if no timestamp
-        expr = expr or toBool(addTimeToString(new_str, step));
-    }
-    return expr;
-}
-
 void Z3Planner::frameAxioms()
 {
     boost::timer::cpu_timer t;
@@ -287,33 +263,52 @@ void Z3Planner::frameAxioms()
     if (dump_clauses_)
         std::cout << "Frame Axioms:" << std::endl;
 
-    for (const auto &name_predptr : problem_->domain->predicates)
+    std::map<std::string, std::vector<std::string>> predToAct;
+    for (const auto &name_actionptr : problem_->domain->actions)
     {
-        const auto &assignments = problem_->getGroundings(name_predptr.second->variables);
+        const auto &assignments = problem_->getGroundings(name_actionptr.second->parameters);
+
         for (const auto &assignment : assignments)
         {
-            std::string pred_string = name_predptr.second->toID(assignment);
-            std::vector<std::string> change_acts_zero = getPossibleChangeActions(pred_string, 0);
+            std::set<std::string> predicates;
+            name_actionptr.second->effect->getAssignedPredicates(predicates, problem_->start, assignment);
 
-            for (Time step = 0; step < horizon_; ++step)
+            for (const auto &predicate : predicates)
             {
-                // add frame axioms
-                // if the prop changed, then an action changed it. it doesn't matter what the value
-                // changes to, because the clauses for precoditions and effects will ensure
-                // consistency
-                z3::expr curr_prop = toBool(addTimeToString(pred_string, step));
-                z3::expr next_prop = toBool(addTimeToString(pred_string, step + 1));
-                z3::expr clause = not(curr_prop != next_prop) or (getActionsAtTime(change_acts_zero, step));
+                auto it = predToAct.find(predicate);
+                if (it == predToAct.end())
+                    it = predToAct.emplace(predicate, std::vector<std::string>{}).first;
 
-                solver_->add(clause);
-
-                frame_axiom_total_++;
-                if (dump_clauses_)
-                    std::cout << clause << std::endl;
+                it->second.emplace_back(name_actionptr.second->toID(assignment));
             }
-
-            frame_axiom_count_++;
         }
+    }
+
+    for (const auto &[predicate, actions] : predToAct)
+    {
+        for (Time step = 0; step < horizon_; ++step)
+        {
+            // add frame axioms
+            // if the prop changed, then an action changed it. it doesn't matter what the value
+            // changes to, because the clauses for precoditions and effects will ensure
+            // consistency
+            z3::expr curr_prop = toBool(addTimeToString(predicate, step));
+            z3::expr next_prop = toBool(addTimeToString(predicate, step + 1));
+
+            z3::expr actionex = toBool(addTimeToString(actions[0], step));
+            for (std::size_t i = 1; i < actions.size(); ++i)
+                actionex = actionex or toBool(addTimeToString(actions[i], step));
+
+            z3::expr clause = not(curr_prop != next_prop) or actionex;
+
+            solver_->add(clause);
+
+            frame_axiom_total_++;
+            if (dump_clauses_)
+                std::cout << clause << std::endl;
+        }
+
+        frame_axiom_count_++;
     }
 
     if (diagnostics_)

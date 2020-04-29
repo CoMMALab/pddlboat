@@ -24,24 +24,6 @@ namespace pddlboat
      */
     class Z3Planner : public Planner
     {
-        const Time horizon_;       ///< Planning horizon.
-        const bool diagnostics_;   ///< If true, print diagnostics.
-        const bool dump_clauses_;  ///< If true, print constituent clauses.
-
-        z3::context *ctx_{nullptr};    ///< Z3 Solver Context.
-        z3::solver *solver_{nullptr};  ///< Z3 Solver.
-
-        // Diagnostic counters
-        unsigned int action_imply_count_;       ///< Number of action implication clauses per step.
-        unsigned int action_imply_total_;       ///< Number of action implications total.
-        unsigned int frame_axiom_count_;        ///< Number of frame axioms per step.
-        unsigned int frame_axiom_total_;        ///< Number of frame axioms total.
-        unsigned int mutual_exclusion_count_;   ///< Number of mutual exclusion clauses per step.
-        unsigned int mutual_exclusion_total_;   ///< Number of mutual exclusion clauses total.
-        unsigned int start_proposition_count_;  ///< Number of start state propositions.
-
-        std::vector<std::string> ground_actions_;  ///< All grounded actions (without time step).
-
     public:
         /** \brief Constructor.
          *  \param[in] problem Problem to solve.
@@ -92,35 +74,6 @@ namespace pddlboat
          */
         z3::expr exprAtTime(const ExpressionPtr &expr, const Assignment &assignment, const Time step) const;
 
-        /** \brief Returns true if a predicate string (from PredicateDefinition::toID()) is within a grounded
-         * expression.
-         *
-         *  \param[in] expr Expression to search.
-         *  \param[in] assignment Grounding of the expression.
-         *  \param[in] predicate Predicate ID to check for.
-         *  \return True if grounded predicate is in grounded expression.
-         */
-        bool predicateInEffect(const ExpressionPtr &expr, const Assignment &assignment,
-                               const std::string &predicate) const;
-
-        /** \brief Retrieves a vector of all actions that could change a predicate. The actions are given as ID strings.
-         *
-         *  This is the part of the core bottleneck of frameAxioms(). Should be changed later.
-         *
-         *  \param[in] predicate Predicate ID string.
-         *  \param[in] step_before The step before the predicate is changed.
-         *  \return Vector of actions that effect the predicate. The actions are given as ID strings.
-         */
-        std::vector<std::string> getPossibleChangeActions(const std::string &predicate, const Time step_before) const;
-
-        /** \brief Returns a disjunction of the z3 expression corresponding to the actions at the given time step.
-         *
-         * \param[in] action_list List of actions ginev by their ID strings (optionally timestamped).
-         * \param[in] step The timestep to use for the actions.
-         * \return Disjunction of all actions at the given time step.
-         */
-        z3::expr getActionsAtTime(std::vector<std::string> action_list, Time step);
-
         /** \brief Generate all action implication constraints for the plan.
          */
         void actionImplications();
@@ -144,6 +97,25 @@ namespace pddlboat
         /** \brief Build Z3 plan.
          */
         void build();
+
+        const Time horizon_;       ///< Planning horizon.
+        const bool diagnostics_;   ///< If true, print diagnostics.
+        const bool dump_clauses_;  ///< If true, print constituent clauses.
+
+        z3::context *ctx_{nullptr};    ///< Z3 Solver Context.
+        z3::solver *solver_{nullptr};  ///< Z3 Solver.
+
+        // Diagnostic counters
+        unsigned int action_imply_count_;       ///< Number of action implication clauses per step.
+        unsigned int action_imply_total_;       ///< Number of action implications total.
+        unsigned int frame_axiom_count_;        ///< Number of frame axioms per step.
+        unsigned int frame_axiom_total_;        ///< Number of frame axioms total.
+        unsigned int mutual_exclusion_count_;   ///< Number of mutual exclusion clauses per step.
+        unsigned int mutual_exclusion_total_;   ///< Number of mutual exclusion clauses total.
+        unsigned int start_proposition_count_;  ///< Number of start state propositions.
+
+        std::vector<std::string> ground_actions_;  ///< All grounded actions (without time step).
+
     };
 
 }  // namespace pddlboat

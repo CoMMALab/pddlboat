@@ -9,7 +9,8 @@
 
 using namespace pddlboat;
 
-static const bool debug = false;
+static const bool debug = true;
+// static const bool debug = false;
 
 ///
 /// Objects
@@ -358,7 +359,7 @@ bool Predicate::evaluate(const StatePtr &state, const Assignment &vars) const
     return r;
 }
 
-void Predicate::assign(StatePtr &out, const Assignment &vars) const
+void Predicate::assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const
 {
     out->assignN(predicate->name, getObjects(vars), true);
 }
@@ -373,6 +374,11 @@ void Predicate::getVariables(VariableSet &vars) const
     for (const auto &binding : bindings)
         if (binding.isVar)
             vars.addVariable({binding.name, binding.type});
+}
+
+void Predicate::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &/*state*/, const Assignment &vars) const
+{
+    predicates.emplace(toID(vars));
 }
 
 VariableList Predicate::arguments() const
@@ -855,11 +861,11 @@ void State::assignN(const std::string &predicate, const std::vector<std::string>
         objectsl.emplace_back(boost::algorithm::to_lower_copy(obj));
 
     if (not pred->isValidAssignment(problem_, objectsl))
-        throw std::invalid_argument(log::format("Invalid assignment to predicate %1%!", predicate));
+        throw std::invalid_argument(log::format("Invalid assignment to predicate %1%!", pred->name));
 
     auto [it, r] =
         assignments.emplace(std::piecewise_construct,  //
-                            std::forward_as_tuple(predicate, objectsl), std::forward_as_tuple(value));
+                            std::forward_as_tuple(pred->name, objectsl), std::forward_as_tuple(value));
     if (not r)
         it->second = value;
 }
@@ -965,7 +971,7 @@ bool Action::doAction(StatePtr &out, const StatePtr &in, const Assignment &vars)
         return false;
 
     out->clear();
-    effect->assign(out, vars);
+    effect->assign(out, in, vars);
     out->fold(in);
 
     return true;

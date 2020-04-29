@@ -5,8 +5,8 @@
 
 using namespace pddlboat;
 
-// static const bool debug = true;
-static const bool debug = false;
+static const bool debug = true;
+// static const bool debug = false;
 
 ///
 /// Plan::Step
@@ -79,13 +79,12 @@ void Plan::addStep(const std::string &action_name, const std::vector<std::string
     }
 
     // Validate world state update from action
-    StatePtr prev = problem_->makeState();
-
     // Use prior state in sequence, which may be the start
+    StatePtr prev;
     if (steps.empty())
-        prev->fold(problem_->start);
+        prev = problem_->start;
     else
-        prev->fold(steps.back().state);
+        prev = steps.back().state;
 
     StatePtr state = problem_->makeState();
 

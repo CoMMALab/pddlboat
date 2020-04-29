@@ -391,7 +391,7 @@ namespace pddlboat
          *  \param[out] out State to set.
          *  \param[in] vars Grounding of this predicate.
          */
-        void assign(StatePtr &out, const Assignment &vars) const override;
+        void assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const override;
 
         /** \brief Returns the type of this expression.
          *  \return Expression type.
@@ -402,6 +402,13 @@ namespace pddlboat
          *  \param[out] vars Variables used in the expression.
          */
         void getVariables(VariableSet &vars) const override;
+
+        /** \brief Add this predicate to the assigned predicate set.
+         *  \param[out] predicates Set of all predicates.
+         *  \param[in] vars Assignment.
+         */
+        void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr & /*state*/,
+                                   const Assignment &vars) const override;
 
         /** \brief Returns true if this expression contains the variable name.
          *  \param[in] variable The variable name to search for.

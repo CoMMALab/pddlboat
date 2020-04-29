@@ -31,6 +31,7 @@ namespace pddlboat
 
         Expression::Type type() const override;
         void getVariables(VariableSet &vars) const override;
+        void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
 
@@ -78,7 +79,7 @@ namespace pddlboat
         And(const std::vector<ExpressionPtr> &terms = {});
 
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
-        void assign(StatePtr &out, const Assignment &vars) const override;
+        void assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const override;
         Expression::Type type() const override;
         std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
                              unsigned int level = 0) const override;
@@ -117,9 +118,10 @@ namespace pddlboat
         const ExpressionPtr getTerm() const;
 
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
-        void assign(StatePtr &out, const Assignment &vars) const override;
+        void assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const override;
         Expression::Type type() const override;
         void getVariables(VariableSet &vars) const override;
+        void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
         std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
@@ -173,10 +175,11 @@ namespace pddlboat
         const ExpressionPtr getRight() const;
 
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
-        void assign(StatePtr &out, const Assignment &vars) const override;
+        void assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const override;
         Expression::Type type() const override;
 
         void getVariables(VariableSet &vars) const override;
+        void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
         std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
@@ -197,6 +200,8 @@ namespace pddlboat
     {
     public:
         QuantifierExpression(const VariableSet &domain, const ExpressionPtr &formula);
+
+        ExpressionPtr getFormula() const;
 
         Expression::Type type() const override;
         void getVariables(VariableSet &vars) const override;
@@ -241,7 +246,8 @@ namespace pddlboat
         Forall(const VariableSet &domain, const ExpressionPtr &formula);
 
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
-        void assign(StatePtr &out, const Assignment &vars) const override;
+        void assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const override;
+        void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
         Expression::Type type() const override;
         std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
                              unsigned int level = 0) const override;
@@ -258,6 +264,8 @@ namespace pddlboat
     {
     public:
         Equals(const Value &term1, const Value &term2);
+
+        std::pair<Value, Value> getTerms() const;
 
         std::string getObject(const Value &term, const Assignment &vars) const;
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;

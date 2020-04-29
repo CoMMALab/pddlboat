@@ -37,9 +37,10 @@ namespace pddlboat
         };
 
         virtual bool evaluate(const StatePtr &state, const Assignment &vars) const = 0;
-        virtual void assign(StatePtr &out, const Assignment &vars) const;
+        virtual void assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const;
         virtual Type type() const;
         virtual void getVariables(VariableSet &vars) const;
+        virtual void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const;
         virtual bool containsVariable(const std::string &variable) const;
         virtual bool containsPredicate(const std::string &predicate) const;
         virtual std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,

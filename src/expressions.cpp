@@ -7,7 +7,8 @@
 
 using namespace pddlboat;
 
-static const bool debug = false;
+// static const bool debug = false;
+static const bool debug = true;
 
 ///
 /// Value
@@ -65,12 +66,16 @@ Expression::Type Expression::type() const
     return EXPRESSION;
 }
 
-void Expression::assign(StatePtr &out, const Assignment &vars) const
+void Expression::assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const
 {
     throw std::invalid_argument(log::format("Cannot assign with expression type %1%", type()));
 }
 
 void Expression::getVariables(VariableSet &vars) const
+{
+}
+
+void Expression::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const
 {
 }
 
@@ -119,6 +124,13 @@ void VariadicExpression::getVariables(VariableSet &vars) const
         e->getVariables(vars);
 }
 
+void VariadicExpression::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const
+{
+    for (const auto &e : terms_)
+        e->getAssignedPredicates(predicates, state, vars);
+}
+
+
 bool VariadicExpression::containsVariable(const std::string &variable) const
 {
     for (const auto &e : terms_)
@@ -163,10 +175,10 @@ bool And::evaluate(const StatePtr &state, const Assignment &vars) const
     return ret;
 }
 
-void And::assign(StatePtr &out, const Assignment &vars) const
+void And::assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const
 {
     for (unsigned int i = 0; i < terms_.size(); ++i)
-        terms_[i]->assign(out, vars);
+        terms_[i]->assign(out, in, vars);
 }
 
 Expression::Type And::type() const
@@ -277,10 +289,10 @@ bool Not::evaluate(const StatePtr &state, const Assignment &vars) const
     return ret;
 }
 
-void Not::assign(StatePtr &out, const Assignment &vars) const
+void Not::assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const
 {
     auto temp = out->getProblem()->makeState();
-    term_->assign(temp, vars);
+    term_->assign(temp, in, vars);
     temp->complement();
 
     out->fold(temp);
@@ -294,6 +306,11 @@ Expression::Type Not::type() const
 void Not::getVariables(VariableSet &vars) const
 {
     term_->getVariables(vars);
+}
+
+void Not::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const
+{
+    term_->getAssignedPredicates(predicates, state, vars);
 }
 
 bool Not::containsVariable(const std::string &variable) const
@@ -419,13 +436,24 @@ const ExpressionPtr When::getRight() const
 
 bool When::evaluate(const StatePtr &state, const Assignment &vars) const
 {
-    return (not left_->evaluate(state, vars)) or right_->evaluate(state, vars);
+    bool r = (not left_->evaluate(state, vars)) or right_->evaluate(state, vars);
+
+    if (debug)
+    {
+        std::cout << "Expression is " << r << std::endl;
+        toPDDL(std::cout);
+        std::cout << std::endl;
+        vars.toString(std::cout);
+        std::cout << std::endl;
+    }
+
+    return r;
 }
 
-void When::assign(StatePtr &out, const Assignment &vars) const
+void When::assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const
 {
-    if (left_->evaluate(out, vars))
-        right_->assign(out, vars);
+    if (left_->evaluate(in, vars))
+        right_->assign(out, in, vars);
 }
 
 Expression::Type When::type() const
@@ -437,6 +465,11 @@ void When::getVariables(VariableSet &vars) const
 {
     left_->getVariables(vars);
     right_->getVariables(vars);
+}
+
+void When::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const
+{
+    right_->getAssignedPredicates(predicates, state, vars);
 }
 
 bool When::containsVariable(const std::string &variable) const
@@ -479,6 +512,11 @@ QuantifierExpression::QuantifierExpression(const VariableSet &domain, const Expr
 {
     if (domain_.empty())
         throw std::runtime_error("Domain for quantifier must be non-empty!");
+}
+
+ExpressionPtr QuantifierExpression::getFormula() const
+{
+    return formula_;
 }
 
 Expression::Type QuantifierExpression::type() const
@@ -636,7 +674,7 @@ bool Forall::evaluate(const StatePtr &state, const Assignment &vars) const
     return r;
 }
 
-void Forall::assign(StatePtr &out, const Assignment &vars) const
+void Forall::assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const
 {
     auto copy = vars;
     const auto &groundings = getGroundings(out);
@@ -644,7 +682,19 @@ void Forall::assign(StatePtr &out, const Assignment &vars) const
     for (const auto &grounding : groundings)
     {
         groundAssignment(grounding, copy);
-        formula_->assign(out, copy);
+        formula_->assign(out, in, copy);
+    }
+}
+
+void Forall::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const
+{
+    auto copy = vars;
+    const auto &groundings = getGroundings(state);
+
+    for (const auto &grounding : groundings)
+    {
+        groundAssignment(grounding, copy);
+        formula_->getAssignedPredicates(predicates, state, copy);
     }
 }
 
@@ -680,6 +730,11 @@ ForallPtr pddlboat::makeForall(const VariableSet &domain, const ExpressionPtr &f
 
 Equals::Equals(const Value &term1, const Value &term2) : term1_(term1), term2_(term2)
 {
+}
+
+std::pair<Value, Value> Equals::getTerms() const
+{
+    return {term1_, term2_};
 }
 
 std::string Equals::getObject(const Value &term, const Assignment &vars) const
