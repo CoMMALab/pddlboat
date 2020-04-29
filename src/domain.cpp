@@ -9,6 +9,8 @@
 
 using namespace pddlboat;
 
+static const bool debug = false;
+
 ///
 /// Objects
 ///
@@ -59,10 +61,27 @@ VariableSet::VariableSet(const VariableList &variables)
         addVariable(variable);
 }
 
+VariableSet::operator VariableList() const
+{
+    return std::vector<Variable>(variables.begin(), variables.end());
+}
+
 void VariableSet::merge(const VariableSet &other)
 {
     for (const auto &variable : other.variables)
         addVariable(variable);
+}
+
+void VariableSet::remove(const VariableSet &other)
+{
+    for (const auto &variable : other.variables)
+        removeVariable(variable);
+}
+
+void VariableSet::remove(const VariableList &other)
+{
+    for (const auto &variable : other)
+        removeVariable(variable);
 }
 
 void VariableSet::addVariable(const Variable &var)
@@ -78,6 +97,19 @@ void VariableSet::addVariable(const Variable &var)
     }
     else
         variables.emplace(var);
+}
+
+bool VariableSet::removeVariable(const Variable &var)
+{
+    auto it = std::find_if(variables.begin(), variables.end(),
+                           [&var](const Variable &other) { return var.name == other.name; });
+    if (it != variables.end())
+    {
+        variables.erase(it);
+        return true;
+    }
+
+    return false;
 }
 
 std::set<std::string> VariableSet::getNames() const
@@ -131,8 +163,12 @@ bool VariableSet::operator!=(const VariableSet &other) const
 bool VariableSet::contains(const VariableSet &other) const
 {
     for (const auto &ov : other.variables)
-        if (variables.find(ov) == variables.end())
+    {
+        auto it = std::find_if(variables.begin(), variables.end(),
+                               [&ov](const Variable &var) { return var.name == ov.name; });
+        if (it == variables.end())
             return false;
+    }
 
     return true;
 }
@@ -163,6 +199,13 @@ void Assignment::assign(const std::string &var, const std::string &obj)
     auto [it, r] = varToObj.emplace(var, object);
     if (not r)
         it->second = object;
+}
+
+void Assignment::unassign(const std::string &var)
+{
+    auto it = varToObj.find(var);
+    if (it != varToObj.end())
+        varToObj.erase(it);
 }
 
 const ObjectPtr &Assignment::assigned(const std::string &var) const
@@ -301,7 +344,18 @@ std::vector<std::string> Predicate::getObjects(const Assignment &vars) const
 
 bool Predicate::evaluate(const StatePtr &state, const Assignment &vars) const
 {
-    return state->isTrue(predicate->name, getObjects(vars));
+    bool r = state->isTrue(predicate->name, getObjects(vars));
+
+    if (debug)
+    {
+        std::cout << "Expression is " << r << std::endl;
+        toPDDL(std::cout);
+        std::cout << std::endl;
+        vars.toString(std::cout);
+        std::cout << std::endl;
+    }
+
+    return r;
 }
 
 void Predicate::assign(StatePtr &out, const Assignment &vars) const
@@ -457,12 +511,18 @@ bool Domain::isTypeOf(const std::string &type, const std::string &other) const
     const std::string typel = boost::algorithm::to_lower_copy(type);
     const std::string otherl = boost::algorithm::to_lower_copy(other);
 
+    // std::cout << "ITO: start" << std::endl;
     auto view = std::cref(typel);
-    while (not(r = view.get() != otherl) and view.get() != PDDLBOAT_OBJECT_CLASS)
+    // std::cout << "ITO: " << view.get() << " " << otherl << std::endl;
+    while (not((r = view.get() == otherl)  //
+               or view.get() == PDDLBOAT_OBJECT_CLASS))
     {
         auto it = types.find(view);
         view = std::cref(it->second);
+        // std::cout << "ITO: " << view.get() << " " << otherl << std::endl;
     }
+
+    // std::cout << "ITO: " << r << std::endl;
 
     return r;
 }
@@ -842,9 +902,13 @@ Action::Action(const std::string &name, const VariableList &parameters, const Ex
 
     // TODO: Validate that precondition and effect only use predicates from domain when added.
 
-    // if (input.contains(conditions))
-    //     throw std::invalid_argument(
-    //         log::format("Action %1%'s parameter set does not match expressions!", name));
+    if (not input.contains(conditions))
+    {
+        // input.toPDDL(std::cout);
+        // conditions.toPDDL(std::cout);
+        throw std::invalid_argument(
+            log::format("Action %1%'s parameter set does not match expressions!", name));
+    }
 }
 
 std::ostream &Action::toPDDL(std::ostream &out, unsigned int indent) const

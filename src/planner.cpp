@@ -5,6 +5,9 @@
 
 using namespace pddlboat;
 
+// static const bool debug = true;
+static const bool debug = false;
+
 ///
 /// Plan::Step
 ///
@@ -85,6 +88,17 @@ void Plan::addStep(const std::string &action_name, const std::vector<std::string
         prev->fold(steps.back().state);
 
     StatePtr state = problem_->makeState();
+
+    if (debug)
+    {
+        std::cout << "Attempting to do action " << action_name << " with: ";
+        for (const auto &object : objects)
+            std::cout << object << ", ";
+        std::cout << std::endl;
+        std::cout << "On State: " << std::endl;
+        prev->toPDDL(std::cout);
+        std::cout << std::endl;
+    }
 
     if (not action->doAction(state, prev, assignment))
         throw std::invalid_argument(  //

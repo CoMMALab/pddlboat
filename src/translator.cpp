@@ -9,7 +9,8 @@
 
 using namespace pddlboat;
 
-const static bool debug = true;
+// const static bool debug = true;
+const static bool debug = false;
 
 namespace
 {

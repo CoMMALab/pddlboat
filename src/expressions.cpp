@@ -7,6 +7,8 @@
 
 using namespace pddlboat;
 
+static const bool debug = false;
+
 ///
 /// Value
 ///
@@ -149,6 +151,15 @@ bool And::evaluate(const StatePtr &state, const Assignment &vars) const
     for (unsigned int i = 0; i < terms_.size() and ret; ++i)
         ret &= terms_[i]->evaluate(state, vars);
 
+    if (debug)
+    {
+        std::cout << "Expression is " << ret << std::endl;
+        toPDDL(std::cout);
+        std::cout << std::endl;
+        vars.toString(std::cout);
+        std::cout << std::endl;
+    }
+
     return ret;
 }
 
@@ -195,8 +206,17 @@ Or::Or(const std::vector<ExpressionPtr> &terms) : VariadicExpression(terms)
 bool Or::evaluate(const StatePtr &state, const Assignment &vars) const
 {
     bool ret = false;
-    for (unsigned int i = 0; i < terms_.size() and ret; ++i)
+    for (unsigned int i = 0; i < terms_.size() and not ret; ++i)
         ret |= terms_[i]->evaluate(state, vars);
+
+    if (debug)
+    {
+        std::cout << "Expression is " << ret << std::endl;
+        toPDDL(std::cout);
+        std::cout << std::endl;
+        vars.toString(std::cout);
+        std::cout << std::endl;
+    }
 
     return ret;
 }
@@ -243,7 +263,18 @@ const ExpressionPtr Not::getTerm() const
 
 bool Not::evaluate(const StatePtr &state, const Assignment &vars) const
 {
-    return not term_->evaluate(state, vars);
+    bool ret = not term_->evaluate(state, vars);
+
+    if (debug)
+    {
+        std::cout << "Expression is " << ret << std::endl;
+        toPDDL(std::cout);
+        std::cout << std::endl;
+        vars.toString(std::cout);
+        std::cout << std::endl;
+    }
+
+    return ret;
 }
 
 void Not::assign(StatePtr &out, const Assignment &vars) const
@@ -312,7 +343,18 @@ const ExpressionPtr Imply::getRight() const
 
 bool Imply::evaluate(const StatePtr &state, const Assignment &vars) const
 {
-    return (not left_->evaluate(state, vars)) or right_->evaluate(state, vars);
+    bool ret = (not left_->evaluate(state, vars)) or right_->evaluate(state, vars);
+
+    if (debug)
+    {
+        std::cout << "Expression is " << ret << std::endl;
+        toPDDL(std::cout);
+        std::cout << std::endl;
+        vars.toString(std::cout);
+        std::cout << std::endl;
+    }
+
+    return ret;
 }
 
 Expression::Type Imply::type() const
@@ -380,6 +422,12 @@ bool When::evaluate(const StatePtr &state, const Assignment &vars) const
     return (not left_->evaluate(state, vars)) or right_->evaluate(state, vars);
 }
 
+void When::assign(StatePtr &out, const Assignment &vars) const
+{
+    if (left_->evaluate(out, vars))
+        right_->assign(out, vars);
+}
+
 Expression::Type When::type() const
 {
     return Expression::WHEN;
@@ -429,6 +477,8 @@ WhenPtr pddlboat::makeWhen(const ExpressionPtr &left, const ExpressionPtr &right
 QuantifierExpression::QuantifierExpression(const VariableSet &domain, const ExpressionPtr &formula)
   : domain_(domain), formula_(formula)
 {
+    if (domain_.empty())
+        throw std::runtime_error("Domain for quantifier must be non-empty!");
 }
 
 Expression::Type QuantifierExpression::type() const
@@ -439,6 +489,7 @@ Expression::Type QuantifierExpression::type() const
 void QuantifierExpression::getVariables(VariableSet &vars) const
 {
     formula_->getVariables(vars);
+    vars.remove(domain_);
 }
 
 bool QuantifierExpression::containsVariable(const std::string &variable) const
@@ -449,6 +500,40 @@ bool QuantifierExpression::containsVariable(const std::string &variable) const
 bool QuantifierExpression::containsPredicate(const std::string &predicate) const
 {
     return formula_->containsPredicate(predicate);
+}
+
+std::vector<std::vector<std::string>> QuantifierExpression::getGroundings(const StatePtr &state) const
+{
+    auto problem = state->getProblem();
+
+    std::vector<std::vector<std::string>> groundings, prev;
+
+    auto objects = problem->objectsOfType(domain_[0].type);
+    std::transform(objects.begin(), objects.end(), std::back_inserter(groundings),
+                   [](const std::string &s) { return std::vector<std::string>{s}; });
+
+    for (std::size_t i = 1; i < domain_.size(); ++i)
+    {
+        auto objects = problem->objectsOfType(domain_[i].type);
+        for (auto grounding : groundings)
+            for (const auto &obj : objects)
+            {
+                grounding.emplace_back(obj);
+                prev.emplace_back(grounding);
+            }
+
+        groundings = prev;
+        prev.clear();
+    }
+
+    return groundings;
+}
+
+void QuantifierExpression::groundAssignment(const std::vector<std::string> &grounding,
+                                            Assignment &assignment) const
+{
+    for (std::size_t i = 0; i < domain_.size(); ++i)
+        assignment.assign(domain_[i].name, grounding[i]);
 }
 
 ///
@@ -462,10 +547,30 @@ Exists::Exists(const VariableSet &domain, const ExpressionPtr &formula)
 
 bool Exists::evaluate(const StatePtr &state, const Assignment &vars) const
 {
-}
+    auto copy = vars;
+    const auto &groundings = getGroundings(state);
 
-void Exists::assign(StatePtr &out, const Assignment &vars) const
-{
+    bool r = false;
+    for (const auto &grounding : groundings)
+    {
+        groundAssignment(grounding, copy);
+        if (formula_->evaluate(state, copy))
+        {
+            r = true;
+            break;
+        }
+    }
+
+    if (debug)
+    {
+        std::cout << "Expression is " << r << std::endl;
+        toPDDL(std::cout);
+        std::cout << std::endl;
+        vars.toString(std::cout);
+        std::cout << std::endl;
+    }
+
+    return r;
 }
 
 Expression::Type Exists::type() const
@@ -479,7 +584,7 @@ std::ostream &Exists::toPDDL(std::ostream &out, unsigned int indent, unsigned in
     out << SPACE;
 
     out << "(exists ";
-    domain_.toPDDL(out) << std::endl;
+    VariableSet(domain_).toPDDL(out) << std::endl;
 
     formula_->toPDDL(out, indent, level + 1);
     out << std::endl;
@@ -505,10 +610,42 @@ Forall::Forall(const VariableSet &domain, const ExpressionPtr &formula)
 
 bool Forall::evaluate(const StatePtr &state, const Assignment &vars) const
 {
+    auto copy = vars;
+    const auto &groundings = getGroundings(state);
+
+    bool r = true;
+    for (const auto &grounding : groundings)
+    {
+        groundAssignment(grounding, copy);
+        if (not formula_->evaluate(state, copy))
+        {
+            r = false;
+            break;
+        }
+    }
+
+    if (debug)
+    {
+        std::cout << "Expression is " << r << std::endl;
+        toPDDL(std::cout);
+        std::cout << std::endl;
+        vars.toString(std::cout);
+        std::cout << std::endl;
+    }
+
+    return r;
 }
 
 void Forall::assign(StatePtr &out, const Assignment &vars) const
 {
+    auto copy = vars;
+    const auto &groundings = getGroundings(out);
+
+    for (const auto &grounding : groundings)
+    {
+        groundAssignment(grounding, copy);
+        formula_->assign(out, copy);
+    }
 }
 
 Expression::Type Forall::type() const
@@ -522,7 +659,7 @@ std::ostream &Forall::toPDDL(std::ostream &out, unsigned int indent, unsigned in
     out << SPACE;
 
     out << "(forall ";
-    domain_.toPDDL(out) << std::endl;
+    VariableSet(domain_).toPDDL(out) << std::endl;
 
     formula_->toPDDL(out, indent, level + 1);
     out << std::endl;
@@ -545,18 +682,17 @@ Equals::Equals(const Value &term1, const Value &term2) : term1_(term1), term2_(t
 {
 }
 
-bool Equals::evaluate(const StatePtr &state, const Assignment &vars) const
+std::string Equals::getObject(const Value &term, const Assignment &vars) const
 {
-    // return not term_->evaluate(state, vars);
+    if (term.isVar)
+        return vars.assigned(term.name)->name;
+    else
+        return term.name;
 }
 
-void Equals::assign(StatePtr &out, const Assignment &vars) const
+bool Equals::evaluate(const StatePtr &state, const Assignment &vars) const
 {
-    // auto temp = out->getProblem()->makeState();
-    // term_->assign(temp, vars);
-    // temp->complement();
-
-    // out->fold(temp);
+    return getObject(term1_, vars) == getObject(term2_, vars);
 }
 
 Expression::Type Equals::type() const
@@ -566,18 +702,20 @@ Expression::Type Equals::type() const
 
 void Equals::getVariables(VariableSet &vars) const
 {
-    // term_->getVariables(vars);
+    if (term1_.isVar)
+        vars.addVariable(Variable(term1_.name, term1_.type));
+    if (term2_.isVar)
+        vars.addVariable(Variable(term2_.name, term2_.type));
 }
 
 bool Equals::containsVariable(const std::string &variable) const
 {
-    // return term_->containsVariable(variable);
-    return false;
+    return (term1_.isVar ? variable == term1_.name : false) or
+           (term2_.isVar ? variable == term2_.name : false);
 }
 
 bool Equals::containsPredicate(const std::string &predicate) const
 {
-    // return term_->containsPredicate(predicate);
     return false;
 }
 

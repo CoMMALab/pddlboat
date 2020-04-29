@@ -173,6 +173,7 @@ namespace pddlboat
         const ExpressionPtr getRight() const;
 
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
+        void assign(StatePtr &out, const Assignment &vars) const override;
         Expression::Type type() const override;
 
         void getVariables(VariableSet &vars) const override;
@@ -202,8 +203,11 @@ namespace pddlboat
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
 
+        std::vector<std::vector<std::string>> getGroundings(const StatePtr &state) const;
+        void groundAssignment(const std::vector<std::string> &grounding, Assignment &assignment) const;
+
     protected:
-        VariableSet domain_;
+        VariableList domain_;
         ExpressionPtr formula_;
     };
 
@@ -218,7 +222,7 @@ namespace pddlboat
         Exists(const VariableSet &domain, const ExpressionPtr &formula);
 
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
-        void assign(StatePtr &out, const Assignment &vars) const override;
+        // void assign(StatePtr &out, const Assignment &vars) const override;
         Expression::Type type() const override;
         std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
                              unsigned int level = 0) const override;
@@ -255,8 +259,9 @@ namespace pddlboat
     public:
         Equals(const Value &term1, const Value &term2);
 
+        std::string getObject(const Value &term, const Assignment &vars) const;
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
-        void assign(StatePtr &out, const Assignment &vars) const override;
+        // void assign(StatePtr &out, const Assignment &vars) const override;
         Expression::Type type() const override;
         void getVariables(VariableSet &vars) const override;
         bool containsVariable(const std::string &variable) const override;

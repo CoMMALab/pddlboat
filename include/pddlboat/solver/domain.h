@@ -157,10 +157,24 @@ namespace pddlboat
          */
         VariableSet(const VariableList &variables);
 
+        /** \brief Conversion to a list.
+         */
+        operator VariableList() const;
+
         /** \brief Merges another set of variables with this set.
          *  \param[in] other Other set to merge.
          */
         void merge(const VariableSet &other);
+
+        /** \brief Removes the contents of \a other from this variable set.
+         *  \param[in] other Variable set to remove.
+         */
+        void remove(const VariableSet &other);
+
+        /** \brief Removes the contents of \a other from this variable set.
+         *  \param[in] other Variable list to remove.
+         */
+        void remove(const VariableList &other);
 
         /** \brief Adds a variable to the variable set.
          *  \param[in] var Variable to add.
@@ -168,6 +182,12 @@ namespace pddlboat
          * has a different type.
          */
         void addVariable(const Variable &var);
+
+        /** \brief Removes a variable from this variable set.
+         *  \param[in] var Variable to remove.
+         *  \return True if was actually removed, false if it did not exist.
+         */
+        bool removeVariable(const Variable &var);
 
         /** \brief Get the names of all the variables in the variable set.
          *  \return The names of all the variables in the set.
@@ -240,6 +260,11 @@ namespace pddlboat
          *  \throw std::invalid_argument if object \a obj does not exist.
          */
         void assign(const std::string &var, const std::string &obj);
+
+        /** \brief Unassign a variable in this assignment.
+         *  \param[in] var Variable to unassign.
+         */
+        void unassign(const std::string &var);
 
         /** \brief Retrieve the object assigned to a variable.
          *  \param[in] var Variable to retrieve.
@@ -342,7 +367,6 @@ namespace pddlboat
     class Predicate : public Expression
     {
     public:
-
         const std::vector<Value> bindings;  ///< Argument bindings for the predicate.
 
         /** \brief Constructor.
