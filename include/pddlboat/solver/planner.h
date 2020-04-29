@@ -5,6 +5,9 @@
 
 #include <pddlboat/macros.h>
 #include <pddlboat/solver/domain.h>
+#include <string>
+// #include <iostream>
+#include <sstream>
 
 namespace pddlboat
 {
@@ -43,6 +46,22 @@ namespace pddlboat
              *  \return The stream.
              */
             std::ostream &toString(std::ostream &out) const;
+
+            /**
+             * To allow us to build sets of Steps.
+             */
+            bool operator<(const Step &step_obj) const
+            {
+                std::ostringstream myObjectStream;
+                toString(myObjectStream);
+                std::string mySerializedObject = myObjectStream.str();
+
+                std::ostringstream myObjectStream2;
+                step_obj.toString(myObjectStream2);
+                std::string mySerializedObject2 = myObjectStream2.str();
+
+                return mySerializedObject < mySerializedObject2;
+            }
         };
 
         /** \brief Constructor.

@@ -422,3 +422,24 @@ bool pddlboat::parseZ3Action(const std::string &string, ast::z3Action &action)
     bool r = x3::phrase_parse(iter, end, parser::z3action, parser::skipper, action);
     return r && iter == end;
 }
+
+bool pddlboat::parseFile(const std::string &file, ast::Expression &expression)
+{
+    typedef std::string::const_iterator iterator_type;
+
+    const std::string text = io::loadFileToString(file);
+    // std::cout << text << std::endl;
+
+    iterator_type iter = text.begin();
+    const iterator_type end = text.end();
+
+    using boost::spirit::x3::error_handler_tag;
+    using boost::spirit::x3::with;
+    using error_handler_type = boost::spirit::x3::error_handler<iterator_type>;
+    error_handler_type error_handler(iter, end, std::cerr);
+
+    expression = ast::Expression();  // Reset Problem
+    bool r = x3::phrase_parse(iter, end, with<error_handler_tag>(std::ref(error_handler))[parser::expression],
+                              parser::skipper, expression);
+    return r && iter == end;
+}
