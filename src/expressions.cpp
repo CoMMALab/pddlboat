@@ -7,8 +7,8 @@
 
 using namespace pddlboat;
 
-// static const bool debug = false;
-static const bool debug = true;
+static const bool debug = false;
+// static const bool debug = true;
 
 ///
 /// Value
