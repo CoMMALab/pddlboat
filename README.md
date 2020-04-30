@@ -4,7 +4,7 @@ _PDDLboat_ (pronounced "paddle boat") is a library for parsing, constructing, an
 Many PDDL-based solvers each roll their own parsing and modeling, providing only a command-line interface.
 The goal of _PDDLboat_ is to make it easy to add PDDL-based problem modeling and planning to any project by providing a unified interface to parsing and solving with a flexible intermediate representation that can be accessed and modified programmatically.
 _PDDLboat_ also plays nice with ROS, and can be used as a [catkin package](http://wiki.ros.org/catkin/conceptual_overview).
-For more on PDDL's grammar, see the [BNF description](https://helios.hud.ac.uk/scommv/IPC-14/repository/kovacs-pddl-3.1-2011.pdf).
+For more on PDDL's grammar, see the [BNF description](https://helios.hud.ac.uk/scommv/IPC-14/repository/kovacs-pddl-3.1-2011.pdf). Additionally, _PDDLboat_ supports the modeling of problems in library code, so domains and problems can be constructed and dynamically changed.
 
 Currently, _PDDLboat_ supports the following PDDL `:requirements`:
 
@@ -53,7 +53,7 @@ pddlboat::parseFile("domain.pddl", ast);
 pddlboat::DomainPtr domain = pddlboat::toDomain(ast);
 ```
 
-Also, note that all `pddlboat::*` classes typically have a `toPDDL()` function to output them back to a file.
+Also, note that `pddlboat::*` classes typically have a `toPDDL()` function to output them back to a file.
 
 ### Planners
 
@@ -61,9 +61,12 @@ There are two planners provided in _PDDLboat_, which implement a simple abstract
 The two planners are one based on Z3 and one based on Fast Downward.
 Both of these implement different options, but the defaults generally work well.
 Some notes about each:
-- Z3 requires providing a planning horizon, which is the maximum number of steps a plan can take. If a plan is not found, this number should be increased.
-- Z3 also does not support quantifiers, conditional effects, or equality currently.
-- Fast Downward has many different kinds of heuristics, a few defaults of which can be selected via the `pddlboat::FastDownwardPlanner::Search` enumerated type.
+- Z3 requires providing a minimum and maximum planning horizon, which is the number of steps a plan can take. If a plan is not found, this number should be increased. Moreover, Z3 tries to incrementally solve the problem so the optimal plan (given the minimum number of steps) is found.
+- Fast Downward has many different kinds of heuristics, a few defaults of which can be selected via the `pddlboat::FastDownwardPlanner::Search` enumerated type. If you want to add your own configurations, check [their website](http://www.fast-downward.org/PlannerUsage) for more configurations. Currently, the following are supported:
+  - `pddlboat::FastDownwardPlanner::Search::ASTAR`: A* with landmark cut heuristic.
+  - `pddlboat::FastDownwardPlanner::Search::LAZYGREEDY`:  Lazy greedy best-first search with preferred operators and the queue alternation method.
+  - `pddlboat::FastDownwardPlanner::Search::FDAT`: Fast Downward Autotune 2.
+  - `pddlboat::FastDownwardPlanner::Search::LAMA`: LAMA 2011 configuration from IPC 2011.
 
 An example of planning once a problem has been defined:
 ```cpp
@@ -181,7 +184,6 @@ Checkout the `scripts` directory for example programs.
 For Ubuntu-based platforms:
 ```sh
 sudo apt-get install libz3-dev libboost-all-dev
-
 ```
 
 After cloning the repository, you must get the [Fast Downward](http://www.fast-downward.org/) code as a submodule.
