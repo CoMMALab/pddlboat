@@ -9,6 +9,7 @@
 #include <pddlboat/solver/planner.h>
 #include <pddlboat/solver/fdplanner.h>
 #include <pddlboat/solver/z3planner.h>
+#include <pddlboat/solver/dependency.h>
 
 namespace po = boost::program_options;
 namespace pd = pddlboat;
@@ -59,7 +60,7 @@ int main(int argc, char **argv)
     //
 
     std::string domainfile, problemfile;
-    bool domainout, problemout, planout, stepsout, timeout;
+    bool domainout, problemout, planout, stepsout, timeout, graphout, leafdist;
     Planner plannertype;
     po::options_description desc("PDDLBoat - Planner Testing Demo");
     desc.add_options()                                                               //
@@ -80,6 +81,10 @@ int main(int argc, char **argv)
          "Print the steps of a plan as PDDL")                                        //
         ("os", po::bool_switch(&stepsout),                                           //
          "Print the steps of a plan as a sequence of states")                        //
+        ("og", po::bool_switch(&graphout),                                           //
+         "Print the dependency graph of the plan")                                   //
+        ("leafdist", po::bool_switch(&leafdist),                                     //
+         "Print the dependency graph out based on leaf distance and not makespan")   //
         ;
 
     unsigned int min_horizon, max_horizon;
@@ -185,7 +190,8 @@ int main(int argc, char **argv)
     switch (plannertype)
     {
         case Z3:
-            planner = std::make_shared<pd::Z3Planner>(problem, max_horizon, min_horizon, parallel, diagnostics, dump_clauses);
+            planner = std::make_shared<pd::Z3Planner>(problem, max_horizon, min_horizon, parallel,
+                                                      diagnostics, dump_clauses);
             break;
         case FD:
             planner = std::make_shared<pd::FastDownwardPlanner>(problem, search);
@@ -200,11 +206,11 @@ int main(int argc, char **argv)
     //
 
     bool r;
-    pd::Plan plan(problem);
+    auto plan = std::make_shared<pd::Plan>(problem);
 
     {
         boost::timer::cpu_timer t;
-        r = planner->solve(plan);
+        r = planner->solve(*plan);
 
         if (timeout)
         {
@@ -218,7 +224,7 @@ int main(int argc, char **argv)
         std::cerr << "Planning succeeded!" << std::endl;
 
         if (planout)
-            std::cout << plan << std::endl;
+            std::cout << *plan << std::endl;
 
         if (stepsout)
         {
@@ -227,12 +233,18 @@ int main(int argc, char **argv)
             problem->start->toPDDL(std::cout);
             std::cout << std::endl;
 
-            for (const auto &step : plan.steps)
+            for (const auto &step : plan->getSteps())
             {
                 std::cout << "Step " << i++ << " " << step << std::endl;
                 step.state->toPDDL(std::cout);
                 std::cout << std::endl;
             }
+        }
+
+        if (graphout)
+        {
+            pd::PlanDependencyGraph test(plan);
+            test.toDotFile(std::cout, not leafdist);
         }
     }
     else

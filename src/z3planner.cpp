@@ -55,6 +55,8 @@ bool Z3Planner::solve(Plan &plan)
     bool sat = false;
     for (Time step = min_horizon_; step < max_horizon_ and not sat; ++step)
     {
+        boost::timer::cpu_timer tl;
+
         // (2) an action implies its precondition is true and its effects will be true next time step
         addActionImplications(step);
 
@@ -71,6 +73,11 @@ bool Z3Planner::solve(Plan &plan)
         addGoalExpression(step + 1);
 
         auto result = solver_->check();
+
+        tl.stop();
+        if (diagnostics_)
+            std::cout << "Solving Step " << step << " Z3 Instance took: " << io::getTiming(tl) << std::endl;
+
         if (result == z3::sat)
             sat = true;
         else

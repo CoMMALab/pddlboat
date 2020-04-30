@@ -81,10 +81,10 @@ void Plan::addStep(const std::string &action_name, const std::vector<std::string
     // Validate world state update from action
     // Use prior state in sequence, which may be the start
     StatePtr prev;
-    if (steps.empty())
+    if (steps_.empty())
         prev = problem_->start;
     else
-        prev = steps.back().state;
+        prev = steps_.back().state;
 
     StatePtr state = problem_->makeState();
 
@@ -103,15 +103,30 @@ void Plan::addStep(const std::string &action_name, const std::vector<std::string
         throw std::invalid_argument(  //
             log::format("Action %1% failed to apply to previous state!", action_name));
 
-    steps.emplace_back(action, assignment, state);
+    steps_.emplace_back(action, assignment, state);
 }
 
 std::ostream &Plan::toString(std::ostream &out) const
 {
-    for (const auto &step : steps)
+    for (const auto &step : steps_)
         step.toString(out) << std::endl;
 
     return out;
+}
+
+const ProblemPtr &Plan::getProblem() const
+{
+    return problem_;
+}
+
+const std::vector<Plan::Step> &Plan::getSteps() const
+{
+    return steps_;
+}
+
+std::size_t Plan::getNumSteps() const
+{
+    return steps_.size();
 }
 
 std::ostream &pddlboat::operator<<(std::ostream &out, const Plan &plan)

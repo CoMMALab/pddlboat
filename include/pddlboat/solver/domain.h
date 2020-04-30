@@ -493,6 +493,13 @@ namespace pddlboat
          */
         bool holds(const StatePtr &state, const Assignment &vars) const;
 
+        /** \brief Checks if an action's effect's are true in a world state and a grounding of the action.
+         *  \param[in] state State of the problem.
+         *  \param[in] vars Grounding of the action.
+         *  \return True if the effects of this grounded action are true.
+         */
+        bool effected(const StatePtr &state, const Assignment &vars) const;
+
         /** \brief Apply the effects of this action grounded to an assignment to a state.
          *  \param[out] out State that will have the effects of this action applied to \a in.
          *  \param[in] in Starting state. Preconditions must hold.
@@ -736,6 +743,11 @@ namespace pddlboat
          */
         State(const Problem *problem);
 
+        /** \brief Clone this state.
+         *  \return A clone of this state.
+         */
+        StatePtr clone() const;
+
         /* \name Assignment Manipulations
            \{ */
 
@@ -753,6 +765,11 @@ namespace pddlboat
          * are only set if they do not already exist inside this state.
          */
         void fold(const StatePtr &other);
+
+        /** \brief `Fold` values from another state into this state. Additional grounded predicate values
+         * are only set if they do not already exist inside this state.
+         */
+        void fold(const State &other);
 
         /** \brief Assign the truth value of a 0-ary predicate.
          *  \param[in] predicate Name of predicate to assign.

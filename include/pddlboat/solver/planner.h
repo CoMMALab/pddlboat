@@ -81,9 +81,24 @@ namespace pddlboat
          */
         std::ostream &toString(std::ostream &out) const;
 
-        std::vector<Step> steps;  ///< The steps of the plan.
+        /** \brief Get the problem this plan is for.
+         *  \return Problem.
+         */
+        const ProblemPtr &getProblem() const;
+
+        /** \brief Get the steps of this plan.
+         *  \return Vector of plan steps.
+         */
+        const std::vector<Step> &getSteps() const;
+
+        /** \brief Get the number of steps in a plan.
+         *  \return The number of steps in the plan.
+         */
+        std::size_t getNumSteps() const;
 
     private:
+        std::vector<Step> steps_;  ///< The steps of the plan.
+
         const ProblemPtr problem_;  ///< Problem this plan is for.
     };
 

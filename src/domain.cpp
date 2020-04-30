@@ -794,6 +794,14 @@ State::State(const Problem *problem) : problem_(problem)
 {
 }
 
+StatePtr State::clone() const
+{
+    auto state = problem_->makeState();
+    state->fold(*this);
+
+    return state;
+}
+
 const Problem *State::getProblem() const
 {
     return problem_;
@@ -812,7 +820,12 @@ void State::complement()
 
 void State::fold(const StatePtr &other)
 {
-    for (const auto &[key, value] : other->assignments)
+    fold(*other);
+}
+
+void State::fold(const State &other)
+{
+    for (const auto &[key, value] : other.assignments)
     {
         auto it = assignments.find(key);
         if (it == assignments.end())
@@ -969,6 +982,11 @@ unsigned int Action::arity() const
 bool Action::holds(const StatePtr &state, const Assignment &vars) const
 {
     return precondition->evaluate(state, vars);
+}
+
+bool Action::effected(const StatePtr &state, const Assignment &vars) const
+{
+    return effect->evaluate(state, vars);
 }
 
 bool Action::doAction(StatePtr &out, const StatePtr &in, const Assignment &vars) const
