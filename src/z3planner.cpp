@@ -106,36 +106,22 @@ z3::expr Z3Planner::exprAtTime(const ExpressionPtr &expr, const Assignment &assi
         case Expression::Type::AND:
         {
             const auto &and_expr = std::static_pointer_cast<And>(expr);
-            if (and_expr->getTerms().empty())
-                return ctx_->bool_val(true);
 
-            z3::expr car = exprAtTime(makeCAR(and_expr), assignment, step);
-            auto cdr_expr = makeCDR(and_expr);
-            if (cdr_expr)
-            {
-                z3::expr cdr = exprAtTime(cdr_expr, assignment, step);
-                z3::expr clause = car and cdr;
-                return clause;
-            }
-            else
-                return car;
+            z3::expr exp = ctx_->bool_val(true);
+            for (const auto &term : and_expr->getTerms())
+                exp = exp and exprAtTime(term, assignment, step);
+
+            return exp;
         }
         case Expression::Type::OR:
         {
             const auto &or_expr = std::static_pointer_cast<Or>(expr);
-            if (or_expr->getTerms().empty())
-                return ctx_->bool_val(false);
 
-            z3::expr car = exprAtTime(or_expr->getTerms().back(), assignment, step);
-            auto cdr_expr = makeCDR(or_expr);
-            if (or_expr)
-            {
-                z3::expr cdr = exprAtTime(cdr_expr, assignment, step);
-                z3::expr clause = car or cdr;
-                return clause;
-            }
-            else
-                return car;
+            z3::expr exp = ctx_->bool_val(false);
+            for (const auto &term : or_expr->getTerms())
+                exp = exp or exprAtTime(term, assignment, step);
+
+            return exp;
         }
         case Expression::Type::NOT:
         {
@@ -325,6 +311,25 @@ void Z3Planner::mutualExclusion()
 
     if (dump_clauses_)
         std::cout << "Mutual Exclusion:" << std::endl;
+
+    // for (Time step = 0; step < horizon_; ++step)
+    // {
+    //     z3::expr clause = ctx_->int_val(0);
+    //     for (unsigned int i = 0; i < ground_actions_.size(); ++i)
+    //     {
+    //         const auto &action = ground_actions_[i];
+    //         z3::expr e = toBool(addTimeToString(action, step));
+    //         clause = clause + z3::ite(e, ctx_->int_val(1), ctx_->int_val(0));
+    //     }
+
+    //     solver_->add(clause == 1);
+
+    //     mutual_exclusion_total_++;
+    //     if (dump_clauses_)
+    //         std::cout << clause << std::endl;
+
+    //     mutual_exclusion_count_++;
+    // }
 
     // add mutual exclusion axioms, i.e., we only take one action each time step
     for (unsigned int i = 0; i < ground_actions_.size(); ++i)
