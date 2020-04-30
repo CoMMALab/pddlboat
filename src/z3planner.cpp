@@ -64,14 +64,17 @@ bool Z3Planner::solve(Plan &plan)
         // (4) only one action is taken at each time step
         addMutualExclusion(step);
 
+        // Solve now to create assertions that won't be popped.
+        solver_->check();
         solver_->push();
+
         addGoalExpression(step + 1);
 
         auto result = solver_->check();
-
         if (result == z3::sat)
             sat = true;
         else
+            // Pop goal expression from solver.
             solver_->pop();
     }
 
