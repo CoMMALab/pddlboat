@@ -78,25 +78,33 @@ namespace pddlboat
          */
         void generateGroundings();
 
-        /** \brief Generate all action implication constraints for the plan.
+        /** \brief Generate action implication constraints for the plan at a step.
+         *  \param[in] step Step to generate implications for.
          */
-        void actionImplications();
+        void addActionImplications(Time step);
 
-        /** \brief Generate all frame axiom constraints for the plan.
+        /** \brief Generate all frame axiom constraints for the plan at a step.
+         *  \param[in] step Step to generate frame axioms for.
          */
-        void frameAxioms();
+        void addFrameAxioms(Time step);
+
+        /** \brief Generate all mutual exclusion constraints for the plan using integer cardinality.
+         *  \param[in] step Step to generate mutual exclusions for.
+         */
+        void addMutualExclusionCardinality(Time step);
 
         /** \brief Generate all mutual exclusion constraints for the plan.
+         *  \param[in] step Step to generate mutual exclusions for.
          */
-        void mutualExclusion();
+        void addMutualExclusion(Time step);
 
-        /** \brief Generate goal requirements at horizon.
+        /** \brief Generate goal requirements at a step.
          */
-        void goalExpression();
+        void addGoalExpression(Time step);
 
-        /** \brief Generate start state requirements.
+        /** \brief Generate start state requirements at first step.
          */
-        void startState();
+        void addStartState();
 
         /** \brief Build Z3 plan.
          */
@@ -109,14 +117,45 @@ namespace pddlboat
         z3::context *ctx_{nullptr};    ///< Z3 Solver Context.
         z3::solver *solver_{nullptr};  ///< Z3 Solver.
 
-        // Diagnostic counters
-        unsigned int action_imply_count_;       ///< Number of action implication clauses per step.
-        unsigned int action_imply_total_;       ///< Number of action implications total.
-        unsigned int frame_axiom_count_;        ///< Number of frame axioms per step.
-        unsigned int frame_axiom_total_;        ///< Number of frame axioms total.
-        unsigned int mutual_exclusion_count_;   ///< Number of mutual exclusion clauses per step.
-        unsigned int mutual_exclusion_total_;   ///< Number of mutual exclusion clauses total.
-        unsigned int start_proposition_count_;  ///< Number of start state propositions.
+        /** \brief Diagnostic Information
+         */
+        struct Diagnostics
+        {
+            boost::timer::cpu_timer onestep;
+            boost::timer::cpu_timer totaltime;
+            std::size_t count;
+            std::size_t total;
+
+            Diagnostics()
+            {
+                stop();
+            }
+
+            void start()
+            {
+                onestep.start();
+                totaltime.resume();
+                count = 0;
+            }
+
+            void inc()
+            {
+                count++;
+                total++;
+            }
+
+            void stop()
+            {
+                onestep.stop();
+                totaltime.stop();
+            }
+        };
+
+        Diagnostics action_implications_;
+        Diagnostics frame_axioms_;
+        Diagnostics mutual_exclusions_;
+        Diagnostics start_propositions_;
+        Diagnostics goal_expression_;
 
         std::map<std::string, std::vector<std::string>> predicate_effects_;  ///< Mapping of predicates to
                                                                              ///< actions which effect them.
@@ -125,9 +164,9 @@ namespace pddlboat
          */
         struct GroundedAction
         {
-            ActionPtr action; ///< Action
-            Assignment assignment; ///< The grounding.
-            std::string string; ///< String representation of this assigned action.
+            ActionPtr action;       ///< Action
+            Assignment assignment;  ///< The grounding.
+            std::string string;     ///< String representation of this assigned action.
 
             GroundedAction(const ActionPtr &action, const Assignment &assignment, const std::string &string);
         };
