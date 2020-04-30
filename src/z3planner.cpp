@@ -4,6 +4,12 @@
 
 using namespace pddlboat;
 
+Z3Planner::GroundedAction::GroundedAction(const ActionPtr &action, const Assignment &assignment,
+                                          const std::string &string)
+  : action(action), assignment(assignment), string(string)
+{
+}
+
 Z3Planner::Z3Planner(const ProblemPtr problem, Time horizon, bool parallel, bool diagnostics,
                      bool dump_clauses)
   : Planner(problem), horizon_(horizon), diagnostics_(diagnostics), dump_clauses_(dump_clauses)
@@ -195,6 +201,35 @@ z3::expr Z3Planner::exprAtTime(const ExpressionPtr &expr, const Assignment &assi
     }
 }
 
+void Z3Planner::generateGroundings()
+{
+    ground_actions_.clear();
+    predicate_effects_.clear();
+
+    for (const auto &name_actionptr : problem_->domain->actions)
+    {
+        const auto &assignments = problem_->getGroundings(name_actionptr.second->parameters);
+        for (const auto &assignment : assignments)
+        {
+            // Add grounded action
+            std::string action_string = name_actionptr.second->toID(assignment);
+            ground_actions_.emplace_back(name_actionptr.second, assignment, action_string);
+
+            // Get all predicates this grounded action effects
+            std::set<std::string> predicates;
+            name_actionptr.second->effect->getAssignedPredicates(predicates, problem_->start, assignment);
+            for (const auto &predicate : predicates)
+            {
+                auto it = predicate_effects_.find(predicate);
+                if (it == predicate_effects_.end())
+                    it = predicate_effects_.emplace(predicate, std::vector<std::string>{}).first;
+
+                it->second.emplace_back(name_actionptr.second->toID(assignment));
+            }
+        }
+    }
+}
+
 void Z3Planner::actionImplications()
 {
     boost::timer::cpu_timer t;
@@ -204,34 +239,26 @@ void Z3Planner::actionImplications()
         std::cout << "Action Implications:" << std::endl;
 
     // add clauses for preconditions and effects of actions
-    for (const auto &name_actionptr : problem_->domain->actions)
+
+    for (const auto &action : ground_actions_)
     {
-        const auto &assignments = problem_->getGroundings(name_actionptr.second->parameters);
-        for (const auto &assignment : assignments)
+        for (Time step = 0; step < horizon_; ++step)
         {
-            std::string action_string = name_actionptr.second->toID(assignment);
+            z3::expr act = toBool(addTimeToString(action.string, step));
+            z3::expr precond = exprAtTime(action.action->precondition, action.assignment, step);
+            z3::expr effects = exprAtTime(action.action->effect, action.assignment, step + 1);
 
-            for (Time step = 0; step < horizon_; ++step)
-            {
-                std::string action_string_time = addTimeToString(action_string, step);
+            // action -> preconditions_t0 and effects_t1
+            z3::expr clause = (not act) or (precond and effects);
 
-                z3::expr act = toBool(action_string_time);
-                z3::expr precond = exprAtTime(name_actionptr.second->precondition, assignment, step);
-                z3::expr effects = exprAtTime(name_actionptr.second->effect, assignment, step + 1);
+            solver_->add(clause);
 
-                // action -> preconditions_t0 and effects_t1
-                z3::expr clause = (not act) or (precond and effects);
-
-                solver_->add(clause);
-
-                action_imply_total_++;
-                if (dump_clauses_)
-                    std::cout << clause << std::endl;
-            }
-
-            ground_actions_.emplace_back(action_string);
-            action_imply_count_++;
+            action_imply_total_++;
+            if (dump_clauses_)
+                std::cout << clause << std::endl;
         }
+
+        action_imply_count_++;
     }
 
     if (diagnostics_)
@@ -249,28 +276,7 @@ void Z3Planner::frameAxioms()
     if (dump_clauses_)
         std::cout << "Frame Axioms:" << std::endl;
 
-    std::map<std::string, std::vector<std::string>> predToAct;
-    for (const auto &name_actionptr : problem_->domain->actions)
-    {
-        const auto &assignments = problem_->getGroundings(name_actionptr.second->parameters);
-
-        for (const auto &assignment : assignments)
-        {
-            std::set<std::string> predicates;
-            name_actionptr.second->effect->getAssignedPredicates(predicates, problem_->start, assignment);
-
-            for (const auto &predicate : predicates)
-            {
-                auto it = predToAct.find(predicate);
-                if (it == predToAct.end())
-                    it = predToAct.emplace(predicate, std::vector<std::string>{}).first;
-
-                it->second.emplace_back(name_actionptr.second->toID(assignment));
-            }
-        }
-    }
-
-    for (const auto &[predicate, actions] : predToAct)
+    for (const auto &[predicate, actions] : predicate_effects_)
     {
         for (Time step = 0; step < horizon_; ++step)
         {
@@ -341,8 +347,8 @@ void Z3Planner::mutualExclusion()
 
             for (Time step = 0; step < horizon_; ++step)
             {
-                z3::expr e = toBool(addTimeToString(action, step));
-                z3::expr other_e = toBool(addTimeToString(other_action, step));
+                z3::expr e = toBool(addTimeToString(action.string, step));
+                z3::expr other_e = toBool(addTimeToString(other_action.string, step));
                 z3::expr clause = (not e) or (not other_e);
 
                 solver_->add(clause);
@@ -435,6 +441,9 @@ void Z3Planner::build()
         delete solver_;
 
     solver_ = new z3::solver(*ctx_);
+
+    // Generate all the groundings used.
+    generateGroundings();
 
     // Now that we have built the context, we need to add constraints. These are clauses that ensure:
     // (1) an action implies its precondition is true and its effects will be true next time step

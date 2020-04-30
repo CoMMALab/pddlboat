@@ -74,6 +74,10 @@ namespace pddlboat
          */
         z3::expr exprAtTime(const ExpressionPtr &expr, const Assignment &assignment, const Time step) const;
 
+        /** \brief Generate all action groundings and predicate effects.
+         */
+        void generateGroundings();
+
         /** \brief Generate all action implication constraints for the plan.
          */
         void actionImplications();
@@ -114,8 +118,21 @@ namespace pddlboat
         unsigned int mutual_exclusion_total_;   ///< Number of mutual exclusion clauses total.
         unsigned int start_proposition_count_;  ///< Number of start state propositions.
 
-        std::vector<std::string> ground_actions_;  ///< All grounded actions (without time step).
+        std::map<std::string, std::vector<std::string>> predicate_effects_;  ///< Mapping of predicates to
+                                                                             ///< actions which effect them.
 
+        /** \brief A grounded action.
+         */
+        struct GroundedAction
+        {
+            ActionPtr action; ///< Action
+            Assignment assignment; ///< The grounding.
+            std::string string; ///< String representation of this assigned action.
+
+            GroundedAction(const ActionPtr &action, const Assignment &assignment, const std::string &string);
+        };
+
+        std::vector<GroundedAction> ground_actions_;  ///< All grounded actions (without time step).
     };
 
 }  // namespace pddlboat
