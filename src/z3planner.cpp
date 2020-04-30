@@ -10,43 +10,106 @@ Z3Planner::GroundedAction::GroundedAction(const ActionPtr &action, const Assignm
 {
 }
 
-Z3Planner::Z3Planner(const ProblemPtr problem, Time horizon, bool parallel, bool diagnostics,
-                     bool dump_clauses)
-  : Planner(problem), horizon_(horizon), diagnostics_(diagnostics), dump_clauses_(dump_clauses)
+Z3Planner::Z3Planner(const ProblemPtr problem, Time max_horizon, Time min_horizon, bool parallel,
+                     bool diagnostics, bool dump_clauses)
+  : Planner(problem)
+  , max_horizon_(max_horizon)
+  , min_horizon_(min_horizon)
+  , diagnostics_(diagnostics)
+  , dump_clauses_(dump_clauses)
 {
     if (parallel)
         z3::set_param("parallel.enable", true);
 
     // Generate the groundings for this problem.
     generateGroundings();
-    build();
 }
 
 bool Z3Planner::solve(Plan &plan)
 {
     boost::timer::cpu_timer t;
-    if (not solver_)
-        return false;
 
-    auto result = solver_->check();
+    if (ctx_)
+        delete ctx_;
+
+    ctx_ = new z3::context;
+
+    if (solver_)
+        delete solver_;
+
+    solver_ = new z3::solver(*ctx_);
+
+    // Now that we have built the context, we need to add constraints. These are clauses that ensure:
+    // (1) that we start with the grounded predicates as declared in the start state.
+    addStartState();
+    solver_->push();
+
+    for (Time step = 0; step < min_horizon_; ++step)
+    {
+        addActionImplications(step);
+        addFrameAxioms(step);
+        addMutualExclusion(step);
+        solver_->push();
+    }
+
+    bool sat = false;
+    for (Time step = min_horizon_; step < max_horizon_ and not sat; ++step)
+    {
+        // (2) an action implies its precondition is true and its effects will be true next time step
+        addActionImplications(step);
+
+        // (3) if a proposition changes, then an action must have changed it
+        addFrameAxioms(step);
+
+        // (4) only one action is taken at each time step
+        addMutualExclusion(step);
+
+        solver_->push();
+        addGoalExpression(step + 1);
+
+        auto result = solver_->check();
+
+        if (result == z3::sat)
+            sat = true;
+        else
+            solver_->pop();
+    }
 
     if (diagnostics_)
     {
         t.stop();
+
+        // Action Implications
+        std::cout << log::format("Z3 has %1% action implication clauses per step (%2% total)",
+                                 action_implications_.count, action_implications_.total)
+                  << std::endl;
+        std::cout << "Total action implication time took: " << io::getTiming(action_implications_.totaltime)
+                  << std::endl;
+
+        // Frame Axioms
+        std::cout << log::format("Z3 has %1% frame axiom clauses per step (%2% total)", frame_axioms_.count,
+                                 frame_axioms_.total)
+                  << std::endl;
+        std::cout << "Total frame axiom time took: " << io::getTiming(frame_axioms_.totaltime) << std::endl;
+
+        // Mutual Exclusion
+        std::cout << log::format("Z3 has %1% mutual exclusion clauses per step (%2% total)",
+                                 mutual_exclusions_.count, mutual_exclusions_.total)
+                  << std::endl;
+        std::cout << "Total mutual exclusion time took: " << io::getTiming(mutual_exclusions_.totaltime)
+                  << std::endl;
+
         std::cout << "Solving Z3 Instance took: " << io::getTiming(t) << std::endl;
         std::cout << solver_->statistics() << std::endl;
     }
 
-    switch (result)
+    if (sat)
     {
-        case z3::sat:
-            buildPlan(plan);
-            return true;
-        case z3::unsat:
-            return false;
-        default:
-            return false;
+        buildPlan(plan);
+        return true;
     }
+
+    return false;
 }
 
 void Z3Planner::buildPlan(Plan &plan) const
@@ -55,8 +118,6 @@ void Z3Planner::buildPlan(Plan &plan) const
 
     // As actions may appear `out of order`, we first collect them all.
     std::vector<ast::z3Action> actions;
-    actions.reserve(horizon_);
-
     for (size_t i = 0; i < m.num_consts(); i++)
     {
         z3::expr f = m.get_const_interp(m.get_const_decl(i));
@@ -419,66 +480,5 @@ void Z3Planner::addStartState()
     {
         std::cout << "Building Z3 Start State @ 0"
                   << " took: " << io::getTiming(start_propositions_.onestep) << std::endl;
-    }
-}
-
-void Z3Planner::build()
-{
-    boost::timer::cpu_timer t;
-
-    // First we build the context.
-    if (ctx_)
-        delete ctx_;
-
-    ctx_ = new z3::context;
-
-    if (solver_)
-        delete solver_;
-
-    solver_ = new z3::solver(*ctx_);
-
-    // Now that we have built the context, we need to add constraints. These are clauses that ensure:
-    // (1) that we start with the grounded predicates as declared in the start state.
-    addStartState();
-    for (Time step = 0; step < horizon_; ++step)
-    {
-        // (2) an action implies its precondition is true and its effects will be true next time step
-        addActionImplications(step);
-
-        // (3) if a proposition changes, then an action must have changed it
-        addFrameAxioms(step);
-
-        // (4) only one action is taken at each time step
-        addMutualExclusion(step);
-    }
-
-    // (5) that we reach the goal at the time horizon, and
-    addGoalExpression(horizon_);
-
-    if (diagnostics_)
-    {
-        t.stop();
-        std::cout << "Building Total Z3 Instance took: " << io::getTiming(t) << std::endl;
-
-        // Action Implications
-        std::cout << log::format("Z3 has %1% action implication clauses per step (%2% total)",
-                                 action_implications_.count, action_implications_.total)
-                  << std::endl;
-        std::cout << "Total action implication time took: " << io::getTiming(action_implications_.totaltime)
-                  << std::endl;
-
-        // Frame Axioms
-        std::cout << log::format("Z3 has %1% frame axiom clauses per step (%2% total)",
-                                 frame_axioms_.count, frame_axioms_.total)
-                  << std::endl;
-        std::cout << "Total frame axiom time took: " << io::getTiming(frame_axioms_.totaltime)
-                  << std::endl;
-
-        // Mutual Exclusion
-        std::cout << log::format("Z3 has %1% mutual exclusion clauses per step (%2% total)",
-                                 mutual_exclusions_.count, mutual_exclusions_.total)
-                  << std::endl;
-        std::cout << "Total mutual exclusion time took: " << io::getTiming(mutual_exclusions_.totaltime)
-                  << std::endl;
     }
 }

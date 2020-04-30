@@ -82,18 +82,20 @@ int main(int argc, char **argv)
          "Print the steps of a plan as a sequence of states")                        //
         ;
 
-    unsigned int horizon;
+    unsigned int min_horizon, max_horizon;
     bool parallel, diagnostics, dump_clauses;
     po::options_description z3opt("z3 Planner Options");
-    z3opt.add_options()                                                     //
-        ("horizon,z", po::value<unsigned int>(&horizon)->default_value(6),  //
-         "Maximum planning horizon to use")                                 //
-        ("parallel,x", po::bool_switch(&parallel),                          //
-         "Use Z3's cube-and-conquer parallelism")                           //
-        ("diagnostics,w", po::bool_switch(&diagnostics),                    //
-         "Print debugging statistics")                                      //
-        ("dump_clauses,v", po::bool_switch(&dump_clauses),                  //
-         "Print all constituent clauses in plan")                           //
+    z3opt.add_options()                                                             //
+        ("max_horizon,z", po::value<unsigned int>(&max_horizon)->default_value(6),  //
+         "Maximum planning horizon to use")                                         //
+        ("min_horizon,l", po::value<unsigned int>(&min_horizon)->default_value(0),  //
+         "Minimum planning horizon to use")                                         //
+        ("parallel,x", po::bool_switch(&parallel),                                  //
+         "Use Z3's cube-and-conquer parallelism")                                   //
+        ("diagnostics,w", po::bool_switch(&diagnostics),                            //
+         "Print debugging statistics")                                              //
+        ("dump_clauses,v", po::bool_switch(&dump_clauses),                          //
+         "Print all constituent clauses in plan")                                   //
         ;
     desc.add(z3opt);
 
@@ -183,7 +185,7 @@ int main(int argc, char **argv)
     switch (plannertype)
     {
         case Z3:
-            planner = std::make_shared<pd::Z3Planner>(problem, horizon, parallel, diagnostics, dump_clauses);
+            planner = std::make_shared<pd::Z3Planner>(problem, max_horizon, min_horizon, parallel, diagnostics, dump_clauses);
             break;
         case FD:
             planner = std::make_shared<pd::FastDownwardPlanner>(problem, search);

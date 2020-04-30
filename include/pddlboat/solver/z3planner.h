@@ -27,13 +27,14 @@ namespace pddlboat
     public:
         /** \brief Constructor.
          *  \param[in] problem Problem to solve.
-         *  \param[in] horizon Maximum planning horizon.
+         *  \param[in] max_horizon Maximum planning horizon.
+         *  \param[in] min_horizon Minimum planning horizon.
          *  \param[in] parallel Use Z3's built in parallel solver.
          *  \param[in] diagnostics If true, print diagnostics.
          *  \param[in] dump_clauses If true, print all clauses in plan.
          */
-        Z3Planner(const ProblemPtr problem, Time horizon, bool parallel = false, bool diagnostics = false,
-                  bool dump_clauses = false);
+        Z3Planner(const ProblemPtr problem, Time max_horizon, Time min_horizon = 0, bool parallel = false,
+                  bool diagnostics = false, bool dump_clauses = false);
 
         /** \brief Solve the planning problem.
          *  \param[out] plan Found plan.
@@ -106,11 +107,8 @@ namespace pddlboat
          */
         void addStartState();
 
-        /** \brief Build Z3 plan.
-         */
-        void build();
-
-        const Time horizon_;       ///< Planning horizon.
+        const Time max_horizon_;   ///< Planning horizon.
+        const Time min_horizon_;   ///< Planning horizon.
         const bool diagnostics_;   ///< If true, print diagnostics.
         const bool dump_clauses_;  ///< If true, print constituent clauses.
 
