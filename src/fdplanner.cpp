@@ -209,6 +209,10 @@ bool FastDownwardPlanner::solve(Plan &plan)
     {
         auto files = *matches;
         std::sort(files.begin(), files.end());
+
+        if (files.empty())
+            return false;
+
         auto file = files.back();
 
         parseFile(file, parsed);
