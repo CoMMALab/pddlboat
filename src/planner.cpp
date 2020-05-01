@@ -70,7 +70,7 @@ void Plan::addStep(const std::string &action_name, const std::vector<std::string
         }
 
         // Check type
-        if (action->parameters[i].type != obj->type)
+        if (not problem_->domain->isTypeOf(obj->type, action->parameters[i].type))
             throw std::invalid_argument(  //
                 log::format("Cannot do action with object %1%, is type %2%, not %3%!", object_name, obj->type,
                             action->parameters[i].type));
