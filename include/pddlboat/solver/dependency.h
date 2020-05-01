@@ -41,8 +41,8 @@ namespace pddlboat
             std::set<std::string> pre_pred;  ///< Precondition predicate set.
             std::set<std::string> eff_pred;  ///< Effect predicate set.
 
-            StatePtr pre_state;  ///< State of the world before this action.
-            StatePtr eff_state;  ///< State of the world after this action.
+            StatePtr pre_state{nullptr};  ///< State of the world before this action.
+            StatePtr eff_state{nullptr};  ///< State of the world after this action.
 
             bool initialized{false};
             std::size_t makespan{0};  ///< Distance to final action.
@@ -150,9 +150,12 @@ namespace pddlboat
             return isDependentOn(pre->plan_index, eff->plan_index);
         }
 
+        // get nodes in descending makespan, e.g., farthest first
         std::vector<ActionNodePtr> getNodesByMakespan() const
         {
             std::vector<ActionNodePtr> copy;
+
+            // need this as this function is used in construction
             for (const auto &node : nodes_)
                 if (node->initialized)
                     copy.emplace_back(node);
@@ -164,22 +167,33 @@ namespace pddlboat
             return copy;
         }
 
-        std::set<ActionNodePtr> getPredecessors(const ActionNodePtr &node) const
+        // get nodes in ascending leaf dist, e.g., farthest first
+        std::vector<ActionNodePtr> getNodesByLeafDist() const
         {
-            std::set<ActionNodePtr> nodes;
+            auto copy = nodes_;
+            std::sort(copy.begin(), copy.end(), [](const ActionNodePtr &a, const ActionNodePtr &b) {
+                return a->leafdist < b->leafdist;
+            });
+
+            return copy;
+        }
+
+        std::vector<ActionNodePtr> getPredecessors(const ActionNodePtr &node) const
+        {
+            std::vector<ActionNodePtr> nodes;
             for (const auto &other : nodes_)
                 if (isDependentOn(other, node))
-                    nodes.emplace(other);
+                    nodes.emplace_back(other);
 
             return nodes;
         }
 
-        std::set<ActionNodePtr> getDescendants(const ActionNodePtr &node) const
+        std::vector<ActionNodePtr> getDescendants(const ActionNodePtr &node) const
         {
-            std::set<ActionNodePtr> nodes;
+            std::vector<ActionNodePtr> nodes;
             for (const auto &other : nodes_)
                 if (isDependentOn(node, other))
-                    nodes.emplace(other);
+                    nodes.emplace_back(other);
 
             return nodes;
         }
@@ -208,12 +222,14 @@ namespace pddlboat
         {
             out << "digraph {" << std::endl;
 
-            out << "node[shape=plaintext]" << std::endl;
+            out << "node[shape=plaintext,fontname=\"courier\",colorscheme=\"dark23\"]" << std::endl;
+
+            out << (makespan ? "Makespan" : "\"Leaf Distance\"") << "->";
             for (std::size_t i = 0; i <= maxMakespan_; ++i)
             {
                 out << i;
                 if (i != maxMakespan_)
-                    out << " -> ";
+                    out << "->";
             }
             out << "[style=invis];" << std::endl;
 
@@ -221,7 +237,14 @@ namespace pddlboat
             {
                 out << "n" << i << " [label=\"";
                 nodes_[i]->toString(out);
-                out << "\"];" << std::endl;
+                out << "\"";
+                if (nodes_[i]->leafdist == 0 and nodes_[i]->makespan == 0)
+                    out << ",fontcolor=1";
+                else if (nodes_[i]->leafdist == 0)
+                    out << ",fontcolor=2";
+                else if (nodes_[i]->makespan == 0)
+                    out << ",fontcolor=3";
+                out << "];" << std::endl;
             }
 
             for (std::size_t i = 0; i <= maxMakespan_; ++i)
@@ -242,7 +265,7 @@ namespace pddlboat
                 for (std::size_t j = 0; j < nodes_.size(); ++j)
                 {
                     if (isEdge(i, j))
-                        out << "n" << i << " -> "
+                        out << "n" << i << "->"
                             << "n" << j << ";" << std::endl;
                 }
 
@@ -279,7 +302,6 @@ namespace pddlboat
             }
 
             auto nodes = getNodesByMakespan();
-
             for (auto &node : nodes)
             {
                 auto set = getParents(node);
@@ -288,6 +310,20 @@ namespace pddlboat
                     if (other->leafdist + 1 > node->leafdist)
                         node->leafdist = other->leafdist + 1;
                 }
+            }
+
+            for (auto &node : nodes)
+            {
+                auto predecessors = getPredecessors(node);
+                auto state = problem_->start->clone();
+                for (const auto &pred : predecessors)
+                {
+                    auto out = state->clone();
+                    pred->action->doAction(out, state, pred->assignment);
+                    state = out;
+                }
+
+                node->setPreState(state);
             }
         }
 
