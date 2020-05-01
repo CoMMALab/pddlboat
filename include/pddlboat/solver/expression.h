@@ -40,6 +40,7 @@ namespace pddlboat
         virtual void assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const;
         virtual Type type() const;
         virtual void getVariables(VariableSet &vars) const;
+        virtual void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const;
         virtual void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const;
         virtual bool containsVariable(const std::string &variable) const;
         virtual bool containsPredicate(const std::string &predicate) const;

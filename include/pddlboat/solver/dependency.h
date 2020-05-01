@@ -52,7 +52,7 @@ namespace pddlboat
               : action(step.action), assignment(step.assignment), plan_index(index)
             {
                 // Get all predicates for precondition and effect.
-                action->precondition->getAssignedPredicates(pre_pred, step.state, assignment);
+                action->precondition->getUsedPredicates(pre_pred, step.state, assignment);
                 action->effect->getAssignedPredicates(eff_pred, step.state, assignment);
             }
 

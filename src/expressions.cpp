@@ -75,7 +75,13 @@ void Expression::getVariables(VariableSet &vars) const
 {
 }
 
-void Expression::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const
+void Expression::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                   const Assignment &vars) const
+{
+}
+
+void Expression::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                       const Assignment &vars) const
 {
 }
 
@@ -124,12 +130,19 @@ void VariadicExpression::getVariables(VariableSet &vars) const
         e->getVariables(vars);
 }
 
-void VariadicExpression::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const
+void VariadicExpression::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                           const Assignment &vars) const
+{
+    for (const auto &e : terms_)
+        e->getUsedPredicates(predicates, state, vars);
+}
+
+void VariadicExpression::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                               const Assignment &vars) const
 {
     for (const auto &e : terms_)
         e->getAssignedPredicates(predicates, state, vars);
 }
-
 
 bool VariadicExpression::containsVariable(const std::string &variable) const
 {
@@ -308,7 +321,14 @@ void Not::getVariables(VariableSet &vars) const
     term_->getVariables(vars);
 }
 
-void Not::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const
+void Not::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                            const Assignment &vars) const
+{
+    term_->getUsedPredicates(predicates, state, vars);
+}
+
+void Not::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                const Assignment &vars) const
 {
     term_->getAssignedPredicates(predicates, state, vars);
 }
@@ -377,6 +397,13 @@ bool Imply::evaluate(const StatePtr &state, const Assignment &vars) const
 Expression::Type Imply::type() const
 {
     return Expression::IMPLY;
+}
+
+void Imply::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                              const Assignment &vars) const
+{
+    left_->getUsedPredicates(predicates, state, vars);
+    right_->getUsedPredicates(predicates, state, vars);
 }
 
 void Imply::getVariables(VariableSet &vars) const
@@ -467,7 +494,15 @@ void When::getVariables(VariableSet &vars) const
     right_->getVariables(vars);
 }
 
-void When::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const
+void When::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                             const Assignment &vars) const
+{
+    left_->getUsedPredicates(predicates, state, vars);
+    right_->getUsedPredicates(predicates, state, vars);
+}
+
+void When::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                 const Assignment &vars) const
 {
     right_->getAssignedPredicates(predicates, state, vars);
 }
@@ -514,7 +549,6 @@ QuantifierExpression::QuantifierExpression(const VariableSet &domain, const Expr
         throw std::runtime_error("Domain for quantifier must be non-empty!");
 }
 
-
 const VariableList &QuantifierExpression::getDomain() const
 {
     return domain_;
@@ -528,6 +562,19 @@ const ExpressionPtr &QuantifierExpression::getFormula() const
 Expression::Type QuantifierExpression::type() const
 {
     return Expression::QUANTIFIER;
+}
+
+void QuantifierExpression::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                             const Assignment &vars) const
+{
+    auto copy = vars;
+    const auto &groundings = state->getProblem()->getGroundings(domain_);
+
+    for (const auto &grounding : groundings)
+    {
+        copy.fold(grounding);
+        formula_->getUsedPredicates(predicates, state, copy);
+    }
 }
 
 void QuantifierExpression::getVariables(VariableSet &vars) const
@@ -658,7 +705,8 @@ void Forall::assign(StatePtr &out, const StatePtr &in, const Assignment &vars) c
     }
 }
 
-void Forall::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const
+void Forall::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                   const Assignment &vars) const
 {
     auto copy = vars;
     const auto &groundings = state->getProblem()->getGroundings(domain_);

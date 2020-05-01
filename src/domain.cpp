@@ -382,6 +382,11 @@ void Predicate::getVariables(VariableSet &vars) const
             vars.addVariable({binding.name, binding.type});
 }
 
+void Predicate::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const
+{
+    predicates.emplace(toID(vars));
+}
+
 void Predicate::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &/*state*/, const Assignment &vars) const
 {
     predicates.emplace(toID(vars));

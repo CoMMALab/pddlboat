@@ -408,6 +408,12 @@ namespace pddlboat
          */
         void getVariables(VariableSet &vars) const override;
 
+        /** \brief Add this predicate to the used predicate set.
+         *  \param[out] predicates Set of all predicates.
+         *  \param[in] vars Assignment.
+         */
+        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
+
         /** \brief Add this predicate to the assigned predicate set.
          *  \param[out] predicates Set of all predicates.
          *  \param[in] vars Assignment.
