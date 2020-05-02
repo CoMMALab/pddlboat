@@ -201,9 +201,9 @@ namespace pddlboat
         std::set<ActionNodePtr> getParents(const ActionNodePtr &node) const
         {
             std::set<ActionNodePtr> nodes;
-            for (const auto &other : nodes_)
-                if (isDirectlyDependentOn(other, node))
-                    nodes.emplace(other);
+            auto parents = getParents(node->plan_index);
+            for (const auto &other : parents)
+                nodes.emplace(nodes_[other]);
 
             return nodes;
         }
@@ -211,31 +211,48 @@ namespace pddlboat
         std::set<ActionNodePtr> getChildren(const ActionNodePtr &node) const
         {
             std::set<ActionNodePtr> nodes;
-            for (const auto &other : nodes_)
-                if (isDirectlyDependentOn(node, other))
-                    nodes.emplace(other);
+            auto children = getChildren(node->plan_index);
+            for (const auto &other : children)
+                nodes.emplace(nodes_[other]);
 
             return nodes;
+        }
+
+        std::set<ActionNodePtr> areDoable(const std::set<ActionNodePtr> &done) const
+        {
+            auto copy = dag_;
+            for (const auto &other : done)
+            {
+                auto set = getChidren(other);
+                for (const auto &child : set)
+                    boost::remove_edge(other->plan_index, child->plan_index);
+            }
         }
 
         std::ostream &toDotFile(std::ostream &out, bool makespan = true) const
         {
             out << "digraph {" << std::endl;
-
             out << "node[shape=plaintext,fontname=\"courier\",colorscheme=\"dark23\"]" << std::endl;
 
+            // Rank track on the left
             out << (makespan ? "Makespan" : "\"Leaf Distance\"") << "->";
             for (std::size_t i = 0; i <= maxMakespan_; ++i)
             {
-                out << i;
+                std::size_t index = i;
+                if (makespan)
+                    index = maxMakespan_ - i;
+
+                out << index;
                 if (i != maxMakespan_)
                     out << "->";
             }
             out << "[style=invis];" << std::endl;
 
+            // Nodes
             for (std::size_t i = 0; i < nodes_.size(); ++i)
             {
-                out << "n" << i << " [label=\"";
+                out << "n" << i << "[label=\"";
+                out << i << ". ";
                 nodes_[i]->toString(out);
                 out << "\"";
                 if (nodes_[i]->leafdist == 0 and nodes_[i]->makespan == 0)
@@ -247,6 +264,7 @@ namespace pddlboat
                 out << "];" << std::endl;
             }
 
+            // Rank constraints
             for (std::size_t i = 0; i <= maxMakespan_; ++i)
             {
                 out << "{rank=same;" << i << ";";
@@ -261,13 +279,22 @@ namespace pddlboat
                 out << "}" << std::endl;
             }
 
+            // Edges
             for (std::size_t i = 0; i < nodes_.size(); ++i)
-                for (std::size_t j = 0; j < nodes_.size(); ++j)
+            {
+                auto children = getChildren(i);
+                if (not children.empty())
                 {
-                    if (isEdge(i, j))
-                        out << "n" << i << "->"
-                            << "n" << j << ";" << std::endl;
+                    out << "n" << i << "->";
+                    if (children.size() > 1)
+                        out << "{";
+                    for (std::size_t j = 0; j < children.size(); ++j)
+                        out << (j ? " " : "") << "n" << children[j];
+                    if (children.size() > 1)
+                        out << "}";
+                    out << ";" << std::endl;
                 }
+            }
 
             out << "}" << std::endl;
             return out;
@@ -291,27 +318,55 @@ namespace pddlboat
 
             for (std::size_t i = 1; i < nodes_.size(); ++i)
             {
-                auto toAdd = nodes_[nodes_.size() - i - 1];
+                std::size_t index = nodes_.size() - i - 1;
+                auto toAdd = nodes_[index];
+
+                if (verbose_)
+                {
+                    std::cout << "Processing Step " << index << " ";
+                    toAdd->toString(std::cout) << " in Plan" << std::endl;
+                }
 
                 const auto &others = getNodesByMakespan();
                 for (const auto &other : others)
-                    if (other->isEffected(toAdd) and not isDependentOn(toAdd, other))
+                {
+                    bool effects = other->isEffected(toAdd);
+                    bool isEffected = toAdd->isEffected(other);
+                    bool depends = isDependentOn(toAdd, other);
+
+                    if (verbose_)
+                    {
+                        std::cout << "  ";
+                        other->toString(std::cout) << " "  //
+                                                   << (effects ? "Effects" : "No Effect") << ", "
+                                                   << (isEffected ? "Is Effected" : "Uneffected") << ", "
+                                                   << (depends ? "Depends" : "Does Not Depend");
+                    }
+
+                    if ((effects or isEffected) and not depends)
+                    {
                         addDependency(toAdd, other);
+
+                        if (verbose_)
+                            std::cout << " !! Adding Dependency!";
+                    }
+
+                    if (verbose_)
+                        std::cout << std::endl;
+                }
+
+                if (verbose_)
+                {
+                    std::cout << "Added ";
+                    toAdd->toString(std::cout) << " Makespan: " << toAdd->makespan << std::endl;
+                }
 
                 toAdd->initialized = true;
             }
 
-            auto nodes = getNodesByMakespan();
-            for (auto &node : nodes)
-            {
-                auto set = getParents(node);
-                for (const auto &other : set)
-                {
-                    if (other->leafdist + 1 > node->leafdist)
-                        node->leafdist = other->leafdist + 1;
-                }
-            }
+            computeLeafDistance();
 
+            auto nodes = getNodesByMakespan();
             for (auto &node : nodes)
             {
                 auto predecessors = getPredecessors(node);
@@ -352,17 +407,64 @@ namespace pddlboat
             return edge.second;
         }
 
+        std::vector<Vertex> getChildren(Vertex src) const
+        {
+            std::vector<Vertex> children;
+            auto [ei, end] = boost::out_edges(src, dag_);
+            for (; ei != end; ++ei)
+                children.emplace_back(boost::target(*ei, dag_));
+            return children;
+        }
+
+        std::vector<Vertex> getParents(Vertex src) const
+        {
+            std::vector<Vertex> parents;
+            auto [ei, end] = boost::in_edges(src, dag_);
+            for (; ei != end; ++ei)
+                parents.emplace_back(boost::source(*ei, dag_));
+            return parents;
+        }
+
+        std::vector<Vertex> getLeafs() const
+        {
+            return getLeafs(dag_);
+        }
+
+        std::vector<Vertex> getLeafs(const Graph &graph) const
+        {
+            for (std::size_t i = 0; i < vertex)
+        }
+
         static Vertex getNullVertex()
         {
             return boost::graph_traits<Graph>::null_vertex();
         }
 
-        std::vector<ActionNodePtr> nodes_;
-        std::size_t maxMakespan_{0};
+        void computeLeafDistance()
+        {
+            auto nodes = getNodesByMakespan();
+            for (auto &node : nodes)
+                node->leafdist = 0;
+
+            for (auto &node : nodes)
+            {
+                auto set = getParents(node);
+                for (const auto &other : set)
+                {
+                    if (other->leafdist + 1 > node->leafdist)
+                        node->leafdist = other->leafdist + 1;
+                }
+            }
+        }
+
+        std::vector<ActionNodePtr> nodes_;  ///< Nodes in task plan.
+        std::size_t maxMakespan_{0};        ///< Maximum makespan in dependency graph.
 
         const PlanPtr plan_;        ///< Plan to generate dependencies for.
         const ProblemPtr problem_;  ///< Problem domain.
         Graph dag_;                 ///< Dependency DAG
+
+        bool verbose_{false};
     };
 }  // namespace pddlboat
 
