@@ -432,155 +432,6 @@ std::size_t PlanDependencyGraph::getMaxLeafDistance() const
     return max;
 }
 
-// others
-
-std::ostream &PlanDependencyGraph::toDotFile(std::ostream &out, DotFileOptions options) const
-{
-    out << "digraph {" << std::endl;
-    out << "node[shape=plaintext,fontname=\"courier\",colorscheme=\"dark23\"]" << std::endl;
-    out << "edge[penwidth=3,arrowsize=1.2]" << std::endl;
-
-    bool makespan = options.ranking == DotFileOptions::Rank::MAKESPAN;
-    std::string type = (makespan ? "Makespan" : "Leaf Distance");
-
-    if (options.drawStart)
-    {
-        out << "start[label=\"start\"";
-        if (options.stateToolTips)
-        {
-            out << ",tooltip=\"";
-            problem_->start->toPDDL(out);
-            out << "\"";
-        }
-        out << "];" << std::endl;
-
-        for (const auto &leaf : getLeafs())
-            out << "start->"
-                << "n" << leaf->vertex << std::endl;
-
-        out << "{rank=same;\"" << type << "\"start;}" << std::endl;
-    }
-
-    if (options.drawEnd)
-    {
-        out << "end[label=\"goal\"" << std::endl;
-        if (options.stateToolTips)
-        {
-            out << ",tooltip=\"";
-            plan_.getSteps().back().state->toPDDL(out);
-            out << "\"";
-        }
-        out << "];" << std::endl;
-        out << "below[style=invis];" << std::endl;
-    }
-
-    std::size_t max = getMaxMakespan();
-
-    // Rank track on the left
-    out << "\"" << type << "\"->";
-    for (std::size_t i = 0; i <= max; ++i)
-    {
-        std::size_t index = i;
-        if (makespan)
-            index = max - i;
-
-        out << index;
-        if (i != max)
-            out << "->";
-    }
-
-    if (options.drawEnd)
-        out << "->below";
-
-    out << "[style=invis];" << std::endl;
-    for (std::size_t i = 0; i <= max; ++i)
-    {
-        auto makes = makespan ? getNodesWithMakespan(i) : getNodesWithLeafDistance(i);
-        out << "# " << type << " " << i << std::endl;
-
-        // nodes
-        for (const auto &node : makes)
-        {
-            out << "n" << node->vertex << "[label=\"";
-            if (options.index)
-                out << node->plan_index << ". ";
-            if (options.action)
-                node->toString(out);
-            out << "\"";
-
-            // color if either a leaf or terminal
-            if ((options.colorLeafs and options.colorTerminals) and node->leafdist == 0 and
-                node->makespan == 0)
-                out << ",fontcolor=1";
-            else if (options.colorLeafs and node->leafdist == 0)
-                out << ",fontcolor=2";
-            else if (options.colorTerminals and node->makespan == 0)
-                out << ",fontcolor=3";
-
-            if (options.stateToolTips and node->eff_state)
-            {
-                out << ",tooltip=\"";
-                node->eff_state->toPDDL(out);
-                out << "\"";
-            }
-
-            out << "];" << std::endl;
-        }
-
-        // rank constraints
-        out << "{rank=same;" << i << ";";
-        for (const auto &node : makes)
-            out << "n" << node->vertex << ";";
-        out << "}" << std::endl;
-
-        // edges
-        for (const auto &node : makes)
-        {
-            auto children = getChildren(node);
-            for (const auto &child : children)
-            {
-                out << "n" << node->vertex << "->"
-                    << "n" << child->vertex;
-                if (options.edgeToolTips)
-                {
-                    out << "[edgetooltip=\"";
-                    for (const auto &pred : node->getInteraction(child))
-                        out << pred << std::endl;
-                    out << "\"]";
-                }
-                out << ";" << std::endl;
-            }
-
-            if (options.drawEnd and children.empty())
-            {
-                out << "n" << node->vertex << "->end" << std::endl;
-                // if (options.edgeToolTips)
-                // {
-                //     out << "[tooltip=\"";
-                //     ast::z3Predicate parsed;
-                //     for (const auto &pred : node->eff_pred)
-                //         if (parseZ3Predicate(pred, parsed))
-                //         {
-                //             std::ostringstream ss;
-                //             parsed.toPDDL(ss);
-                //             out << "+" << ss.str() << std::endl;
-                //         }
-
-                //     out << "\"]";
-                // }
-
-                out << ';' << std::endl;
-            }
-        }
-
-        if (options.drawEnd)
-            out << "{rank=same;below;end;}" << std::endl;
-    }
-
-    out << "}" << std::endl;
-    return out;
-}
-
 void PlanDependencyGraph::computeNodeStates()
 {
     auto nodes = getNodesByMakespan();
@@ -680,4 +531,154 @@ const PlanDependencyGraph::ActionNodePtr &PlanDependencyGraph::getActionNodeCons
 PlanDependencyGraph::Vertex PlanDependencyGraph::getNullVertex()
 {
     return boost::graph_traits<Graph>::null_vertex();
+}
+
+// others
+
+std::ostream &PlanDependencyGraph::toDotFile(std::ostream &out, DotFileOptions options) const
+{
+    out << "digraph {" << std::endl;
+    out << "node[shape=plaintext,fontname=\"courier\",colorscheme=\"dark23\"]" << std::endl;
+    out << "edge[penwidth=3,arrowsize=1.2]" << std::endl;
+
+    bool makespan = options.ranking == DotFileOptions::Rank::MAKESPAN;
+    std::string type = (makespan ? "Makespan" : "Leaf Distance");
+    out << "\" << type "\";" << std::endl;
+
+    if (options.drawStart)
+    {
+        out << "start[label=\"start\"";
+        if (options.stateToolTips)
+        {
+            out << ",tooltip=\"";
+            problem_->start->toPDDL(out);
+            out << "\"";
+        }
+        out << "];" << std::endl;
+
+        for (const auto &leaf : getLeafs())
+            out << "start->"
+                << "n" << leaf->vertex << std::endl;
+
+        out << "{rank=same;\"" << type << "\";start;}" << std::endl;
+    }
+
+    if (options.drawEnd)
+    {
+        out << "end[label=\"goal\"" << std::endl;
+        if (options.stateToolTips)
+        {
+            out << ",tooltip=\"";
+            plan_.getSteps().back().state->toPDDL(out);
+            out << "\"";
+        }
+        out << "];" << std::endl;
+        out << "below[style=invis];" << std::endl;
+    }
+
+    std::size_t max = getMaxMakespan();
+
+    // Rank track on the left
+    out << "\"" << type << "\"->";
+    for (std::size_t i = 0; i <= max; ++i)
+    {
+        std::size_t index = i;
+        if (makespan)
+            index = max - i;
+
+        out << index;
+        if (i != max)
+            out << "->";
+    }
+
+    if (options.drawEnd)
+        out << "->below";
+
+    out << "[style=invis];" << std::endl;
+    for (std::size_t i = 0; i <= max; ++i)
+    {
+        auto makes = makespan ? getNodesWithMakespan(i) : getNodesWithLeafDistance(i);
+        out << "# " << type << " " << i << std::endl;
+
+        // nodes
+        for (const auto &node : makes)
+        {
+            out << "n" << node->vertex << "[label=\"";
+            if (options.index)
+                out << node->plan_index << ". ";
+            if (options.action)
+                node->toString(out);
+            out << "\"";
+
+            // color if either a leaf or terminal
+            if ((options.colorLeafs and options.colorTerminals) and node->leafdist == 0 and
+                node->makespan == 0)
+                out << ",fontcolor=1";
+            else if (options.colorLeafs and node->leafdist == 0)
+                out << ",fontcolor=2";
+            else if (options.colorTerminals and node->makespan == 0)
+                out << ",fontcolor=3";
+
+            if (options.stateToolTips and node->eff_state)
+            {
+                out << ",tooltip=\"";
+                node->eff_state->toPDDL(out);
+                out << "\"";
+            }
+
+            out << "];" << std::endl;
+        }
+
+        // rank constraints
+        out << "{rank=same;" << i << ";";
+        for (const auto &node : makes)
+            out << "n" << node->vertex << ";";
+        out << "}" << std::endl;
+
+        // edges
+        for (const auto &node : makes)
+        {
+            auto children = getChildren(node);
+            for (const auto &child : children)
+            {
+                out << "n" << node->vertex << "->"
+                    << "n" << child->vertex;
+                if (options.edgeToolTips)
+                {
+                    out << "[edgetooltip=\"";
+                    for (const auto &pred : node->getInteraction(child))
+                        out << pred << std::endl;
+                    out << "\"]";
+                }
+                out << ";" << std::endl;
+            }
+
+            if (options.drawEnd and children.empty())
+            {
+                out << "n" << node->vertex << "->end";
+                // if (options.edgeToolTips)
+                // {
+                //     out << "[tooltip=\"";
+                //     ast::z3Predicate parsed;
+                //     for (const auto &pred : node->eff_pred)
+                //         if (parseZ3Predicate(pred, parsed))
+                //         {
+                //             std::ostringstream ss;
+                //             parsed.toPDDL(ss);
+                //             out << "+" << ss.str() << std::endl;
+                //         }
+
+                //     out << "\"]";
+                // }
+
+                out << ';' << std::endl;
+            }
+        }
+
+        if (options.drawEnd)
+            out << "{rank=same;below;end;}" << std::endl;
+    }
+
+    out << "}" << std::endl;
+    return out;
 }
