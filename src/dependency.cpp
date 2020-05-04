@@ -543,7 +543,7 @@ std::ostream &PlanDependencyGraph::toDotFile(std::ostream &out, DotFileOptions o
 
     bool makespan = options.ranking == DotFileOptions::Rank::MAKESPAN;
     std::string type = (makespan ? "Makespan" : "Leaf Distance");
-    out << "\" << type "\";" << std::endl;
+    out << "\"" << type << "\";" << std::endl;
 
     if (options.drawStart)
     {
