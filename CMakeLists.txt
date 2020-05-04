@@ -68,6 +68,7 @@ list(APPEND SOURCES
     src/ast.cpp
     src/parser.cpp
     src/planner.cpp
+    src/dependency.cpp
     src/fdplanner.cpp
     src/z3planner.cpp
     )
