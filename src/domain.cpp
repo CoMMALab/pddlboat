@@ -182,6 +182,10 @@ Assignment::Assignment(const Problem *problem) : problem(problem)
 {
 }
 
+Assignment::Assignment(const ProblemPtr &problem) : problem(problem.get())
+{
+}
+
 Assignment::Assignment(const Assignment &other) : problem(other.problem), varToObj(other.varToObj)
 {
 }

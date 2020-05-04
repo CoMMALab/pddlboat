@@ -7,18 +7,42 @@
 
 using namespace pddlboat;
 
-static const bool debug = true;
+static const bool debug = false;
 
 ///
 /// PlanDependencyGraph ActionNode
 ///
 
 PlanDependencyGraph::ActionNode::ActionNode(const Plan::Step &step, std::size_t index)
-  : action(step.action), assignment(step.assignment), plan_index(index)
+  : action(step.action)
+  , assignment(step.assignment)
+  , plan_index(index)
+  , pre_pred([&] {
+      std::set<std::string> preds;
+      action->precondition->getUsedPredicates(preds, step.state, assignment);
+      return preds;
+  }())
+  , eff_pred([&] {
+      std::set<std::string> preds;
+      // Get all predicates for precondition and effects this actions causes.
+      action->effect->getAssignedPredicates(preds, step.state, assignment);
+      return preds;
+  }())
 {
-    // Get all predicates for precondition and effects this actions causes.
-    action->precondition->getUsedPredicates(pre_pred, step.state, assignment);
-    action->effect->getAssignedPredicates(eff_pred, step.state, assignment);
+}
+
+PlanDependencyGraph::ActionNode::ActionNode(const ActionNodePtr &node)
+  : action(node->action)
+  , assignment(node->assignment)
+  , plan_index(node->plan_index)
+  , pre_pred(node->pre_pred)
+  , eff_pred(node->eff_pred)
+  , pre_state(node->pre_state ? node->pre_state->clone() : nullptr)
+  , eff_state(node->eff_state ? node->eff_state->clone() : nullptr)
+  , makespan(node->makespan)
+  , leafdist(node->leafdist)
+  , vertex(node->vertex)
+{
 }
 
 void PlanDependencyGraph::ActionNode::setState(const StatePtr &state)
@@ -53,6 +77,19 @@ bool PlanDependencyGraph::ActionNode::isPrior(const ActionNodePtr &eff) const
     return false;
 }
 
+std::set<std::string> PlanDependencyGraph::ActionNode::getEffectIntersection(const ActionNodePtr &eff) const
+{
+    std::set<std::string> set;
+    for (const auto &predicate : eff_pred)
+    {
+        auto it = eff->pre_pred.find(predicate);
+        if (it != eff->pre_pred.end())
+            set.emplace(predicate);
+    }
+
+    return set;
+}
+
 std::ostream &PlanDependencyGraph::ActionNode::toString(std::ostream &out) const
 {
     out << "(" << action->name;
@@ -69,14 +106,25 @@ std::ostream &PlanDependencyGraph::ActionNode::toString(std::ostream &out) const
 ///
 
 PlanDependencyGraph::PlanDependencyGraph(const PlanPtr &plan)
-  : plan_(plan), problem_(plan->getProblem()), dag_()
+  : plan_(*plan), problem_(plan->getProblem()), dag_()
 {
     initialize();
 }
 
+PlanDependencyGraph::PlanDependencyGraph(const PlanDependencyGraph &graph)
+  : nodes_(graph.nodes_), plan_(graph.plan_), problem_(graph.problem_), dag_(graph.dag_)
+{
+}
+
 void PlanDependencyGraph::initialize()
 {
-    const auto &steps = plan_->getSteps();
+    nodes_.clear();
+    dag_ = Graph();
+
+    if (not plan_.validate())
+        throw std::runtime_error("Cannot build dependency graph of invalid plan!");
+
+    const auto &steps = plan_.getSteps();
     nodes_.resize(steps.size());
 
     for (std::size_t i = 0; i < steps.size(); ++i)
@@ -112,7 +160,8 @@ void PlanDependencyGraph::initialize()
             bool effects = other->isEffected(toAdd);
 
             // only check effect if greater or equal in makespan (could be reordered)
-            bool isEffected = other->makespan >= toAdd->makespan and toAdd->isEffected(other);
+            // bool isEffected = other->makespan >= toAdd->makespan and toAdd->isEffected(other);
+            bool isEffected = toAdd->isEffected(other);
 
             // only add edges if there does not already exist a dependency
             bool depends = isDescendant(toAdd, other);
@@ -301,6 +350,18 @@ PlanDependencyGraph::ActionNodeList PlanDependencyGraph::getNodesByMakespan() co
     return copy;
 }
 
+std::size_t PlanDependencyGraph::getMaxMakespan() const
+{
+    std::size_t max = 0;
+    getNodesFilter([&max](const ActionNodePtr &node) {
+        if (node->makespan > max)
+            max = node->makespan;
+        return false;
+    });
+
+    return max;
+}
+
 // leaf distance functions
 
 PlanDependencyGraph::ActionNodeList PlanDependencyGraph::getNodesWithLeafDistance(std::size_t leafdist) const
@@ -316,7 +377,8 @@ PlanDependencyGraph::getNodesWithGreaterLeafDistance(std::size_t leafdist) const
     return copy;
 }
 
-PlanDependencyGraph::ActionNodeList PlanDependencyGraph::getNodesWithLessLeafDistance(std::size_t leafdist) const
+PlanDependencyGraph::ActionNodeList
+PlanDependencyGraph::getNodesWithLessLeafDistance(std::size_t leafdist) const
 {
     auto copy = getNodesFilter([&leafdist](const ActionNodePtr &node) { return node->leafdist < leafdist; });
     return copy;
@@ -335,72 +397,100 @@ PlanDependencyGraph::ActionNodeList PlanDependencyGraph::getLeafs() const
     return getNodesWithLeafDistance(0);
 }
 
-std::ostream &PlanDependencyGraph::toDotFile(std::ostream &out, bool makespan) const
+std::size_t PlanDependencyGraph::getMaxLeafDistance() const
+{
+    std::size_t max = 0;
+    getNodesFilter([&max](const ActionNodePtr &node) {
+        if (node->leafdist > max)
+            max = node->leafdist;
+        return false;
+    });
+
+    return max;
+}
+
+// others
+
+std::ostream &PlanDependencyGraph::toDotFile(std::ostream &out, DotFileOptions options) const
 {
     out << "digraph {" << std::endl;
     out << "node[shape=plaintext,fontname=\"courier\",colorscheme=\"dark23\"]" << std::endl;
 
+    std::size_t max = getMaxMakespan();
+
+    bool makespan = options.ranking == DotFileOptions::Rank::MAKESPAN;
+    std::string type = (makespan ? "Makespan" : "Leaf Distance");
+
     // Rank track on the left
-    out << (makespan ? "Makespan" : "\"Leaf Distance\"") << "->";
-    for (std::size_t i = 0; i <= maxMakespan_; ++i)
+    out << "\"" << type << "\"->";
+    for (std::size_t i = 0; i <= max; ++i)
     {
         std::size_t index = i;
         if (makespan)
-            index = maxMakespan_ - i;
+            index = max - i;
 
         out << index;
-        if (i != maxMakespan_)
+        if (i != max)
             out << "->";
     }
     out << "[style=invis];" << std::endl;
 
-    // Nodes
-    auto nodes = getNodes();
-    for (std::size_t i = 0; i < nodes.size(); ++i)
+    for (std::size_t i = 0; i <= max; ++i)
     {
-        const auto &node = nodes[i];
-        out << "n" << node->vertex << "[label=\"";
-        out << node->plan_index << ". ";
-        node->toString(out);
-        out << "\"";
-        if (node->leafdist == 0 and node->makespan == 0)
-            out << ",fontcolor=1";
-        else if (node->leafdist == 0)
-            out << ",fontcolor=2";
-        else if (node->makespan == 0)
-            out << ",fontcolor=3";
-        out << "];" << std::endl;
-    }
+        auto makes = makespan ? getNodesWithMakespan(i) : getNodesWithLeafDistance(i);
+        out << "# " << type << " " << i << std::endl;
 
-    // Rank constraints
-    for (std::size_t i = 0; i <= maxMakespan_; ++i)
-    {
+        // nodes
+        for (const auto &node : makes)
+        {
+            out << "n" << node->vertex << "[label=\"";
+            if (options.index)
+                out << node->plan_index << ". ";
+            if (options.action)
+                node->toString(out);
+            out << "\"";
+
+            // color if either a leaf or terminal
+            if ((options.colorLeafs and options.colorTerminals) and node->leafdist == 0 and
+                node->makespan == 0)
+                out << ",fontcolor=1";
+            else if (options.colorLeafs and node->leafdist == 0)
+                out << ",fontcolor=2";
+            else if (options.colorTerminals and node->makespan == 0)
+                out << ",fontcolor=3";
+
+            if (options.stateToolTips and node->eff_state)
+            {
+                out << ",tooltip=\"";
+                node->eff_state->toPDDL(out);
+                out << "\"";
+            }
+
+            out << "];" << std::endl;
+        }
+
+        // rank constraints
         out << "{rank=same;" << i << ";";
-        ActionNodeList makes;
-        if (makespan)
-            makes = getNodesWithMakespan(i);
-        else
-            makes = getNodesWithLeafDistance(i);
-
         for (const auto &node : makes)
             out << "n" << node->vertex << ";";
         out << "}" << std::endl;
-    }
 
-    // Edges
-    for (std::size_t i = 0; i < nodes.size(); ++i)
-    {
-        auto children = getChildren(i);
-        if (not children.empty())
+        // edges
+        for (const auto &node : makes)
         {
-            out << "n" << i << "->";
-            if (children.size() > 1)
-                out << "{";
-            for (std::size_t j = 0; j < children.size(); ++j)
-                out << (j ? " " : "") << "n" << children[j];
-            if (children.size() > 1)
-                out << "}";
-            out << ";" << std::endl;
+            for (const auto &child : getChildren(node))
+            {
+                out << "n" << node->vertex << "->"
+                    << "n" << child->vertex;
+                if (options.edgeToolTips)
+                {
+                    out << "[edgetooltip=\"";
+                    for (const auto &pred : node->getEffectIntersection(child))
+                        out << pred << std::endl;
+                    out << "\"]";
+                }
+                out << ";" << std::endl;
+            }
         }
     }
 
@@ -414,6 +504,9 @@ void PlanDependencyGraph::computeNodeStates()
     for (auto &node : nodes)
     {
         auto predecessors = getPredecessors(node);
+        std::sort(
+            predecessors.begin(), predecessors.end(),
+            [](const ActionNodePtr &a, const ActionNodePtr &b) { return a->plan_index < b->plan_index; });
         auto state = problem_->start->clone();
         for (const auto &pred : predecessors)
         {
@@ -424,6 +517,16 @@ void PlanDependencyGraph::computeNodeStates()
 
         node->setState(state);
     }
+}
+
+void PlanDependencyGraph::insertStep(const ActionPtr &action, const Assignment &assignment, std::size_t index)
+{
+    return plan_.insertStep(action, assignment, index);
+}
+
+void PlanDependencyGraph::removeStep(std::size_t index)
+{
+    plan_.removeStep(index);
 }
 
 bool PlanDependencyGraph::removeNode(const ActionNodePtr &node)
@@ -443,9 +546,6 @@ void PlanDependencyGraph::addDependency(ActionNodePtr pre, ActionNodePtr post)
     std::size_t v = post->makespan + 1;
     if (v > pre->makespan)
         pre->makespan = v;
-
-    if (pre->makespan > maxMakespan_)
-        maxMakespan_ = pre->makespan;
 }
 
 void PlanDependencyGraph::addEdge(Vertex pre, Vertex post)

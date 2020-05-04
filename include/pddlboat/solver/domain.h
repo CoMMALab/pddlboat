@@ -244,6 +244,11 @@ namespace pddlboat
          */
         Assignment(const Problem *problem);
 
+        /** \brief Constructor. Creates an empty assignment.
+         *  \param[in] problem Problem to create assignment for.
+         */
+        Assignment(const ProblemPtr &problem);
+
         /** \brief Copy constructor. Copies the assignment.
          *  \param[in] other The assignment to copy.
          */

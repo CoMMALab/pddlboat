@@ -48,8 +48,8 @@ namespace pddlboat
             const Assignment assignment;   ///< Assignment to this action for this node.
             const std::size_t plan_index;  ///< Index of this step in the original plan.
 
-            std::set<std::string> pre_pred;  ///< Precondition predicate set.
-            std::set<std::string> eff_pred;  ///< Effect predicate set.
+            const std::set<std::string> pre_pred;  ///< Precondition predicate set.
+            const std::set<std::string> eff_pred;  ///< Effect predicate set.
 
             StatePtr pre_state{nullptr};  ///< State of the world before this action.
             StatePtr eff_state{nullptr};  ///< State of the world after this action.
@@ -59,6 +59,7 @@ namespace pddlboat
 
             bool isEffected(const ActionNodePtr &pre) const;
             bool isPrior(const ActionNodePtr &eff) const;
+            std::set<std::string> getEffectIntersection(const ActionNodePtr &eff) const;
             std::ostream &toString(std::ostream &out) const;
 
         private:
@@ -75,11 +76,16 @@ namespace pddlboat
         PlanDependencyGraph(const PlanPtr &plan);
         PlanDependencyGraph(const PlanDependencyGraph &graph);
 
+        void initialize();
+
         ActionNodePtr getPlanStep(std::size_t index) const;
         ActionNodeList getNodes() const;
 
-        void computeNodeStates();
+        void insertStep(const ActionPtr &action, const Assignment &assignment, std::size_t index);
+        void removeStep(std::size_t index);
+
         bool removeNode(const ActionNodePtr &node);
+        void computeNodeStates();
 
         bool isParent(const ActionNodePtr &node, const ActionNodePtr &parent) const;
         bool isChild(const ActionNodePtr &node, const ActionNodePtr &child) const;
@@ -96,6 +102,7 @@ namespace pddlboat
         ActionNodeList getNodesWithLessMakespan(std::size_t makespan) const;
         // get nodes in descending makespan, e.g., farthest first
         ActionNodeList getNodesByMakespan() const;
+        std::size_t getMaxMakespan() const;
 
         ActionNodeList getNodesWithLeafDistance(std::size_t leafdist) const;
         ActionNodeList getNodesWithGreaterLeafDistance(std::size_t leafdist) const;
@@ -103,13 +110,32 @@ namespace pddlboat
         // get nodes in ascending leaf dist, e.g., farthest first
         ActionNodeList getNodesByLeafDistance() const;
         ActionNodeList getLeafs() const;
+        std::size_t getMaxLeafDistance() const;
 
-        std::ostream &toDotFile(std::ostream &out, bool makespan = true) const;
+        struct DotFileOptions
+        {
+            enum Rank
+            {
+                MAKESPAN,
+                LEAFDIST,
+            };
+
+            DotFileOptions(){};
+
+            Rank ranking{MAKESPAN};
+            bool action{true};
+            bool index{true};
+            bool colorLeafs{true};
+            bool colorTerminals{true};
+            bool stateToolTips{true};
+            bool edgeToolTips{true};
+        };
+
+        std::ostream &toDotFile(std::ostream &out, DotFileOptions options = DotFileOptions()) const;
 
     private:
         using NodeFunction = std::function<bool(const ActionNodePtr &node)>;
 
-        void initialize();
         void computeLeafDistance();
 
         ActionNodeList getNodesFilter(const NodeFunction &function = {}) const;
@@ -127,10 +153,8 @@ namespace pddlboat
         const ActionNodePtr &getActionNodeConst(Vertex vertex) const;
         static Vertex getNullVertex();
 
-        ActionNodeList nodes_;        ///< Nodes in task plan.
-        std::size_t maxMakespan_{0};  ///< Maximum makespan in dependency graph.
-
-        const PlanPtr plan_;        ///< Plan to generate dependencies for.
+        ActionNodeList nodes_;      ///< Nodes in task plan.
+        Plan plan_;                 ///< Plan to generate dependencies for.
         const ProblemPtr problem_;  ///< Problem domain.
         Graph dag_;                 ///< Dependency DAG
     };

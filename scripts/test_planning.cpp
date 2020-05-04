@@ -244,7 +244,13 @@ int main(int argc, char **argv)
         if (graphout)
         {
             pd::PlanDependencyGraph test(plan);
-            test.toDotFile(std::cout, not leafdist);
+            test.computeNodeStates();
+
+            pd::PlanDependencyGraph::DotFileOptions options;
+            if (leafdist)
+                options.ranking = pd::PlanDependencyGraph::DotFileOptions::Rank::LEAFDIST;
+
+            test.toDotFile(std::cout, options);
         }
     }
     else

@@ -41,9 +41,13 @@ Plan::Plan(const ProblemPtr &problem) : problem_(problem)
 {
 }
 
-void Plan::addStep(const std::string &action_name, const std::vector<std::string> &objects)
+Plan::Plan(const Plan &plan) : steps_(plan.steps_), problem_(plan.problem_)
 {
-    // Get action corresponding to name
+}
+
+std::pair<ActionPtr, Assignment> Plan::getAction(const std::string &action_name,
+                                                 const std::vector<std::string> &objects) const
+{
     ActionPtr action = problem_->domain->getAction(action_name);
 
     // Validate action parameters
@@ -78,32 +82,80 @@ void Plan::addStep(const std::string &action_name, const std::vector<std::string
         assignment.assign(action->parameters[i].name, objects[i]);
     }
 
-    // Validate world state update from action
-    // Use prior state in sequence, which may be the start
+    return {action, assignment};
+}
+
+void Plan::addStep(const std::string &action_name, const std::vector<std::string> &objects)
+{
+    const auto &[action, assignment] = getAction(action_name, objects);
+    auto state = propagateAction(action, assignment, steps_.size());
+    if (not state)
+        throw std::invalid_argument(  //
+            log::format("Action %1% failed to apply to previous state!", action_name));
+
+    steps_.emplace_back(action, assignment, state);
+}
+
+StatePtr Plan::propagateAction(const ActionPtr &action, const Assignment &assignment, std::size_t index) const
+{
     StatePtr prev;
-    if (steps_.empty())
+    if (steps_.empty() or index == 0)
         prev = problem_->start;
     else
-        prev = steps_.back().state;
+        prev = steps_[index - 1].state;
 
     StatePtr state = problem_->makeState();
 
     if (debug)
     {
-        std::cout << "Attempting to do action " << action_name << " with: ";
-        for (const auto &object : objects)
-            std::cout << object << ", ";
-        std::cout << std::endl;
+        std::cout << "Attempting to do action " << action->name << " with: ";
+        assignment.toString(std::cout) << std::endl;
         std::cout << "On State: " << std::endl;
         prev->toPDDL(std::cout);
         std::cout << std::endl;
     }
 
     if (not action->doAction(state, prev, assignment))
-        throw std::invalid_argument(  //
-            log::format("Action %1% failed to apply to previous state!", action_name));
+        return nullptr;
 
-    steps_.emplace_back(action, assignment, state);
+    return state;
+}
+
+void Plan::insertStep(const std::string &action_name, const std::vector<std::string> &objects,
+                      std::size_t index)
+{
+    const auto &[action, assignment] = getAction(action_name, objects);
+    insertStep(action, assignment, index);
+}
+
+void Plan::insertStep(const ActionPtr &action, const Assignment &assignment, std::size_t index)
+{
+    auto state = propagateAction(action, assignment, index);
+    if (not state)
+        throw std::invalid_argument(  //
+            log::format("Action %1% failed to apply to previous state!", action->name));
+
+    Step step(action, assignment, state);
+    steps_.insert(steps_.begin() + index, step);
+}
+
+void Plan::removeStep(std::size_t index)
+{
+    steps_.erase(steps_.begin() + index);
+}
+
+bool Plan::validate()
+{
+    for (std::size_t i = 0; i < steps_.size(); ++i)
+    {
+        auto state = propagateAction(steps_[i].action, steps_[i].assignment, i);
+        if (not state)
+            return false;
+
+        steps_[i].state = state;
+    }
+
+    return problem_->goal->evaluate(steps_.back().state, Assignment(problem_));
 }
 
 std::ostream &Plan::toString(std::ostream &out) const

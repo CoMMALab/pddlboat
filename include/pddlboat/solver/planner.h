@@ -69,11 +69,42 @@ namespace pddlboat
          */
         Plan(const ProblemPtr &problem);
 
+        /** \brief Copy Constructor.
+         *  \param[in] plan Plan to copy.
+         */
+        Plan(const Plan &plan);
+
         /** \brief Add a step to this plan.
          *  \param[in] action_name Name of action to take.
          *  \param[in] objects Arguments to the action. Must be a valid assignment.
          */
         void addStep(const std::string &action_name, const std::vector<std::string> &objects);
+
+        /** \brief Insert a step in the middle of an existing plan.
+         *  \param[in] action_name Name of action to take.
+         *  \param[in] objects Arguments to the action. Must be a valid assignment.
+         *  \param[in] index Desired index of insertion.
+         */
+        void insertStep(const std::string &action_name, const std::vector<std::string> &objects,
+                        std::size_t index);
+
+        /** \brief Insert a step in the middle of an existing plan.
+         *  \param[in] action Action to take.
+         *  \param[in] assignment Assignment to the action.
+         *  \param[in] index Desired index of insertion.
+         */
+        void insertStep(const ActionPtr &action, const Assignment &assignment, std::size_t index);
+
+        /** \brief Removes step at \a index in the plan.
+         *  \param[in] index Index of step to remove.
+         */
+        void removeStep(std::size_t index);
+
+        /** \brief Validates if this plan is correct. Also propagates internal action states if steps were
+         * removed or added.
+         * \return True if this is a feasible plan, false otherwise.
+         */
+        bool validate();
 
         /** \brief Serialize this plan.
          *  \param[in,out] Stream to output this plan to.
@@ -97,8 +128,13 @@ namespace pddlboat
         std::size_t getNumSteps() const;
 
     private:
-        std::vector<Step> steps_;  ///< The steps of the plan.
+        StatePtr propagateAction(const ActionPtr &action, const Assignment &assignment,
+                                 std::size_t index) const;
 
+        std::pair<ActionPtr, Assignment> getAction(const std::string &action_name,
+                                                   const std::vector<std::string> &objects) const;
+
+        std::vector<Step> steps_;   ///< The steps of the plan.
         const ProblemPtr problem_;  ///< Problem this plan is for.
     };
 
