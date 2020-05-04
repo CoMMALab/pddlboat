@@ -59,7 +59,7 @@ int main(int argc, char **argv)
     // Program Options
     //
 
-    std::string domainfile, problemfile;
+    std::string domainfile, problemfile, graphfile;
     bool domainout, problemout, planout, stepsout, timeout, graphout, leafdist;
     Planner plannertype;
     po::options_description desc("PDDLBoat - Planner Testing Demo");
@@ -83,6 +83,8 @@ int main(int argc, char **argv)
          "Print the steps of a plan as a sequence of states")                        //
         ("og", po::bool_switch(&graphout),                                           //
          "Print the dependency graph of the plan")                                   //
+        ("ogf", po::value<std::string>(&graphfile)->default_value(""),               //
+         "Output file for dependency graph")                                         //
         ("leafdist", po::bool_switch(&leafdist),                                     //
          "Print the dependency graph out based on leaf distance and not makespan")   //
         ;
@@ -250,7 +252,15 @@ int main(int argc, char **argv)
             if (leafdist)
                 options.ranking = pd::PlanDependencyGraph::DotFileOptions::Rank::LEAFDIST;
 
-            test.toDotFile(std::cout, options);
+            if (graphfile.empty())
+                test.toDotFile(std::cout, options);
+            else
+            {
+                std::ofstream out;
+                pd::io::createFile(out, graphfile);
+                test.toDotFile(out, options);
+                out.close();
+            }
         }
     }
     else

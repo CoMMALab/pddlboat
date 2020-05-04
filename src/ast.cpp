@@ -268,3 +268,12 @@ std::ostream &Plan::toString(std::ostream &out) const
     }
     return out;
 }
+
+std::ostream &z3Predicate::toPDDL(std::ostream &out) const
+{
+    out << "(" << name;
+    for (const auto &arg : args)
+        out << " " << arg;
+    out << ")";
+    return out;
+}

@@ -59,7 +59,7 @@ namespace pddlboat
 
             bool isEffected(const ActionNodePtr &pre) const;
             bool isPrior(const ActionNodePtr &eff) const;
-            std::set<std::string> getEffectIntersection(const ActionNodePtr &eff) const;
+            std::set<std::string> getInteraction(const ActionNodePtr &eff) const;
             std::ostream &toString(std::ostream &out) const;
 
         private:

@@ -423,6 +423,18 @@ bool pddlboat::parseZ3Action(const std::string &string, ast::z3Action &action)
     return r && iter == end;
 }
 
+bool pddlboat::parseZ3Predicate(const std::string &string, ast::z3Predicate &predicate)
+{
+    typedef std::string::const_iterator iterator_type;
+
+    iterator_type iter = string.begin();
+    const iterator_type end = string.end();
+
+    predicate = ast::z3Predicate();
+    bool r = x3::phrase_parse(iter, end, parser::z3predicate, parser::skipper, predicate);
+    return r && iter == end;
+}
+
 bool pddlboat::parseFile(const std::string &file, ast::Expression &expression)
 {
     typedef std::string::const_iterator iterator_type;

@@ -216,6 +216,8 @@ namespace pddlboat
             std::string name;
             std::vector<std::string> args{};
             std::string time{""};
+
+            std::ostream &toPDDL(std::ostream &out) const;
         };
 
         using boost::fusion::operator<<;

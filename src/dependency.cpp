@@ -3,6 +3,7 @@
 
 #include <boost/graph/dag_shortest_paths.hpp>
 
+#include <pddlboat/parser/parser.h>
 #include <pddlboat/solver/dependency.h>
 
 using namespace pddlboat;
@@ -77,14 +78,36 @@ bool PlanDependencyGraph::ActionNode::isPrior(const ActionNodePtr &eff) const
     return false;
 }
 
-std::set<std::string> PlanDependencyGraph::ActionNode::getEffectIntersection(const ActionNodePtr &eff) const
+std::set<std::string> PlanDependencyGraph::ActionNode::getInteraction(const ActionNodePtr &eff) const
 {
+    ast::z3Predicate parsed;
     std::set<std::string> set;
     for (const auto &predicate : eff_pred)
     {
         auto it = eff->pre_pred.find(predicate);
         if (it != eff->pre_pred.end())
-            set.emplace(predicate);
+        {
+            if (parseZ3Predicate(predicate, parsed))
+            {
+                std::ostringstream ss;
+                parsed.toPDDL(ss);
+                set.emplace("+" + ss.str());
+            }
+        }
+    }
+
+    for (const auto &predicate : eff->eff_pred)
+    {
+        auto it = pre_pred.find(predicate);
+        if (it != pre_pred.end())
+        {
+            if (parseZ3Predicate(predicate, parsed))
+            {
+                std::ostringstream ss;
+                parsed.toPDDL(ss);
+                set.emplace("-" + ss.str());
+            }
+        }
     }
 
     return set;
@@ -415,6 +438,7 @@ std::ostream &PlanDependencyGraph::toDotFile(std::ostream &out, DotFileOptions o
 {
     out << "digraph {" << std::endl;
     out << "node[shape=plaintext,fontname=\"courier\",colorscheme=\"dark23\"]" << std::endl;
+    out << "edge[penwidth=3,arrowsize=1.2]" << std::endl;
 
     std::size_t max = getMaxMakespan();
 
@@ -485,7 +509,7 @@ std::ostream &PlanDependencyGraph::toDotFile(std::ostream &out, DotFileOptions o
                 if (options.edgeToolTips)
                 {
                     out << "[edgetooltip=\"";
-                    for (const auto &pred : node->getEffectIntersection(child))
+                    for (const auto &pred : node->getInteraction(child))
                         out << pred << std::endl;
                     out << "\"]";
                 }
