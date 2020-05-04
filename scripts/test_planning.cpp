@@ -60,7 +60,7 @@ int main(int argc, char **argv)
     //
 
     std::string domainfile, problemfile, graphfile;
-    bool domainout, problemout, planout, stepsout, timeout, graphout, leafdist;
+    bool domainout, problemout, planout, stepsout, timeout, graphout, leafdist, tooltips, startgoal;
     Planner plannertype;
     po::options_description desc("PDDLBoat - Planner Testing Demo");
     desc.add_options()                                                               //
@@ -87,6 +87,10 @@ int main(int argc, char **argv)
          "Output file for dependency graph")                                         //
         ("leafdist", po::bool_switch(&leafdist),                                     //
          "Print the dependency graph out based on leaf distance and not makespan")   //
+        ("tooltips", po::bool_switch(&tooltips),                                     //
+         "Add tooltip information to dependency graph output")                       //
+        ("startgoal", po::bool_switch(&startgoal),                                   //
+         "Add start/goal to dependency graph output")                                //
         ;
 
     unsigned int min_horizon, max_horizon;
@@ -251,6 +255,11 @@ int main(int argc, char **argv)
             pd::PlanDependencyGraph::DotFileOptions options;
             if (leafdist)
                 options.ranking = pd::PlanDependencyGraph::DotFileOptions::Rank::LEAFDIST;
+
+            options.edgeToolTips = tooltips;
+            options.stateToolTips = tooltips;
+            options.drawStart = startgoal;
+            options.drawEnd = startgoal;
 
             if (graphfile.empty())
                 test.toDotFile(std::cout, options);

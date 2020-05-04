@@ -440,10 +440,41 @@ std::ostream &PlanDependencyGraph::toDotFile(std::ostream &out, DotFileOptions o
     out << "node[shape=plaintext,fontname=\"courier\",colorscheme=\"dark23\"]" << std::endl;
     out << "edge[penwidth=3,arrowsize=1.2]" << std::endl;
 
-    std::size_t max = getMaxMakespan();
-
     bool makespan = options.ranking == DotFileOptions::Rank::MAKESPAN;
     std::string type = (makespan ? "Makespan" : "Leaf Distance");
+
+    if (options.drawStart)
+    {
+        out << "start[label=\"start\"";
+        if (options.stateToolTips)
+        {
+            out << ",tooltip=\"";
+            problem_->start->toPDDL(out);
+            out << "\"";
+        }
+        out << "];" << std::endl;
+
+        for (const auto &leaf : getLeafs())
+            out << "start->"
+                << "n" << leaf->vertex << std::endl;
+
+        out << "{rank=same;\"" << type << "\"start;}" << std::endl;
+    }
+
+    if (options.drawEnd)
+    {
+        out << "end[label=\"goal\"" << std::endl;
+        if (options.stateToolTips)
+        {
+            out << ",tooltip=\"";
+            plan_.getSteps().back().state->toPDDL(out);
+            out << "\"";
+        }
+        out << "];" << std::endl;
+        out << "below[style=invis];" << std::endl;
+    }
+
+    std::size_t max = getMaxMakespan();
 
     // Rank track on the left
     out << "\"" << type << "\"->";
@@ -457,8 +488,11 @@ std::ostream &PlanDependencyGraph::toDotFile(std::ostream &out, DotFileOptions o
         if (i != max)
             out << "->";
     }
-    out << "[style=invis];" << std::endl;
 
+    if (options.drawEnd)
+        out << "->below";
+
+    out << "[style=invis];" << std::endl;
     for (std::size_t i = 0; i <= max; ++i)
     {
         auto makes = makespan ? getNodesWithMakespan(i) : getNodesWithLeafDistance(i);
@@ -502,7 +536,8 @@ std::ostream &PlanDependencyGraph::toDotFile(std::ostream &out, DotFileOptions o
         // edges
         for (const auto &node : makes)
         {
-            for (const auto &child : getChildren(node))
+            auto children = getChildren(node);
+            for (const auto &child : children)
             {
                 out << "n" << node->vertex << "->"
                     << "n" << child->vertex;
@@ -515,7 +550,31 @@ std::ostream &PlanDependencyGraph::toDotFile(std::ostream &out, DotFileOptions o
                 }
                 out << ";" << std::endl;
             }
+
+            if (options.drawEnd and children.empty())
+            {
+                out << "n" << node->vertex << "->end" << std::endl;
+                // if (options.edgeToolTips)
+                // {
+                //     out << "[tooltip=\"";
+                //     ast::z3Predicate parsed;
+                //     for (const auto &pred : node->eff_pred)
+                //         if (parseZ3Predicate(pred, parsed))
+                //         {
+                //             std::ostringstream ss;
+                //             parsed.toPDDL(ss);
+                //             out << "+" << ss.str() << std::endl;
+                //         }
+
+                //     out << "\"]";
+                // }
+
+                out << ';' << std::endl;
+            }
         }
+
+        if (options.drawEnd)
+            out << "{rank=same;below;end;}" << std::endl;
     }
 
     out << "}" << std::endl;

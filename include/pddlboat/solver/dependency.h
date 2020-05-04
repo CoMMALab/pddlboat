@@ -129,6 +129,8 @@ namespace pddlboat
             bool colorTerminals{true};
             bool stateToolTips{true};
             bool edgeToolTips{true};
+            bool drawStart{true};
+            bool drawEnd{true};
         };
 
         std::ostream &toDotFile(std::ostream &out, DotFileOptions options = DotFileOptions()) const;
