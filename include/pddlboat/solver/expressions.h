@@ -36,6 +36,7 @@ namespace pddlboat
         void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
+        void renameVariable(const std::string &old, const std::string &name) override;
 
     protected:
         std::vector<ExpressionPtr> terms_;
@@ -127,6 +128,8 @@ namespace pddlboat
         void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
+        void renameVariable(const std::string &old, const std::string &name) override;
+
         std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
                              unsigned int level = 0) const override;
 
@@ -156,6 +159,8 @@ namespace pddlboat
         void getVariables(VariableSet &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
+        void renameVariable(const std::string &old, const std::string &name) override;
+
         std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
                              unsigned int level = 0) const override;
 
@@ -187,6 +192,8 @@ namespace pddlboat
         void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
+        void renameVariable(const std::string &old, const std::string &name) override;
+
         std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
                              unsigned int level = 0) const override;
 
@@ -214,9 +221,11 @@ namespace pddlboat
         void getVariables(VariableSet &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
+        void renameVariable(const std::string &old, const std::string &name) override;
 
     protected:
         VariableList domain_;
+        VariableList internal_;
         ExpressionPtr formula_;
     };
 
@@ -277,12 +286,13 @@ namespace pddlboat
         void getVariables(VariableSet &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
+        void renameVariable(const std::string &old, const std::string &name) override;
         std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
                              unsigned int level = 0) const override;
 
     private:
-        const Value term1_;
-        const Value term2_;
+        Value term1_;
+        Value term2_;
     };
 
     EqualsPtr makeEquals(const Value &term1, const Value &term2);

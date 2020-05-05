@@ -222,7 +222,7 @@ namespace parser
     struct action_class;
     const x3::rule<action_class, ast::Action> action = "action";
     const auto action_def =                                               //
-        '(' > x3::lit(":action") > name >                                 //
+        '(' >> x3::attr(false) >> x3::lit(":action") > name >             //
         -(x3::lit(":parameters") > '(' >> *typedlist_variable >> ')') >>  //
         -(x3::lit(":precondition") > expression) >>                       //
         -(x3::lit(":effect") > expression) >>                             //
@@ -230,6 +230,24 @@ namespace parser
         ;
     PARSE(action)
     struct action_class : error_handler
+    {
+    };
+
+    ///
+    /// Derived Predicate
+    ///
+
+    struct derived_class;
+    const x3::rule<derived_class, ast::Action> derived = "derived";
+    const auto derived_def =                            //
+        '(' >> x3::attr(true) >> x3::lit(":derived") >  //
+        '(' > name >> *typedlist_variable >> ')' >>     //
+        -(expression) >>                                //
+        x3::attr(ast::Expression{}) >>                  //
+        ')'                                             //
+        ;
+    PARSE(derived)
+    struct derived_class : error_handler
     {
     };
 
@@ -247,7 +265,7 @@ namespace parser
         -constants >                            //
         -predicates >                           //
         -functions >                            //
-        *action >                               //
+        *(action | derived) >                   //
         ')'                                     //
         ;
     PARSE(domain);

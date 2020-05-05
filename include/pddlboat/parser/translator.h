@@ -13,11 +13,13 @@ namespace pddlboat
     PDDLBOAT_CLASS_FORWARD(Problem);
     PDDLBOAT_CLASS_FORWARD(Action);
     PDDLBOAT_CLASS_FORWARD(Expression);
+    PDDLBOAT_CLASS_FORWARD(DerivedPredicateDefinition);
     PDDLBOAT_CLASS_FORWARD(Variable);
 
     ExpressionPtr toExpression(const ast::Expression &expression, const std::vector<Variable> &variables,
                                const DomainPtr &domain, const ProblemPtr &problem = nullptr);
     ActionPtr toAction(const ast::Action &action, const DomainPtr &domain);
+    DerivedPredicateDefinitionPtr toDerived(const ast::Action &derived, const DomainPtr &domain);
     DomainPtr toDomain(const ast::Domain &domain);
     ProblemPtr toProblem(const ast::Problem &problem, const DomainPtr &domain);
 }  // namespace pddlboat

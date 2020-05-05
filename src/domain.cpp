@@ -433,6 +433,15 @@ bool Predicate::containsPredicate(const std::string &pred) const
     return predicate->name == pred;
 }
 
+void Predicate::renameVariable(const std::string &old, const std::string &name)
+{
+    for (auto &binding : bindings)
+    {
+        if (binding.isVar and binding.name == old)
+            binding.name = name;
+    }
+}
+
 std::ostream &Predicate::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
 {
     const std::string SPACE = std::string(indent, ' ');
@@ -475,6 +484,75 @@ std::string Predicate::toID(const Assignment &vars) const
 const std::string &Predicate::name() const
 {
     return predicate->name;
+}
+
+///
+/// DerivedPredicateDefinition
+///
+
+DerivedPredicateDefinition::DerivedPredicateDefinition(const std::string &name,
+                                                       const VariableList &parameters,
+                                                       const ExpressionPtr &expression)
+  : name(name), parameters(parameters), expression(expression)
+{
+}
+
+DerivedPredicatePtr DerivedPredicateDefinition::bind() const
+{
+}
+
+DerivedPredicatePtr DerivedPredicateDefinition::bind(const std::vector<std::string> &bound,
+                                                     const ProblemPtr &problem, const DomainPtr &domain) const
+{
+}
+
+bool DerivedPredicateDefinition::isValidAssignment(const Problem *problem,
+                                                   const std::vector<std::string> &objects) const
+{
+    if (objects.size() != arity())
+        return false;
+
+    for (unsigned int i = 0; i < objects.size(); ++i)
+    {
+        ObjectPtr obj;
+        if (not(obj = problem->getObject(objects[i])))
+            return false;
+
+        if (not problem->domain->isTypeOf(obj->type, parameters[i].type))
+            return false;
+    }
+
+    return true;
+}
+
+unsigned int DerivedPredicateDefinition::arity() const
+{
+    return parameters.size();
+}
+
+std::ostream &DerivedPredicateDefinition::toPDDL(std::ostream &out, unsigned int indent) const
+{
+    const std::string SPACE = std::string(indent, ' ');
+
+    out << SPACE << "(:derived (" << name;
+    for (const auto &variable : parameters)
+    {
+        out << " ";
+        out << "?" << variable.name;
+        if (variable.type != PDDLBOAT_OBJECT_CLASS)
+            out << " - " << variable.type;
+    }
+    out << ")" << std::endl;
+    expression->toPDDL(out, indent, 2) << std::endl;
+    out << SPACE << ")";
+    return out;
+}
+
+DerivedPredicateDefinitionPtr pddlboat::makeDerivedPred(const std::string &name,
+                                                        const VariableList &variables,
+                                                        const ExpressionPtr &expression)
+{
+    return std::make_shared<DerivedPredicateDefinition>(name, variables, expression);
 }
 
 ///
@@ -568,6 +646,25 @@ void Domain::addPredicate(const PredicateDefinitionPtr &predicate)
         it->second = predicate;
 }
 
+void Domain::removePredicate(const std::string &name)
+{
+    auto it = predicates.find(name);
+    if (it != predicates.end())
+        predicates.erase(it);
+}
+
+void Domain::addDerivedPredicate(const DerivedPredicateDefinitionPtr &predicate)
+{
+    // check if predicate exists
+    getPredicate(predicate->name);
+
+    auto [it, r] = derived.emplace(predicate->name, predicate);
+    if (not r)
+        it->second = predicate;
+
+    // removePredicate(predicate->name);
+}
+
 const PredicateDefinitionPtr Domain::getPredicate(const std::string &name) const
 {
     const std::string namel = boost::algorithm::to_lower_copy(name);
@@ -575,6 +672,17 @@ const PredicateDefinitionPtr Domain::getPredicate(const std::string &name) const
     auto it = predicates.find(namel);
     if (it == predicates.end())
         throw std::invalid_argument(log::format("Predicate %1% does not exist!", namel));
+
+    return it->second;
+}
+
+const DerivedPredicateDefinitionPtr Domain::getDerivedPredicate(const std::string &name) const
+{
+    const std::string namel = boost::algorithm::to_lower_copy(name);
+
+    auto it = derived.find(namel);
+    if (it == derived.end())
+        throw std::invalid_argument(log::format("Derived predicate %1% does not exist!", namel));
 
     return it->second;
 }
@@ -648,11 +756,11 @@ std::ostream &Domain::toPDDL(std::ostream &out) const
     }
     out << SPACE << ")" << std::endl;
 
-    for (const auto &key : actions)
-    {
-        // out << SPACE << SPACE;
+    for (const auto &key : derived)
         key.second->toPDDL(out, INDENT) << std::endl;
-    }
+
+    for (const auto &key : actions)
+        key.second->toPDDL(out, INDENT) << std::endl;
 
     out << ")";
 
@@ -982,13 +1090,13 @@ std::ostream &Action::toPDDL(std::ostream &out, unsigned int indent) const
     if (precondition)
     {
         out << SPACE << SPACE << ":precondition" << std::endl;
-        precondition->toPDDL(out, indent, 3) << std::endl;
+        precondition->toPDDL(out, indent, 2) << std::endl;
     }
 
     if (effect)
     {
         out << SPACE << SPACE << ":effect" << std::endl;
-        effect->toPDDL(out, indent, 3) << std::endl;
+        effect->toPDDL(out, indent, 2) << std::endl;
     }
 
     out << SPACE << ")";

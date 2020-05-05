@@ -97,6 +97,10 @@ bool Expression::containsPredicate(const std::string &predicate) const
     return false;
 }
 
+void Expression::renameVariable(const std::string &old, const std::string &name)
+{
+}
+
 ///
 /// Variadic Expression
 ///
@@ -160,6 +164,12 @@ bool VariadicExpression::containsPredicate(const std::string &prop) const
             return true;
 
     return false;
+}
+
+void VariadicExpression::renameVariable(const std::string &old, const std::string &name)
+{
+    for (const auto &e : terms_)
+        e->renameVariable(old, name);
 }
 
 ///
@@ -343,6 +353,11 @@ bool Not::containsPredicate(const std::string &predicate) const
     return term_->containsPredicate(predicate);
 }
 
+void Not::renameVariable(const std::string &old, const std::string &name)
+{
+    term_->renameVariable(old, name);
+}
+
 std::ostream &Not::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
 {
     const std::string SPACE = std::string(indent * level, ' ');
@@ -420,6 +435,12 @@ bool Imply::containsVariable(const std::string &variable) const
 bool Imply::containsPredicate(const std::string &predicate) const
 {
     return left_->containsPredicate(predicate) or right_->containsPredicate(predicate);
+}
+
+void Imply::renameVariable(const std::string &old, const std::string &name)
+{
+    left_->renameVariable(old, name);
+    right_->renameVariable(old, name);
 }
 
 std::ostream &Imply::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
@@ -517,6 +538,12 @@ bool When::containsPredicate(const std::string &predicate) const
     return left_->containsPredicate(predicate) or right_->containsPredicate(predicate);
 }
 
+void When::renameVariable(const std::string &old, const std::string &name)
+{
+    left_->renameVariable(old, name);
+    right_->renameVariable(old, name);
+}
+
 std::ostream &When::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
 {
     const std::string SPACE = std::string(indent * level, ' ');
@@ -591,6 +618,11 @@ bool QuantifierExpression::containsVariable(const std::string &variable) const
 bool QuantifierExpression::containsPredicate(const std::string &predicate) const
 {
     return formula_->containsPredicate(predicate);
+}
+
+void QuantifierExpression::renameVariable(const std::string &old, const std::string &name)
+{
+    formula_->renameVariable(old, name);
 }
 
 ///
@@ -792,6 +824,14 @@ bool Equals::containsVariable(const std::string &variable) const
 bool Equals::containsPredicate(const std::string &predicate) const
 {
     return false;
+}
+
+void Equals::renameVariable(const std::string &old, const std::string &name)
+{
+    if (term1_.isVar and term1_.name == old)
+        term1_.name = name;
+    if (term2_.isVar and term2_.name == old)
+        term2_.name = name;
 }
 
 std::ostream &Equals::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const

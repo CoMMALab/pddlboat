@@ -139,6 +139,7 @@ namespace pddlboat
         class Action : x3::position_tagged
         {
         public:
+            bool derived;
             std::string name;
             std::vector<TypedList> parameters{};
             Expression precondition{};

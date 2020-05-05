@@ -44,6 +44,7 @@ namespace pddlboat
         virtual void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const;
         virtual bool containsVariable(const std::string &variable) const;
         virtual bool containsPredicate(const std::string &predicate) const;
+        virtual void renameVariable(const std::string &old, const std::string &name);
         virtual std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
                                      unsigned int level = 0) const = 0;
     };

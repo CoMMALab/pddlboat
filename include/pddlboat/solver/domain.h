@@ -20,6 +20,8 @@ namespace pddlboat
     PDDLBOAT_CLASS_FORWARD(Object)
     PDDLBOAT_CLASS_FORWARD(PredicateDefinition)
     PDDLBOAT_CLASS_FORWARD(Predicate)
+    PDDLBOAT_CLASS_FORWARD(DerivedPredicateDefinition)
+    PDDLBOAT_CLASS_FORWARD(DerivedPredicate)
     PDDLBOAT_CLASS_FORWARD(Domain)
     PDDLBOAT_CLASS_FORWARD(Problem)
     PDDLBOAT_CLASS_FORWARD(State)
@@ -43,6 +45,18 @@ namespace pddlboat
 
     /** \class pddlboat::PredicateConstPtr
         \brief A const shared pointer wrapper for pddlboat::Predicate. */
+
+    /** \class pddlboat::DerivedPredicateDefinitionPtr
+        \brief A shared pointer wrapper for pddlboat::DerivedPredicate. */
+
+    /** \class pddlboat::DerivedPredicateDefinitionConstPtr
+        \brief A const shared pointer wrapper for pddlboat::DerivedPredicate. */
+
+    /** \class pddlboat::DerivedPredicatePtr
+        \brief A shared pointer wrapper for pddlboat::DerivedPredicate. */
+
+    /** \class pddlboat::DerivedPredicateConstPtr
+        \brief A const shared pointer wrapper for pddlboat::DerivedPredicate. */
 
     /** \class pddlboat::DomainPtr
         \brief A shared pointer wrapper for pddlboat::Domain. */
@@ -377,7 +391,7 @@ namespace pddlboat
     class Predicate : public Expression
     {
     public:
-        const std::vector<Value> bindings;  ///< Argument bindings for the predicate.
+        std::vector<Value> bindings;  ///< Argument bindings for the predicate.
 
         /** \brief Constructor.
          *  \param[in] predicate Predicate definition that this predicate is a binding for.
@@ -404,7 +418,7 @@ namespace pddlboat
          *  \throw std::invalid_argument if this is not a valid binding.
          */
         PredicatePtr rebind(const std::vector<std::string> &bound, const ProblemPtr &problem = nullptr,
-                          const DomainPtr &domain = nullptr) const;
+                            const DomainPtr &domain = nullptr) const;
 
         /** \brief Return the list of unbound arguments to this predicate.
          *  \return The unbound variables for this predicate.
@@ -438,7 +452,8 @@ namespace pddlboat
          *  \param[out] predicates Set of all predicates.
          *  \param[in] vars Assignment.
          */
-        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
+        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                               const Assignment &vars) const override;
 
         /** \brief Add this predicate to the assigned predicate set.
          *  \param[out] predicates Set of all predicates.
@@ -458,6 +473,12 @@ namespace pddlboat
          *  \return True if the predicate is in the expression.
          */
         bool containsPredicate(const std::string &predicate) const override;
+
+        /** \brief Renames a variable.
+         *  \param[in] old Old variable name to change.
+         *  \parma[in] name New name to change to.
+         */
+        void renameVariable(const std::string &old, const std::string &name) override;
 
         /** \brief Serializes this predicate to PDDL.
          *  \param[in,out] out Output stream to use.
@@ -489,6 +510,85 @@ namespace pddlboat
 
         const PredicateDefinition *predicate;  ///< Definition of this predicate.
     };
+
+    ///
+    /// Derived Predicates
+    ///
+
+    /** \brief A definition of a derived predicate in a domain. This is a predicate defined by some expression
+     * of other predicates. To be used in a expression, must first be bound to a DerivedPredicate. The
+     * internal expression must match the variable parameters within the definition, and be bound to those
+     * parameters.
+     */
+    class DerivedPredicateDefinition
+    {
+    public:
+        const std::string name;          ///< Name of the predicate.
+        const VariableList parameters;   ///< Parameters this predicate has.
+        const ExpressionPtr expression;  ///< Predicate derivation.
+
+        /** \brief Constructor.
+         *  \param[in] name Name of the derived predicate.
+         *  \param[in] variables Predicate variables.
+         *  \param[in] expression Derived expression.
+         */
+        DerivedPredicateDefinition(const std::string &name, const VariableList &parameters,
+                                   const ExpressionPtr &expression);
+
+        /** \brief Bind this 0-ary predicate to an evaluatable Predicate.
+         *  \return A bound version of a 0-ary predicate.
+         *  \throw std::invalid_argument if this is not a 0-ary predicate.
+         */
+        DerivedPredicatePtr bind() const;
+
+        /** \brief Bind this n-ary predicate to an evaluatable Predicate.
+         *  Can be bound to either grounded variables or a named variable that exists in some expression.
+         *  The bound list consists of variables, e.g. ?x, ?y --- and objects, e.g, a, b.
+         *  If a `?` is in the first position, the label is bound as a variable.
+         *  Otherwise, it is bound as an object, and will throw an error if not a valid object to bind.
+         *  \param[in] bound List of bindings of variables and objects.
+         *  \param[in] problem Optional, but if any objects exist in the bindings the problem is required.
+         *  \param[in] domain Optional, but if any constants exist without a problem the domain is required.
+         *                    Not needed if a problem is provided.
+         *  \return A bound version of a n-ary predicate.
+         *  \throw std::invalid_argument if this is not a valid binding.
+         */
+        DerivedPredicatePtr bind(const std::vector<std::string> &bound, const ProblemPtr &problem = nullptr,
+                                 const DomainPtr &domain = nullptr) const;
+
+        /** \brief Checks if the set of object names is a valid assignment to this predicate. That is, do
+         * their types match the argument types.
+         *  \param[in] problem Problem to check with.
+         *  \param[in] objects Objects to check against.
+         *  \return True if this is a valid binding, false otherwise.
+         */
+        bool isValidAssignment(const Problem *problem, const std::vector<std::string> &objects) const;
+
+        /** \brief Returns the arity of this predicate, i.e., how many arguments.
+         *  \return The arity of the predicate.
+         */
+        unsigned int arity() const;
+
+        /** \brief Outputs this predicate definition to PDDL.
+         *  \param[in,out] out Output stream to use.
+         *  \param[in] indent Indentation level.
+         *  \return The output stream.
+         */
+        std::ostream &toPDDL(std::ostream &out = std::cout, unsigned int indent = 2) const;
+    };
+
+    /** \brief Helper function to create a derived predicate definition.
+     *  \param[in] name Name of the predicate to create.
+     *  \param[in] variables Arguments of the predicate.
+     *  \param[in] expression Expression for derived predicate.
+     *  \return The created derived predicate definition.
+     */
+    DerivedPredicateDefinitionPtr makeDerivedPred(const std::string &name, const VariableList &variables,
+                                                  const ExpressionPtr &expression);
+
+    // class DerivedPredicate : public Expression
+    // {
+    // };
 
     ///
     /// Action
@@ -583,7 +683,8 @@ namespace pddlboat
         std::map<std::string, std::string> types;                  ///< Mapping of type to its parent type.
         std::vector<ObjectPtr> constants;                          ///< Constants in this domain.
         std::map<std::string, PredicateDefinitionPtr> predicates;  ///< Predicates defined in this domain.
-        std::map<std::string, ActionPtr> actions;                  ///< Actions defined in this domain.
+        std::map<std::string, DerivedPredicateDefinitionPtr> derived;  ///< Derived predicates in this domain.
+        std::map<std::string, ActionPtr> actions;                      ///< Actions defined in this domain.
 
         /** \brief Constructor. Creates an empty domain.
          *  \param[in] name Name of this domain
@@ -651,12 +752,30 @@ namespace pddlboat
          */
         void addPredicate(const PredicateDefinitionPtr &predicate);
 
+        /** \brief Remove a predicate definition from the domain.
+         *  \param[in] name The name of the predicate to remove.
+         */
+        void removePredicate(const std::string &name);
+
+        /** \brief Define a new derived predicate in the domain.
+         *  \param[in] predicate Predicate to add.
+         */
+        void addDerivedPredicate(const DerivedPredicateDefinitionPtr &predicate);
+
         /** \brief Retrieve a predicate defined in the domain.
          *  \param[in] name Name of predicate to retrieve.
          *  \return The named predicate definition.
          *  \throw std::invalid_argument if the predicate does not exist.
          */
         const PredicateDefinitionPtr getPredicate(const std::string &name) const;
+
+        /** \brief Retrieve a predicate defined in the domain.
+         *  \param[in] name Name of predicate to retrieve.
+         *  \return The named predicate definition.
+         *  \throw std::invalid_argument if the predicate does not exist.
+         */
+        const DerivedPredicateDefinitionPtr getDerivedPredicate(const std::string &name) const;
+
         /** \} */
 
         /* \name Actions

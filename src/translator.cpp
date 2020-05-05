@@ -57,7 +57,8 @@ namespace
         return false;
     }
 
-    std::string parseArgument(const ast::Expression &term, const std::vector<Variable> &variables, const DomainPtr &domain, const ProblemPtr &problem)
+    std::string parseArgument(const ast::Expression &term, const std::vector<Variable> &variables,
+                              const DomainPtr &domain, const ProblemPtr &problem)
     {
         if (term.op.toOp() != Operators::LITERAL)
             return "";
@@ -212,7 +213,8 @@ pddlboat::ExpressionPtr pddlboat::toExpression(const ast::Expression &expression
             if (e2t.empty())
                 throw std::invalid_argument(log::format("Invalid second Equal variable!"));
 
-            return pddlboat::makeEquals(getValue(e1t, nullptr, problem, domain), getValue(e2t, nullptr, problem, domain));
+            return pddlboat::makeEquals(getValue(e1t, nullptr, problem, domain),
+                                        getValue(e2t, nullptr, problem, domain));
         }
         default:
             throw std::invalid_argument(
@@ -228,6 +230,13 @@ pddlboat::ActionPtr pddlboat::toAction(const ast::Action &action, const DomainPt
     return makeAction(action.name, variables,  //
                       toExpression(action.precondition, variables, domain),
                       toExpression(action.effect, variables, domain));
+}
+
+pddlboat::DerivedPredicateDefinitionPtr pddlboat::toDerived(const ast::Action &action,
+                                                            const DomainPtr &domain)
+{
+    const auto &variables = getVariables(action.parameters);
+    return makeDerivedPred(action.name, variables, toExpression(action.precondition, variables, domain));
 }
 
 pddlboat::DomainPtr pddlboat::toDomain(const ast::Domain &domain)
@@ -263,7 +272,12 @@ pddlboat::DomainPtr pddlboat::toDomain(const ast::Domain &domain)
     }
 
     for (const auto &action : domain.actions)
-        r->addAction(toAction(action, r));
+    {
+        if (action.derived)
+            r->addDerivedPredicate(toDerived(action, r));
+        else
+            r->addAction(toAction(action, r));
+    }
 
     return r;
 }

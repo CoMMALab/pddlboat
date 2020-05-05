@@ -48,6 +48,7 @@ BOOST_FUSION_ADAPT_STRUCT(                               //
 
 BOOST_FUSION_ADAPT_STRUCT(                               //
     pddlboat::ast::Action,                               //
+    (bool, derived)                                      //
     (std::string, name)                                  //
     (std::vector<pddlboat::ast::TypedList>, parameters)  //
     (pddlboat::ast::Expression, precondition)            //
