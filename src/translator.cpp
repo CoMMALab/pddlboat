@@ -101,10 +101,18 @@ pddlboat::ExpressionPtr pddlboat::toExpression(const ast::Expression &expression
                     bindings.emplace_back(name);
                 }
 
-                return pred->bind(bindings, problem, domain);
+                if (domain->isDerivedPredicate(s))
+                {
+                    auto derived = domain->getDerivedPredicate(s);
+                    return derived->bind(bindings, problem, domain);
+                }
+                else
+                    return pred->bind(bindings, problem, domain);
             }
             else
                 throw std::invalid_argument(log::format("Invalid literal %1%!", s));
+
+            return nullptr;
         }
         case Operators::AND:
         {

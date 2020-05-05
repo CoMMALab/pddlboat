@@ -302,6 +302,12 @@ namespace pddlboat
          */
         std::set<std::string> getVariables() const;
 
+        /** \brief Get the corresponding bound objects given a set of bindings for this assignment.
+         *  \param[in] bindings Bindings to ground given this assignment.
+         *  \return Vector of object names.
+         */
+        std::vector<std::string> getObjects(const std::vector<Value> &bindings) const;
+
         /** \brief Serialize this assignment.
          *  \param[in,out] out Output stream to use.
          *  \return The output stream.
@@ -586,9 +592,106 @@ namespace pddlboat
     DerivedPredicateDefinitionPtr makeDerivedPred(const std::string &name, const VariableList &variables,
                                                   const ExpressionPtr &expression);
 
-    // class DerivedPredicate : public Expression
-    // {
-    // };
+    class DerivedPredicate : public Expression
+    {
+    public:
+        std::vector<Value> bindings;  ///< Argument bindings for the predicate.
+
+        /** \brief Constructor.
+         *  \param[in] predicate Predicate definition that this predicate is a binding for.
+         *  \param[in] bindings Argument bindings.
+         */
+        DerivedPredicate(const DerivedPredicateDefinition *predicate, const std::vector<Value> &bindings);
+
+        /** \brief Bind this 0-ary predicate to another evaluatable Predicate.
+         *  \return A bound version of a 0-ary predicate.
+         *  \throw std::invalid_argument if this is not a 0-ary predicate.
+         */
+        DerivedPredicatePtr rebind() const;
+
+        /** \brief Bind this n-ary predicate to another evaluatable Predicate.
+         *  Can be bound to either grounded variables or a named variable that exists in some expression.
+         *  The bound list consists of variables, e.g. ?x, ?y --- and objects, e.g, a, b.
+         *  If a `?` is in the first position, the label is bound as a variable.
+         *  Otherwise, it is bound as an object, and will throw an error if not a valid object to bind.
+         *  \param[in] bound List of bindings of variables and objects.
+         *  \param[in] problem Optional, but if any objects exist in the bindings the problem is required.
+         *  \param[in] domain Optional, but if any constants exist without a problem the domain is required.
+         *                    Not needed if a problem is provided.
+         *  \return A bound version of a n-ary predicate.
+         *  \throw std::invalid_argument if this is not a valid binding.
+         */
+        DerivedPredicatePtr rebind(const std::vector<std::string> &bound, const ProblemPtr &problem = nullptr,
+                                   const DomainPtr &domain = nullptr) const;
+
+        /** \brief Return the list of unbound arguments to this predicate.
+         *  \return The unbound variables for this predicate.
+         */
+        VariableList arguments() const;
+
+        /** \brief Evaluate this predicate. Checks contents of state to see if the grounding is true.
+         *  \param[in] state State of the world.
+         *  \param[in] vars Grounding of the predicate.
+         *  \return True if this predicate is true, false otherwise.
+         */
+        bool evaluate(const StatePtr &state, const Assignment &vars) const override;
+
+        /** \brief Returns the type of this expression.
+         *  \return Expression type.
+         */
+        Expression::Type type() const override;
+
+        /** \brief Get the set of all ungrounded variables in this expression.
+         *  \param[out] vars Variables used in the expression.
+         */
+        void getVariables(VariableSet &vars) const override;
+
+        /** \brief Add this predicate to the used predicate set.
+         *  \param[out] predicates Set of all predicates.
+         *  \param[in] vars Assignment.
+         */
+        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                               const Assignment &vars) const override;
+
+        /** \brief Returns true if this expression contains the variable name.
+         *  \param[in] variable The variable name to search for.
+         *  \return True if the variable is in the expression.
+         */
+        bool containsVariable(const std::string &variable) const override;
+
+        /** \brief Returns true if this expression contains the predicate name.
+         *  \param[in] predicate The predicate name to search for.
+         *  \return True if the predicate is in the expression.
+         */
+        bool containsPredicate(const std::string &predicate) const override;
+
+        /** \brief Renames a variable.
+         *  \param[in] old Old variable name to change.
+         *  \parma[in] name New name to change to.
+         */
+        void renameVariable(const std::string &old, const std::string &name) override;
+
+        /** \brief Serializes this predicate to PDDL.
+         *  \param[in,out] out Output stream to use.
+         *  \param[in] indent Amount of indentation per level.
+         *  \param[in] level Level of indentation to output to.
+         *  \return The output stream.
+         */
+        std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
+                             unsigned int level = 0) const override;
+
+        /** \brief Return the name of this predicate.
+         *  \return The name of the predicate.
+         */
+        const std::string &name() const;
+
+
+
+    private:
+        Assignment getBinding(const Assignment &vars) const;
+
+        const DerivedPredicateDefinition *predicate;
+    };
 
     ///
     /// Action
@@ -762,12 +865,24 @@ namespace pddlboat
          */
         void addDerivedPredicate(const DerivedPredicateDefinitionPtr &predicate);
 
+        /** \brief Returns true if this predicate exists.
+         *  \param[in] name Name of predicate to check.
+         *  \return True if the predicate exists.
+         */
+        bool isPredicate(const std::string &name) const;
+
         /** \brief Retrieve a predicate defined in the domain.
          *  \param[in] name Name of predicate to retrieve.
          *  \return The named predicate definition.
          *  \throw std::invalid_argument if the predicate does not exist.
          */
         const PredicateDefinitionPtr getPredicate(const std::string &name) const;
+
+        /** \brief Returns true if this derived predicate exists.
+         *  \param[in] name Name of predicate to check.
+         *  \return True if the predicate exists.
+         */
+        bool isDerivedPredicate(const std::string &name) const;
 
         /** \brief Retrieve a predicate defined in the domain.
          *  \param[in] name Name of predicate to retrieve.

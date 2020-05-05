@@ -35,7 +35,7 @@ Variable::Variable(const std::pair<std::string, std::string> &both) : Variable(b
 }
 
 Variable::Variable(const std::string &name, const std::string &type)
-    : name(boost::algorithm::to_lower_copy(name)), type(boost::algorithm::to_lower_copy(type))
+  : name(boost::algorithm::to_lower_copy(name)), type(boost::algorithm::to_lower_copy(type))
 {
 }
 
@@ -237,6 +237,20 @@ std::set<std::string> Assignment::getVariables() const
     return variables;
 }
 
+std::vector<std::string> Assignment::getObjects(const std::vector<Value> &bindings) const
+{
+    std::vector<std::string> objects;
+    for (const auto &binding : bindings)
+    {
+        if (binding.isVar)
+            objects.emplace_back(assigned(binding.name)->name);
+        else
+            objects.emplace_back(binding.name);
+    }
+
+    return objects;
+}
+
 std::ostream &Assignment::toString(std::ostream &out) const
 {
     out << "(assignment";
@@ -350,23 +364,9 @@ PredicatePtr Predicate::rebind(const std::vector<std::string> &bound, const Prob
     return predicate->bind(bound, problem, domain);
 }
 
-std::vector<std::string> Predicate::getObjects(const Assignment &vars) const
-{
-    std::vector<std::string> objects;
-    for (const auto &binding : bindings)
-    {
-        if (binding.isVar)
-            objects.emplace_back(vars.assigned(binding.name)->name);
-        else
-            objects.emplace_back(binding.name);
-    }
-
-    return objects;
-}
-
 bool Predicate::evaluate(const StatePtr &state, const Assignment &vars) const
 {
-    bool r = state->isTrue(predicate->name, getObjects(vars));
+    bool r = state->isTrue(predicate->name, vars.getObjects(bindings));
 
     if (debug)
     {
@@ -382,7 +382,7 @@ bool Predicate::evaluate(const StatePtr &state, const Assignment &vars) const
 
 void Predicate::assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const
 {
-    out->assignN(predicate->name, getObjects(vars), true);
+    out->assignN(predicate->name, vars.getObjects(bindings), true);
 }
 
 Expression::Type Predicate::type() const
@@ -499,11 +499,20 @@ DerivedPredicateDefinition::DerivedPredicateDefinition(const std::string &name,
 
 DerivedPredicatePtr DerivedPredicateDefinition::bind() const
 {
+    return bind(std::vector<std::string>{});
 }
 
 DerivedPredicatePtr DerivedPredicateDefinition::bind(const std::vector<std::string> &bound,
                                                      const ProblemPtr &problem, const DomainPtr &domain) const
 {
+    if (parameters.size() != bound.size())
+        throw std::invalid_argument("Cannot bind variables, size mismatch!");
+
+    std::vector<Value> toUse;
+    for (unsigned int i = 0; i < bound.size(); ++i)
+        toUse.emplace_back(getValue(bound[i], &parameters[i], problem, domain));
+
+    return std::make_shared<DerivedPredicate>(this, toUse);
 }
 
 bool DerivedPredicateDefinition::isValidAssignment(const Problem *problem,
@@ -553,6 +562,125 @@ DerivedPredicateDefinitionPtr pddlboat::makeDerivedPred(const std::string &name,
                                                         const ExpressionPtr &expression)
 {
     return std::make_shared<DerivedPredicateDefinition>(name, variables, expression);
+}
+
+DerivedPredicate::DerivedPredicate(const DerivedPredicateDefinition *predicate,
+                                   const std::vector<Value> &bindings)
+  : bindings(bindings), predicate(predicate)
+{
+}
+
+DerivedPredicatePtr DerivedPredicate::rebind() const
+{
+    return rebind(std::vector<std::string>{});
+}
+
+DerivedPredicatePtr DerivedPredicate::rebind(const std::vector<std::string> &bound, const ProblemPtr &problem,
+                                             const DomainPtr &domain) const
+{
+    return predicate->bind(bound, problem, domain);
+}
+
+Assignment DerivedPredicate::getBinding(const Assignment &vars) const
+{
+    Assignment derived(vars.problem);
+    auto objects = vars.getObjects(bindings);
+
+    for (std::size_t i = 0; i < predicate->parameters.size(); ++i)
+        derived.assign(predicate->parameters[i].name, objects[i]);
+
+    return derived;
+}
+
+bool DerivedPredicate::evaluate(const StatePtr &state, const Assignment &vars) const
+{
+    // create a new assignment for definitions's bindings given assignment's bindings (e.g., change values
+    // based on this binding)
+
+    // bool r = state->isTrue(predicate->name, vars.getObjects(bindings));
+    // return r;
+
+    return predicate->expression->evaluate(state, getBinding(vars));
+}
+
+Expression::Type DerivedPredicate::type() const
+{
+    return Expression::DERIVED;
+}
+
+void DerivedPredicate::getVariables(VariableSet &vars) const
+{
+    for (const auto &binding : bindings)
+        if (binding.isVar)
+            vars.addVariable({binding.name, binding.type});
+}
+
+void DerivedPredicate::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                         const Assignment &vars) const
+{
+    predicate->expression->getUsedPredicates(predicates, state, getBinding(vars));
+}
+
+VariableList DerivedPredicate::arguments() const
+{
+    VariableList list;
+    for (const auto &binding : bindings)
+        if (binding.isVar)
+            list.emplace_back(binding.name, binding.type);
+
+    return list;
+}
+
+bool DerivedPredicate::containsVariable(const std::string &variable) const
+{
+    for (const auto &v : bindings)
+        if (v.isVar and v.name == variable)
+            return true;
+
+    return predicate->expression->containsVariable(variable);
+}
+
+bool DerivedPredicate::containsPredicate(const std::string &pred) const
+{
+    if (predicate->name == pred)
+        return true;
+
+    return predicate->expression->containsPredicate(pred);
+}
+
+void DerivedPredicate::renameVariable(const std::string &old, const std::string &name)
+{
+    for (auto &binding : bindings)
+    {
+        if (binding.isVar and binding.name == old)
+            binding.name = name;
+    }
+
+    // shouldn't affect expression...
+}
+
+std::ostream &DerivedPredicate::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
+{
+    const std::string SPACE = std::string(indent, ' ');
+    for (unsigned int i = 0; i < level; ++i)
+        out << SPACE;
+
+    out << "(" << predicate->name;
+    for (const auto &binding : bindings)
+    {
+        out << " ";
+        if (binding.isVar)
+            out << "?";
+        out << binding.name;
+    }
+
+    out << ")";
+    return out;
+}
+
+const std::string &DerivedPredicate::name() const
+{
+    return predicate->name;
 }
 
 ///
@@ -665,6 +793,14 @@ void Domain::addDerivedPredicate(const DerivedPredicateDefinitionPtr &predicate)
     // removePredicate(predicate->name);
 }
 
+bool Domain::isPredicate(const std::string &name) const
+{
+    const std::string namel = boost::algorithm::to_lower_copy(name);
+
+    auto it = predicates.find(namel);
+    return it != predicates.end();
+}
+
 const PredicateDefinitionPtr Domain::getPredicate(const std::string &name) const
 {
     const std::string namel = boost::algorithm::to_lower_copy(name);
@@ -674,6 +810,14 @@ const PredicateDefinitionPtr Domain::getPredicate(const std::string &name) const
         throw std::invalid_argument(log::format("Predicate %1% does not exist!", namel));
 
     return it->second;
+}
+
+bool Domain::isDerivedPredicate(const std::string &name) const
+{
+    const std::string namel = boost::algorithm::to_lower_copy(name);
+
+    auto it = derived.find(namel);
+    return it != derived.end();
 }
 
 const DerivedPredicateDefinitionPtr Domain::getDerivedPredicate(const std::string &name) const

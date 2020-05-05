@@ -24,6 +24,7 @@ namespace pddlboat
         {
             EXPRESSION,
             PREDICATE,
+            DERIVED,
             VARIADIC,
             QUANTIFIER,
             AND,
