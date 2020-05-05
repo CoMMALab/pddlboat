@@ -35,7 +35,7 @@ Variable::Variable(const std::pair<std::string, std::string> &both) : Variable(b
 }
 
 Variable::Variable(const std::string &name, const std::string &type)
-  : name(boost::algorithm::to_lower_copy(name)), type(type)
+    : name(boost::algorithm::to_lower_copy(name)), type(boost::algorithm::to_lower_copy(type))
 {
 }
 
@@ -1090,13 +1090,13 @@ std::ostream &Action::toPDDL(std::ostream &out, unsigned int indent) const
     if (precondition)
     {
         out << SPACE << SPACE << ":precondition" << std::endl;
-        precondition->toPDDL(out, indent, 2) << std::endl;
+        precondition->toPDDL(out, indent, 3) << std::endl;
     }
 
     if (effect)
     {
         out << SPACE << SPACE << ":effect" << std::endl;
-        effect->toPDDL(out, indent, 2) << std::endl;
+        effect->toPDDL(out, indent, 3) << std::endl;
     }
 
     out << SPACE << ")";

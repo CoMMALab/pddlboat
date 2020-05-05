@@ -214,13 +214,14 @@ std::ostream &And::toPDDL(std::ostream &out, unsigned int indent, unsigned int l
     const std::string SPACE = std::string(indent * level, ' ');
     out << SPACE;
 
-    out << "(and " << std::endl;
-    for (const auto &term : terms_)
+    out << "(and" << std::endl;
+    for (std::size_t i = 0; i < terms_.size(); ++i)
     {
-        term->toPDDL(out, indent, level + 1);
-        out << std::endl;
+        terms_[i]->toPDDL(out, indent, level + 1);
+        if (i != terms_.size() - 1)
+            out << std::endl;
     }
-    out << SPACE << ")";
+    out << ")";
 
     return out;
 }
@@ -266,14 +267,14 @@ std::ostream &Or::toPDDL(std::ostream &out, unsigned int indent, unsigned int le
     const std::string SPACE = std::string(indent * level, ' ');
     out << SPACE;
 
-    out << "(or " << std::endl;
-    for (const auto &term : terms_)
+    out << "(or" << std::endl;
+    for (std::size_t i = 0; i < terms_.size(); ++i)
     {
-        term->toPDDL(out, indent, level + 1);
-        out << std::endl;
+        terms_[i]->toPDDL(out, indent, level + 1);
+        if (i != terms_.size() - 1)
+            out << std::endl;
     }
-
-    out << SPACE << ")";
+    out << ")";
 
     return out;
 }
@@ -365,7 +366,7 @@ std::ostream &Not::toPDDL(std::ostream &out, unsigned int indent, unsigned int l
 
     out << "(not " << std::endl;
     term_->toPDDL(out, indent, level + 1);
-    out << std::endl << SPACE << ")";
+    out << ")";
 
     return out;
 }
@@ -452,8 +453,7 @@ std::ostream &Imply::toPDDL(std::ostream &out, unsigned int indent, unsigned int
     left_->toPDDL(out, indent, level + 1);
     out << std::endl;
     right_->toPDDL(out, indent, level + 1);
-    out << std::endl;
-    out << SPACE << ")";
+    out << ")";
 
     return out;
 }
@@ -553,8 +553,7 @@ std::ostream &When::toPDDL(std::ostream &out, unsigned int indent, unsigned int 
     left_->toPDDL(out, indent, level + 1);
     out << std::endl;
     right_->toPDDL(out, indent, level + 1);
-    out << std::endl;
-    out << SPACE << ")";
+    out << ")";
 
     return out;
 }
@@ -676,9 +675,7 @@ std::ostream &Exists::toPDDL(std::ostream &out, unsigned int indent, unsigned in
     VariableSet(domain_).toPDDL(out) << std::endl;
 
     formula_->toPDDL(out, indent, level + 1);
-    out << std::endl;
-
-    out << SPACE << ")";
+    out << ")";
 
     return out;
 }
@@ -764,9 +761,7 @@ std::ostream &Forall::toPDDL(std::ostream &out, unsigned int indent, unsigned in
     VariableSet(domain_).toPDDL(out) << std::endl;
 
     formula_->toPDDL(out, indent, level + 1);
-    out << std::endl;
-
-    out << SPACE << ")";
+    out << ")";
 
     return out;
 }
