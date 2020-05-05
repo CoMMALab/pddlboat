@@ -339,6 +339,17 @@ Predicate::Predicate(const PredicateDefinition *predicate, const std::vector<Val
 {
 }
 
+PredicatePtr Predicate::rebind() const
+{
+    return rebind(std::vector<std::string>{});
+}
+
+PredicatePtr Predicate::rebind(const std::vector<std::string> &bound, const ProblemPtr &problem,
+                               const DomainPtr &domain) const
+{
+    return predicate->bind(bound, problem, domain);
+}
+
 std::vector<std::string> Predicate::getObjects(const Assignment &vars) const
 {
     std::vector<std::string> objects;
@@ -386,12 +397,14 @@ void Predicate::getVariables(VariableSet &vars) const
             vars.addVariable({binding.name, binding.type});
 }
 
-void Predicate::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const
+void Predicate::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                  const Assignment &vars) const
 {
     predicates.emplace(toID(vars));
 }
 
-void Predicate::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &/*state*/, const Assignment &vars) const
+void Predicate::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr & /*state*/,
+                                      const Assignment &vars) const
 {
     predicates.emplace(toID(vars));
 }
