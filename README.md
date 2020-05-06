@@ -18,8 +18,7 @@ Currently, _PDDLboat_ supports the following PDDL `:requirements`:
 - `:quantified-preconditions`: Both `:existential-preconditions` and `:universal-preconditions` are supported.
 - `:conditional-effects`: `when` is allowed in action effects.
 - `:adl`: All of the above are supported.
-
-More are planned soon.
+- `:derived-predicates`: Predicates with values defined by expressions are allowed. Note that these definitions can be recursive.
 
 ## Concepts
 
@@ -210,3 +209,12 @@ make
 ```
 
 Otherwise, simply run the catkin build command.
+
+# TODO
+
+More features in _PDDLboat_ are planned soon.
+On the horizon:
+- Boolean functions.
+- Basic uncertainty (e.g., `oneof`, etc.).
+- Durative actions.
+- Incremental constraints.
