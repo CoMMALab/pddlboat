@@ -247,6 +247,7 @@ pddlboat::ActionPtr pddlboat::toAction(const ast::Action &action, const DomainPt
 pddlboat::DerivedPredicateDefinitionPtr pddlboat::toDerived(const ast::Action &action,
                                                             DomainPtr &domain)
 {
+    // need to add before parsing expression due to recursive definitions
     const auto &variables = getVariables(action.parameters);
     auto pred = makeDerivedPred(action.name, variables, nullptr);
     domain->addDerivedPredicate(pred);
@@ -290,7 +291,6 @@ pddlboat::DomainPtr pddlboat::toDomain(const ast::Domain &domain)
     for (const auto &action : domain.actions)
     {
         if (action.derived)
-            // r->addDerivedPredicate(toDerived(action, r));
             toDerived(action, r);
         else
             r->addAction(toAction(action, r));
