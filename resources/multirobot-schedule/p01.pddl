@@ -12,7 +12,7 @@
         r1 - robot
         r2 - robot
     )
-    (:init 
+    (:init
         (at c l1)
         (on b c)
         (on a b)
@@ -30,8 +30,8 @@
         (handempty r1)
         (handempty r2)
     )
-    (:goal 
-        (and 
+    (:goal
+        (and
             (at c l3)
             (on b c)
             (on a b)

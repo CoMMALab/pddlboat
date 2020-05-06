@@ -12,6 +12,7 @@
                (in-hand ?b - block ?r - robot)      ; Is ?b grasped by ?r
                (handempty ?r - robot)               ; Is ?r not grasping anything
                (reachable ?l - location ?r - robot) ; Can ?r reach ?l
+               (can-handoff ?a - robot ?b - robot)  ; Can ?a handoff to ?b
                )
 
   (:derived (is-reachable ?b - block ?r - robot) ; Is ?b at a reachable location
@@ -78,9 +79,11 @@
 
   (:action handoff
            :parameters (?b - block ?from - robot ?to - robot)
-           :precondition (and (exists (?l - location)
+           :precondition (and (or (exists (?l - location)
                                       (and (reachable ?l ?from)
                                            (reachable ?l ?to)))
+                                  (can-handoff ?from ?to)
+                                  (can-handoff ?to ?from))
                               (in-hand ?b ?from)
                               (handempty ?to))
            :effect (and (not (handempty ?to))
