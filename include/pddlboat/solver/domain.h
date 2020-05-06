@@ -580,6 +580,12 @@ namespace pddlboat
          *  \return The output stream.
          */
         std::ostream &toPDDL(std::ostream &out = std::cout, unsigned int indent = 2) const;
+
+        /** \brief Generates a unique ID for this predicate definition given a grounding.
+         *  \param[in] vars A grounding of this predicate.
+         *  \return ID of the grounded predicate.
+         */
+        std::string toID(const Assignment &vars) const;
     };
 
     /** \brief Helper function to create a derived predicate definition.
@@ -683,6 +689,12 @@ namespace pddlboat
          *  \return The name of the predicate.
          */
         const std::string &name() const;
+
+        /** \brief Generates a unique ID for this predicate definition given a grounding.
+         *  \param[in] vars A grounding of this predicate.
+         *  \return ID of the grounded predicate.
+         */
+        std::string toID(const Assignment &vars) const;
 
     private:
         Assignment getBinding(const Assignment &vars) const;

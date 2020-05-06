@@ -674,10 +674,10 @@ std::ostream &PlanDependencyGraph::toDotFile(std::ostream &out, DotFileOptions o
                 out << ';' << std::endl;
             }
         }
-
-        if (options.drawEnd)
-            out << "{rank=same;below;end;}" << std::endl;
     }
+
+    if (options.drawEnd)
+        out << "{rank=same;below;end;}" << std::endl;
 
     out << "}" << std::endl;
     return out;

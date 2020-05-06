@@ -470,14 +470,12 @@ std::string Predicate::toID(const Assignment &vars) const
     ss << "PRED:" << predicate->name;
 
     ss << ":ARGS:";
-    for (unsigned int i = 0; i < bindings.size(); ++i)
-    {
-        if (bindings[i].isVar)
-            ss << vars.assigned(bindings[i].name)->name;
-        else
-            ss << bindings[i].name;
 
-        if (i < bindings.size() - 1)
+    auto objects = vars.getObjects(bindings);
+    for (unsigned int i = 0; i < objects.size(); ++i)
+    {
+        ss << objects[i];
+        if (i < objects.size() - 1)
             ss << ",";
     }
 
@@ -567,6 +565,23 @@ std::ostream &DerivedPredicateDefinition::toPDDL(std::ostream &out, unsigned int
     return out;
 }
 
+std::string DerivedPredicateDefinition::toID(const Assignment &vars) const
+{
+    std::stringstream ss;
+    ss << "PRED:" << name;
+
+    ss << ":ARGS:";
+    for (unsigned int i = 0; i < parameters.size(); ++i)
+    {
+        ss << vars.assigned(parameters[i].name)->name;
+        if (i < parameters.size() - 1)
+            ss << ",";
+    }
+
+    return ss.str();
+}
+
+
 DerivedPredicateDefinitionPtr pddlboat::makeDerivedPred(const std::string &name,
                                                         const VariableList &variables,
                                                         const ExpressionPtr &expression)
@@ -636,7 +651,13 @@ void DerivedPredicate::getVariables(VariableSet &vars) const
 void DerivedPredicate::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
                                          const Assignment &vars) const
 {
-    predicate->expression->getUsedPredicates(predicates, state, getBinding(vars));
+    const auto &id = toID(vars);
+    if (predicates.find(id) == predicates.end())
+    {
+        predicates.emplace(id);
+        predicate->expression->getUsedPredicates(predicates, state, getBinding(vars));
+        predicates.erase(predicates.find(id));
+    }
 }
 
 VariableList DerivedPredicate::arguments() const
@@ -700,6 +721,24 @@ std::ostream &DerivedPredicate::toPDDL(std::ostream &out, unsigned int indent, u
 const std::string &DerivedPredicate::name() const
 {
     return predicate->name;
+}
+
+std::string DerivedPredicate::toID(const Assignment &vars) const
+{
+    std::stringstream ss;
+    ss << "PRED:" << predicate->name;
+
+    ss << ":ARGS:";
+
+    auto objects = vars.getObjects(bindings);
+    for (unsigned int i = 0; i < objects.size(); ++i)
+    {
+        ss << objects[i];
+        if (i < objects.size() - 1)
+            ss << ",";
+    }
+
+    return ss.str();
 }
 
 ///
