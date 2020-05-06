@@ -144,8 +144,8 @@ void PlanDependencyGraph::initialize()
     nodes_.clear();
     dag_ = Graph();
 
-    if (not plan_.validate())
-        throw std::runtime_error("Cannot build dependency graph of invalid plan!");
+    // if (not plan_.validate())
+    //     throw std::runtime_error("Cannot build dependency graph of invalid plan!");
 
     const auto &steps = plan_.getSteps();
     nodes_.resize(steps.size());

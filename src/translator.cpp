@@ -87,8 +87,9 @@ pddlboat::ExpressionPtr pddlboat::toExpression(const ast::Expression &expression
             if (debug)
                 std::cout << "Translating Literal " << s << std::endl;
 
-            auto pred = domain->getPredicate(s);
-            if (pred)
+            bool basic = domain->isPredicate(s);
+            bool derived = domain->isDerivedPredicate(s);
+            if (basic or derived)
             {
                 std::vector<std::string> bindings;
 
@@ -101,13 +102,16 @@ pddlboat::ExpressionPtr pddlboat::toExpression(const ast::Expression &expression
                     bindings.emplace_back(name);
                 }
 
-                if (domain->isDerivedPredicate(s))
+                if (derived)
                 {
                     auto derived = domain->getDerivedPredicate(s);
                     return derived->bind(bindings, problem, domain);
                 }
                 else
+                {
+                    auto pred = domain->getPredicate(s);
                     return pred->bind(bindings, problem, domain);
+                }
             }
             else
                 throw std::invalid_argument(log::format("Invalid literal %1%!", s));
@@ -241,10 +245,14 @@ pddlboat::ActionPtr pddlboat::toAction(const ast::Action &action, const DomainPt
 }
 
 pddlboat::DerivedPredicateDefinitionPtr pddlboat::toDerived(const ast::Action &action,
-                                                            const DomainPtr &domain)
+                                                            DomainPtr &domain)
 {
     const auto &variables = getVariables(action.parameters);
-    return makeDerivedPred(action.name, variables, toExpression(action.precondition, variables, domain));
+    auto pred = makeDerivedPred(action.name, variables, nullptr);
+    domain->addDerivedPredicate(pred);
+    pred->expression = toExpression(action.precondition, variables, domain);
+
+    return pred;
 }
 
 pddlboat::DomainPtr pddlboat::toDomain(const ast::Domain &domain)
@@ -282,7 +290,8 @@ pddlboat::DomainPtr pddlboat::toDomain(const ast::Domain &domain)
     for (const auto &action : domain.actions)
     {
         if (action.derived)
-            r->addDerivedPredicate(toDerived(action, r));
+            // r->addDerivedPredicate(toDerived(action, r));
+            toDerived(action, r);
         else
             r->addAction(toAction(action, r));
     }

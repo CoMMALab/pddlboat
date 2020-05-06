@@ -1,90 +1,41 @@
 (define (domain block-world)
   (:requirements :strips)
-  (:types
-    block
-    location
-  )
-  (:predicates 
-    (at ?x - block ?y - location)
-    (clear ?x - block)
-    (clear_loc ?x - location)
-    (in_hand ?x - block)
-    (on ?x - block ?y - block)
-  )
+  (:types block location)
+  (:predicates (at ?x - block ?y - location)
+               (clear ?x - block)
+               (clear_loc ?x - location)
+               (in_hand ?x - block)
+               (on ?x - block ?y - block))
+
   (:action pick-up
-    :parameters (?x - block ?y - location)
-    :precondition
-      (and 
-        (clear ?x)
-        (at ?x ?y)
-      )
-    :effect
-      (and 
-        (not 
-          (clear ?x)
-        )
-        (not 
-          (at ?x ?y)
-        )
-        (in_hand ?x)
-        (clear_loc ?y)
-      )
-  )
+           :parameters (?x - block ?y - location)
+           :precondition (and (clear ?x)
+                              (at ?x ?y))
+           :effect (and (not (clear ?x))
+                        (not (at ?x ?y))
+                        (in_hand ?x)
+                        (clear_loc ?y)))
   (:action put-down
-    :parameters (?x - block ?y - location)
-    :precondition
-      (and 
-        (clear_loc ?y)
-        (in_hand ?x)
-      )
-    :effect
-      (and 
-        (clear ?x)
-        (at ?x ?y)
-        (not 
-          (in_hand ?x)
-        )
-        (not 
-          (clear_loc ?y)
-        )
-      )
-  )
+           :parameters (?x - block ?y - location)
+           :precondition (and (clear_loc ?y)
+                              (in_hand ?x))
+           :effect (and (clear ?x)
+                        (at ?x ?y)
+                        (not (in_hand ?x))
+                        (not (clear_loc ?y))))
   (:action stack
-    :parameters (?x - block ?y - block)
-    :precondition
-      (and 
-        (clear ?y)
-        (in_hand ?x)
-      )
-    :effect
-      (and 
-        (not 
-          (clear ?y)
-        )
-        (not 
-          (in_hand ?x)
-        )
-        (clear ?x)
-        (on ?x ?y)
-      )
-  )
+           :parameters (?x - block ?y - block)
+           :precondition (and (clear ?y)
+                              (in_hand ?x))
+           :effect (and (not (clear ?y))
+                        (not (in_hand ?x))
+                        (clear ?x)
+                        (on ?x ?y)))
   (:action unstack
-    :parameters (?x - block ?y - block)
-    :precondition
-      (and 
-        (on ?x ?y)
-        (clear ?x)
-      )
-    :effect
-      (and 
-        (clear ?y)
-        (in_hand ?x)
-        (not 
-          (clear ?x)
-        )
-        (not 
-          (on ?x ?y)
-        )
-      )
-  )
-)
+           :parameters (?x - block ?y - block)
+           :precondition (and (on ?x ?y)
+                              (clear ?x))
+           :effect (and (clear ?y)
+                        (in_hand ?x)
+                        (not (clear ?x))
+                        (not (on ?x ?y)))))

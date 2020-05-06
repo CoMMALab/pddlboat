@@ -308,6 +308,12 @@ namespace pddlboat
          */
         std::vector<std::string> getObjects(const std::vector<Value> &bindings) const;
 
+        /** \brief Get the corresponding bound object given a binding for this assignment.
+         *  \param[in] binding Binding to ground given this assignment.
+         *  \return Object name.
+         */
+        std::string getObject(const Value &binding) const;
+
         /** \brief Serialize this assignment.
          *  \param[in,out] out Output stream to use.
          *  \return The output stream.
@@ -507,13 +513,6 @@ namespace pddlboat
         const std::string &name() const;
 
     private:
-        /** \brief For a grounding, create a list of all object names that correspond to the arguments of the
-         * predicate.
-         *  \param[in] vars Grounding of the predicate.
-         *  \return A vector of the grounded objects.
-         */
-        std::vector<std::string> getObjects(const Assignment &vars) const;
-
         const PredicateDefinition *predicate;  ///< Definition of this predicate.
     };
 
@@ -531,7 +530,7 @@ namespace pddlboat
     public:
         const std::string name;          ///< Name of the predicate.
         const VariableList parameters;   ///< Parameters this predicate has.
-        const ExpressionPtr expression;  ///< Predicate derivation.
+        ExpressionPtr expression;  ///< Predicate derivation.
 
         /** \brief Constructor.
          *  \param[in] name Name of the derived predicate.
@@ -684,8 +683,6 @@ namespace pddlboat
          *  \return The name of the predicate.
          */
         const std::string &name() const;
-
-
 
     private:
         Assignment getBinding(const Assignment &vars) const;

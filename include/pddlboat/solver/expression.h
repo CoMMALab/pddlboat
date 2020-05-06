@@ -64,6 +64,12 @@ namespace pddlboat
         bool isVar;        ///< Is this value a variable to be substituted?
         std::string name;  ///< Name of this value.
         std::string type;  ///< Type of this value.
+
+        /** \brief Print this value out.
+         *  \param[in,out] out Output stream.
+         *  \return The output stream.
+         */
+        std::ostream &toString(std::ostream &out) const;
     };
 
     Value getValue(const std::string &term, const Variable *variable, const ProblemPtr &problem, const DomainPtr &domain);

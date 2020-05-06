@@ -57,6 +57,14 @@ Value pddlboat::getValue(const std::string &term, const Variable *variable, cons
     return Value(isVar, b, type);
 }
 
+std::ostream &Value::toString(std::ostream &out) const
+{
+    if (isVar)
+        out << "?";
+    out << name << " - " << type;
+    return out;
+}
+
 ///
 /// Expression
 ///

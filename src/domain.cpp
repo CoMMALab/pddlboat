@@ -241,14 +241,17 @@ std::vector<std::string> Assignment::getObjects(const std::vector<Value> &bindin
 {
     std::vector<std::string> objects;
     for (const auto &binding : bindings)
-    {
-        if (binding.isVar)
-            objects.emplace_back(assigned(binding.name)->name);
-        else
-            objects.emplace_back(binding.name);
-    }
+        objects.emplace_back(getObject(binding));
 
     return objects;
+}
+
+std::string Assignment::getObject(const Value &binding) const
+{
+    if (binding.isVar)
+        return assigned(binding.name)->name;
+    else
+        return binding.name;
 }
 
 std::ostream &Assignment::toString(std::ostream &out) const
@@ -508,9 +511,16 @@ DerivedPredicatePtr DerivedPredicateDefinition::bind(const std::vector<std::stri
     if (parameters.size() != bound.size())
         throw std::invalid_argument("Cannot bind variables, size mismatch!");
 
+    // std::cout << "Binding " << name << " with ";
+
     std::vector<Value> toUse;
     for (unsigned int i = 0; i < bound.size(); ++i)
+    {
         toUse.emplace_back(getValue(bound[i], &parameters[i], problem, domain));
+        // toUse.back().toString(std::cout) << " ";
+    }
+
+    // std::cout << std::endl;
 
     return std::make_shared<DerivedPredicate>(this, toUse);
 }
@@ -594,13 +604,21 @@ Assignment DerivedPredicate::getBinding(const Assignment &vars) const
 
 bool DerivedPredicate::evaluate(const StatePtr &state, const Assignment &vars) const
 {
-    // create a new assignment for definitions's bindings given assignment's bindings (e.g., change values
-    // based on this binding)
+    auto binding = getBinding(vars);
+    bool r = predicate->expression->evaluate(state, binding);
 
-    // bool r = state->isTrue(predicate->name, vars.getObjects(bindings));
-    // return r;
+    if (debug)
+    {
+        std::cout << "Expression is " << r << std::endl;
+        toPDDL(std::cout);
+        std::cout << std::endl;
+        binding.toString(std::cout);
+        std::cout << std::endl;
+        vars.toString(std::cout);
+        std::cout << std::endl;
+    }
 
-    return predicate->expression->evaluate(state, getBinding(vars));
+    return r;
 }
 
 Expression::Type DerivedPredicate::type() const
@@ -637,7 +655,7 @@ bool DerivedPredicate::containsVariable(const std::string &variable) const
         if (v.isVar and v.name == variable)
             return true;
 
-    return predicate->expression->containsVariable(variable);
+    return false;
 }
 
 bool DerivedPredicate::containsPredicate(const std::string &pred) const
@@ -645,7 +663,8 @@ bool DerivedPredicate::containsPredicate(const std::string &pred) const
     if (predicate->name == pred)
         return true;
 
-    return predicate->expression->containsPredicate(pred);
+    return false;
+    // return predicate->expression->containsPredicate(pred);
 }
 
 void DerivedPredicate::renameVariable(const std::string &old, const std::string &name)
@@ -784,13 +803,13 @@ void Domain::removePredicate(const std::string &name)
 void Domain::addDerivedPredicate(const DerivedPredicateDefinitionPtr &predicate)
 {
     // check if predicate exists
-    getPredicate(predicate->name);
 
     auto [it, r] = derived.emplace(predicate->name, predicate);
     if (not r)
         it->second = predicate;
 
-    // removePredicate(predicate->name);
+    if (not isPredicate(predicate->name))
+        addPredicate(makePred(predicate->name, predicate->parameters));
 }
 
 bool Domain::isPredicate(const std::string &name) const
@@ -900,8 +919,29 @@ std::ostream &Domain::toPDDL(std::ostream &out) const
     }
     out << SPACE << ")" << std::endl;
 
+    std::set<std::string> toPrint;
     for (const auto &key : derived)
-        key.second->toPDDL(out, INDENT) << std::endl;
+        toPrint.emplace(key.first);
+
+    while (not toPrint.empty())
+    {
+        DerivedPredicateDefinitionPtr ptr;
+        for (const auto &key : toPrint)
+        {
+            ptr = getDerivedPredicate(key);
+            bool clean = true;
+            for (const auto &other : derived)
+            {
+                if (key != other.first)
+                    clean &= not ptr->expression->containsPredicate(other.first);
+            }
+            if (clean)
+                break;
+        }
+
+        ptr->toPDDL(out, INDENT) << std::endl;
+        toPrint.erase(toPrint.find(ptr->name));
+    }
 
     for (const auto &key : actions)
         key.second->toPDDL(out, INDENT) << std::endl;
