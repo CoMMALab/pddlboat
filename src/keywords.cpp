@@ -41,7 +41,12 @@ std::vector<std::string> Requirements::toStrings(Keyword req)
         addIf(CONDITIONAL_EFFECTS);
     }
 
-    addIf(FLUENTS);
+    if (not addIf(FLUENTS))
+    {
+        addIf(OBJECT_FLUENTS);
+        addIf(NUMERIC_FLUENTS);
+    }
+
     addIf(DURATIVE_ACTIONS);
     addIf(DERIVED_PREDICATES);
     addIf(PREFERENCES);
@@ -68,6 +73,8 @@ void Requirements::initialize()
     map.insert(bimap::value_type(":universal-preconditions", UNIVERSAL_PRECONDITIONS));      //
     map.insert(bimap::value_type(":quantified-preconditions", QUANTIFIED_PRECONDITIONS));    //
     map.insert(bimap::value_type(":conditional-effects", CONDITIONAL_EFFECTS));              //
+    map.insert(bimap::value_type(":numeric-fluents", NUMERIC_FLUENTS));                      //
+    map.insert(bimap::value_type(":object-fluents", OBJECT_FLUENTS));                        //
     map.insert(bimap::value_type(":fluents", FLUENTS));                                      //
     map.insert(bimap::value_type(":adl", ADL));                                              //
     map.insert(bimap::value_type(":durative-actions", DURATIVE_ACTIONS));                    //
