@@ -74,6 +74,11 @@ Expression::Type Expression::type() const
     return EXPRESSION;
 }
 
+Expression::Type Expression::getTypes() const
+{
+    return type();
+}
+
 void Expression::assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const
 {
     throw std::invalid_argument(log::format("Cannot assign with expression type %1%", type()));
@@ -109,6 +114,25 @@ void Expression::renameVariable(const std::string &old, const std::string &name)
 {
 }
 
+Expression::Type pddlboat::operator|(Expression::Type lhs, Expression::Type rhs)
+{
+    return static_cast<Expression::Type>(                               //
+        static_cast<std::underlying_type<Expression::Type>::type>(lhs)  //
+        | static_cast<std::underlying_type<Expression::Type>::type>(rhs));
+}
+
+Expression::Type pddlboat::operator&(Expression::Type lhs, Expression::Type rhs)
+{
+    return static_cast<Expression::Type>(                               //
+        static_cast<std::underlying_type<Expression::Type>::type>(lhs)  //
+        & static_cast<std::underlying_type<Expression::Type>::type>(rhs));
+}
+
+bool pddlboat::isIn(Expression::Type type, Expression::Type set)
+{
+    return (type & set) == type;
+}
+
 ///
 /// Variadic Expression
 ///
@@ -134,6 +158,15 @@ std::vector<ExpressionPtr> VariadicExpression::getTerms() const
 Expression::Type VariadicExpression::type() const
 {
     return Expression::VARIADIC;
+}
+
+Expression::Type VariadicExpression::getTypes() const
+{
+    Expression::Type r = type();
+    for (const auto &e : terms_)
+        r = r | e->getTypes();
+
+    return r;
 }
 
 void VariadicExpression::getVariables(VariableSet &vars) const
@@ -335,6 +368,11 @@ Expression::Type Not::type() const
     return Expression::NOT;
 }
 
+Expression::Type Not::getTypes() const
+{
+    return type() | term_->getTypes();
+}
+
 void Not::getVariables(VariableSet &vars) const
 {
     term_->getVariables(vars);
@@ -421,6 +459,11 @@ bool Imply::evaluate(const StatePtr &state, const Assignment &vars) const
 Expression::Type Imply::type() const
 {
     return Expression::IMPLY;
+}
+
+Expression::Type Imply::getTypes() const
+{
+    return type() | left_->getTypes() | right_->getTypes();
 }
 
 void Imply::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
@@ -517,6 +560,11 @@ Expression::Type When::type() const
     return Expression::WHEN;
 }
 
+Expression::Type When::getTypes() const
+{
+    return type() | left_->getTypes() | right_->getTypes();
+}
+
 void When::getVariables(VariableSet &vars) const
 {
     left_->getVariables(vars);
@@ -596,6 +644,11 @@ const ExpressionPtr &QuantifierExpression::getFormula() const
 Expression::Type QuantifierExpression::type() const
 {
     return Expression::QUANTIFIER;
+}
+
+Expression::Type QuantifierExpression::getTypes() const
+{
+    return type() | formula_->getTypes();
 }
 
 void QuantifierExpression::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
@@ -808,6 +861,11 @@ bool Equals::evaluate(const StatePtr &state, const Assignment &vars) const
 Expression::Type Equals::type() const
 {
     return Expression::EQUALS;
+}
+
+Expression::Type Equals::getTypes() const
+{
+    return type();
 }
 
 void Equals::getVariables(VariableSet &vars) const

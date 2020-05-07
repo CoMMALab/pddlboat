@@ -9,6 +9,47 @@ const std::string &Requirements::toString(Keyword req)
     return getMap().right.at(req);
 }
 
+std::vector<std::string> Requirements::toStrings(Keyword req)
+{
+    std::vector<std::string> strings;
+
+    auto addIf = [&](Keyword key) {
+        if (isSubset(key, req))
+        {
+            strings.emplace_back(toString(key));
+            return true;
+        }
+        return false;
+    };
+
+    // ADL
+    if (not addIf(ADL))
+    {
+        addIf(STRIPS);
+        addIf(TYPING);
+        addIf(NEGATIVE_PRECONDITIONS);
+        addIf(DISJUNCTIVE_PRECONDITIONS);
+        addIf(EQUALITY);
+
+        // quantifiers
+        if (not addIf(QUANTIFIED_PRECONDITIONS))
+        {
+            addIf(EXISTENTIAL_PRECONDITIONS);
+            addIf(UNIVERSAL_PRECONDITIONS);
+        }
+
+        addIf(CONDITIONAL_EFFECTS);
+    }
+
+    addIf(FLUENTS);
+    addIf(DURATIVE_ACTIONS);
+    addIf(DERIVED_PREDICATES);
+    addIf(PREFERENCES);
+    addIf(CONSTRAINTS);
+
+    return strings;
+}
+
 Requirements::bimap &Requirements::getMap()
 {
     static bimap map = Requirements::bimap();
@@ -31,11 +72,27 @@ void Requirements::initialize()
     map.insert(bimap::value_type(":adl", ADL));                                              //
     map.insert(bimap::value_type(":durative-actions", DURATIVE_ACTIONS));                    //
     map.insert(bimap::value_type(":derived-predicates", DERIVED_PREDICATES));                //
-    map.insert(bimap::value_type(":timed-initial-literals", TIMED_INITIAL_LITERALS));        //
     map.insert(bimap::value_type(":preferences", PREFERENCES));                              //
     map.insert(bimap::value_type(":constraints", CONSTRAINTS));                              //
-    map.insert(bimap::value_type(":domain-axioms", DOMAIN_AXIOMS));                          //
-    map.insert(bimap::value_type(":action-costs", ACTION_COSTS));                            //
+}
+
+bool Requirements::isSubset(Keyword subset, Keyword set)
+{
+    return (subset & set) == subset;
+}
+
+Requirements::Keyword pddlboat::operator|(Requirements::Keyword lhs, Requirements::Keyword rhs)
+{
+    return static_cast<Requirements::Keyword>(                               //
+        static_cast<std::underlying_type<Requirements::Keyword>::type>(lhs)  //
+        | static_cast<std::underlying_type<Requirements::Keyword>::type>(rhs));
+}
+
+Requirements::Keyword pddlboat::operator&(Requirements::Keyword lhs, Requirements::Keyword rhs)
+{
+    return static_cast<Requirements::Keyword>(                               //
+        static_cast<std::underlying_type<Requirements::Keyword>::type>(lhs)  //
+        & static_cast<std::underlying_type<Requirements::Keyword>::type>(rhs));
 }
 
 const std::string &Operators::toString(Keyword op)
@@ -75,7 +132,6 @@ void Operators::initialize()
     map.insert(bimap::value_type("increase", Operators::INCREASE));      //
     map.insert(bimap::value_type("decrease", Operators::DECREASE));      //
 }
-
 
 Operators::Keyword Operators::getKeyword(const std::string &string)
 {

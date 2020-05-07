@@ -30,6 +30,7 @@ namespace pddlboat
         std::vector<ExpressionPtr> getTerms() const;
 
         Expression::Type type() const override;
+        Expression::Type getTypes() const override;
         void getVariables(VariableSet &vars) const override;
 
         void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
@@ -123,6 +124,7 @@ namespace pddlboat
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
         void assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const override;
         Expression::Type type() const override;
+        Expression::Type getTypes() const override;
         void getVariables(VariableSet &vars) const override;
         void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
         void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
@@ -154,6 +156,7 @@ namespace pddlboat
 
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
         Expression::Type type() const override;
+        Expression::Type getTypes() const override;
 
         void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
         void getVariables(VariableSet &vars) const override;
@@ -186,6 +189,7 @@ namespace pddlboat
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
         void assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const override;
         Expression::Type type() const override;
+        Expression::Type getTypes() const override;
 
         void getVariables(VariableSet &vars) const override;
         void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
@@ -217,6 +221,7 @@ namespace pddlboat
         const ExpressionPtr &getFormula() const;
 
         Expression::Type type() const override;
+        Expression::Type getTypes() const override;
         void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
         void getVariables(VariableSet &vars) const override;
         bool containsVariable(const std::string &variable) const override;
@@ -283,6 +288,7 @@ namespace pddlboat
         std::string getObject(const Value &term, const Assignment &vars) const;
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
         Expression::Type type() const override;
+        Expression::Type getTypes() const override;
         void getVariables(VariableSet &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;

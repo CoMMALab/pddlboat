@@ -17,31 +17,42 @@ namespace pddlboat
     {
         enum Keyword
         {
-            STRIPS,
-            TYPING,
-            NEGATIVE_PRECONDITIONS,
-            DISJUNCTIVE_PRECONDITIONS,
-            EQUALITY,
-            EXISTENTIAL_PRECONDITIONS,
-            UNIVERSAL_PRECONDITIONS,
-            QUANTIFIED_PRECONDITIONS,
-            CONDITIONAL_EFFECTS,
-            FLUENTS,
-            ADL,
-            DURATIVE_ACTIONS,
-            DERIVED_PREDICATES,
-            TIMED_INITIAL_LITERALS,
-            PREFERENCES,
-            CONSTRAINTS,
-            DOMAIN_AXIOMS,
-            ACTION_COSTS
+            NONE = 0,
+            STRIPS = 1 << 0,
+            TYPING = 1 << 1,
+            NEGATIVE_PRECONDITIONS = 1 << 2,
+            DISJUNCTIVE_PRECONDITIONS = 1 << 3,
+            EQUALITY = 1 << 4,
+            EXISTENTIAL_PRECONDITIONS = 1 << 5,
+            UNIVERSAL_PRECONDITIONS = 1 << 6,
+            QUANTIFIED_PRECONDITIONS = EXISTENTIAL_PRECONDITIONS |  //
+                                       UNIVERSAL_PRECONDITIONS,
+            CONDITIONAL_EFFECTS = 1 << 7,
+            FLUENTS = 1 << 8,
+            ADL = CONDITIONAL_EFFECTS |        //
+                  QUANTIFIED_PRECONDITIONS |   //
+                  EQUALITY |                   //
+                  DISJUNCTIVE_PRECONDITIONS |  //
+                  NEGATIVE_PRECONDITIONS |     //
+                  TYPING |                     //
+                  STRIPS,
+            DURATIVE_ACTIONS = 1 << 9,
+            DERIVED_PREDICATES = 1 << 10,
+            PREFERENCES = 1 << 11,
+            CONSTRAINTS = 1 << 12,
         };
 
         typedef boost::bimap<std::string, Keyword> bimap;
         static bimap &getMap();
         static const std::string &toString(Keyword req);
+        static std::vector<std::string> toStrings(Keyword req);
         static void initialize();
+
+        static bool isSubset(Keyword subset, Keyword set);
     };
+
+    Requirements::Keyword operator|(Requirements::Keyword lhs, Requirements::Keyword rhs);
+    Requirements::Keyword operator&(Requirements::Keyword lhs, Requirements::Keyword rhs);
 
     ///
     /// Operators

@@ -16,15 +16,12 @@
                )
 
   (:derived (is-reachable ?b - block ?r - robot) ; Is ?b at a reachable location
-            (or
-             ;; If stacked on a block, recurse
-             (exists (?other - block)
-                     (and (on ?b ?other)
-                          (is-reachable ?other ?r)))
-             ;; If at a location, check reachability
-             (exists (?l - location)
-                     (and (at ?b ?l)
-                          (reachable ?l ?r))))
+            (or (exists (?other - block) ;; If stacked on a block, recurse
+                        (and (on ?b ?other)
+                             (is-reachable ?other ?r)))
+                (exists (?l - location) ;; If at a location, check reachability
+                        (and (at ?b ?l)
+                             (reachable ?l ?r))))
             )
 
   (:action pick-up

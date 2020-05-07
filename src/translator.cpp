@@ -260,6 +260,9 @@ pddlboat::DomainPtr pddlboat::toDomain(const ast::Domain &domain)
 {
     auto r = std::make_shared<Domain>(domain.name);
 
+    for (const auto &keyword : domain.requirements)
+        r->addRequirement(keyword);
+
     for (const auto &typelist : domain.types)
     {
         const auto &parent = (typelist.parent != "") ? typelist.parent : PDDLBOAT_OBJECT_CLASS;

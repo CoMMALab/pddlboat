@@ -36,6 +36,11 @@ namespace pddlboat
         Z3Planner(const ProblemPtr problem, Time max_horizon, Time min_horizon = 0, bool parallel = false,
                   bool diagnostics = false, bool dump_clauses = false);
 
+        /** \brief Returns the supported domain requirements.
+         *  \return The supported requirements.
+         */
+        Requirements::Keyword getSupportedRequirements() const override;
+
         /** \brief Solve the planning problem.
          *  \param[out] plan Found plan.
          *  \return True on success, false on failure.

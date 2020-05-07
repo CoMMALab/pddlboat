@@ -18,11 +18,18 @@ Z3Planner::Z3Planner(const ProblemPtr problem, Time max_horizon, Time min_horizo
   , diagnostics_(diagnostics)
   , dump_clauses_(dump_clauses)
 {
+    checkRequirements();
+
     if (parallel)
         z3::set_param("parallel.enable", true);
 
     // Generate the groundings for this problem.
     generateGroundings();
+}
+
+Requirements::Keyword Z3Planner::getSupportedRequirements() const
+{
+    return Requirements::ADL;
 }
 
 bool Z3Planner::solve(Plan &plan)

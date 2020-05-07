@@ -19,7 +19,7 @@ namespace pddlboat
          */
         enum Search
         {
-            ASTAR,       ///< A*
+            ASTAR,       ///< A*, does not support :derived-predicates
             LAZYGREEDY,  ///< Lazy greedy best-first search with preferred operators and queue alternation
             FDAT,        ///< Fast Downward Autotune 2
             LAMA,        ///< LAMA 2011
@@ -34,6 +34,11 @@ namespace pddlboat
         /** \brief Destructor. Cleans up generated files.
          */
         ~FastDownwardPlanner();
+
+        /** \brief Returns the supported domain requirements of the FD planner's configuration.
+         *  \return The supported requirements.
+         */
+        Requirements::Keyword getSupportedRequirements() const override;
 
         /** \brief Update domain or problem PDDL files that the fast downward executable reads. Call this
          * method whenever the problem or domain is updated.

@@ -22,33 +22,40 @@ namespace pddlboat
     public:
         enum Type
         {
-            EXPRESSION,
-            PREDICATE,
-            DERIVED,
-            VARIADIC,
-            QUANTIFIER,
-            AND,
-            OR,
-            NOT,
-            EQUALS,
-            IMPLY,
-            FORALL,
-            EXISTS,
-            WHEN,
+            EXPRESSION = 0,
+            PREDICATE = 1 << 1,
+            DERIVED = 1 << 2,
+            AND = 1 << 3,
+            OR = 1 << 4,
+            VARIADIC = AND | OR,
+            NOT = 1 << 5,
+            EQUALS = 1 << 6,
+            IMPLY = 1 << 7,
+            FORALL = 1 << 8,
+            EXISTS = 1 << 9,
+            QUANTIFIER = EXISTS | FORALL,
+            WHEN = 1 << 10,
         };
 
         virtual bool evaluate(const StatePtr &state, const Assignment &vars) const = 0;
         virtual void assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const;
         virtual Type type() const;
+        virtual Type getTypes() const;
         virtual void getVariables(VariableSet &vars) const;
-        virtual void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const;
-        virtual void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const;
+        virtual void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                       const Assignment &vars) const;
+        virtual void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                           const Assignment &vars) const;
         virtual bool containsVariable(const std::string &variable) const;
         virtual bool containsPredicate(const std::string &predicate) const;
         virtual void renameVariable(const std::string &old, const std::string &name);
         virtual std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
                                      unsigned int level = 0) const = 0;
     };
+
+    Expression::Type operator|(Expression::Type lhs, Expression::Type rhs);
+    Expression::Type operator&(Expression::Type lhs, Expression::Type rhs);
+    bool isIn(Expression::Type type, Expression::Type set);
 
     /** \brief A bound value.
      */
@@ -72,7 +79,8 @@ namespace pddlboat
         std::ostream &toString(std::ostream &out) const;
     };
 
-    Value getValue(const std::string &term, const Variable *variable, const ProblemPtr &problem, const DomainPtr &domain);
+    Value getValue(const std::string &term, const Variable *variable, const ProblemPtr &problem,
+                   const DomainPtr &domain);
 }  // namespace pddlboat
 
 #endif

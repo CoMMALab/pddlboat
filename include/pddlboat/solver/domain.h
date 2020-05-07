@@ -10,6 +10,7 @@
 #include <type_traits>
 
 #include <pddlboat/utility.h>
+#include <pddlboat/parser/keywords.h>
 #include <pddlboat/solver/expression.h>
 
 #define PDDLBOAT_OBJECT_CLASS "object"
@@ -528,9 +529,9 @@ namespace pddlboat
     class DerivedPredicateDefinition
     {
     public:
-        const std::string name;          ///< Name of the predicate.
-        const VariableList parameters;   ///< Parameters this predicate has.
-        ExpressionPtr expression;  ///< Predicate derivation.
+        const std::string name;         ///< Name of the predicate.
+        const VariableList parameters;  ///< Parameters this predicate has.
+        ExpressionPtr expression;       ///< Predicate derivation.
 
         /** \brief Constructor.
          *  \param[in] name Name of the derived predicate.
@@ -538,7 +539,12 @@ namespace pddlboat
          *  \param[in] expression Derived expression.
          */
         DerivedPredicateDefinition(const std::string &name, const VariableList &parameters,
-                                   const ExpressionPtr &expression);
+                                   const ExpressionPtr &expression = nullptr);
+
+        /** \brief Set the formula for the derived predicate.
+         *  \param[in] expression New expression
+         */
+        void setFormula(const ExpressionPtr &formula);
 
         /** \brief Bind this 0-ary predicate to an evaluatable Predicate.
          *  \return A bound version of a 0-ary predicate.
@@ -792,6 +798,7 @@ namespace pddlboat
     {
     public:
         const std::string name;                                    ///< Name of this domain.
+        Requirements::Keyword requirements{Requirements::NONE};    ///< Domain requirements.
         std::map<std::string, std::string> types;                  ///< Mapping of type to its parent type.
         std::vector<ObjectPtr> constants;                          ///< Constants in this domain.
         std::map<std::string, PredicateDefinitionPtr> predicates;  ///< Predicates defined in this domain.
@@ -802,6 +809,33 @@ namespace pddlboat
          *  \param[in] name Name of this domain
          */
         Domain(const std::string &name);
+
+        /* \name Types
+           \{ */
+
+        /** \brief Add a requirement to this domain.
+         *  \param[in] requirement Requirement to add.
+         */
+        void addRequirement(const Requirements::Keyword &requirement);
+
+        /** \brief Adds requirements to domain specification based on contents of expression.
+         *  \param[in] expression Expression to check.
+         */
+        void addRequirementsFromExpression(const ExpressionPtr &expression);
+
+        /** \brief Returns true if the domains has all the requirements specified.
+         *  \param[in] requirement Requirement set to check.
+         *  \return True if all requirements are satisfied.
+         */
+        bool hasRequirements(const Requirements::Keyword &requirement) const;
+
+        /** \brief Returns true if the requirement set has all requirements of the domain.
+         *  \param[in] requirement Requirement set to check against.
+         *  \return True if the requirement set contains all domain requirements.
+         */
+        bool supportsRequirements(const Requirements::Keyword &requirement) const;
+
+        /** \} */
 
         /* \name Types
            \{ */

@@ -498,6 +498,11 @@ DerivedPredicateDefinition::DerivedPredicateDefinition(const std::string &name,
 {
 }
 
+void DerivedPredicateDefinition::setFormula(const ExpressionPtr &formula)
+{
+    expression = formula;
+}
+
 DerivedPredicatePtr DerivedPredicateDefinition::bind() const
 {
     return bind(std::vector<std::string>{});
@@ -580,7 +585,6 @@ std::string DerivedPredicateDefinition::toID(const Assignment &vars) const
 
     return ss.str();
 }
-
 
 DerivedPredicateDefinitionPtr pddlboat::makeDerivedPred(const std::string &name,
                                                         const VariableList &variables,
@@ -747,6 +751,22 @@ std::string DerivedPredicate::toID(const Assignment &vars) const
 
 Domain::Domain(const std::string &name) : name(boost::algorithm::to_lower_copy(name))
 {
+    addRequirement(Requirements::STRIPS);
+}
+
+void Domain::addRequirement(const Requirements::Keyword &requirement)
+{
+    requirements = requirements | requirement;
+}
+
+bool Domain::hasRequirements(const Requirements::Keyword &requirement) const
+{
+    return Requirements::isSubset(requirement, requirements);
+}
+
+bool Domain::supportsRequirements(const Requirements::Keyword &requirement) const
+{
+    return Requirements::isSubset(requirements, requirement);
 }
 
 const ObjectPtr Domain::getConstant(const std::string &name) const
@@ -770,6 +790,11 @@ void Domain::addConstant(const ObjectPtr &object)
     const auto &other = getConstant(object->name);
     if (other)
     {
+        if (not isType(object->type))
+            throw std::invalid_argument(  //
+                log::format("Tried adding constant %1%, but is of invalid type %2%", object->name,
+                            object->type));
+
         if (object->type != other->type)
             throw std::invalid_argument(  //
                 log::format("Tried adding constant %1% with type %2%, but already exists with type %3%",
@@ -789,6 +814,8 @@ void Domain::addConstant(const std::string &name, const std::string &type)
 
 void Domain::addType(const std::string &type, const std::string &parent)
 {
+    addRequirement(Requirements::TYPING);
+
     const std::string typel = boost::algorithm::to_lower_copy(type);
     const std::string parentl = boost::algorithm::to_lower_copy(parent);
 
@@ -799,7 +826,8 @@ void Domain::addType(const std::string &type, const std::string &parent)
 
 bool Domain::isType(const std::string &type) const
 {
-    return types.find(boost::algorithm::to_lower_copy(type)) != types.end();
+    return type == PDDLBOAT_OBJECT_CLASS  //
+           or types.find(boost::algorithm::to_lower_copy(type)) != types.end();
 }
 
 bool Domain::isTypeOf(const std::string &type, const std::string &other) const
@@ -809,18 +837,13 @@ bool Domain::isTypeOf(const std::string &type, const std::string &other) const
     const std::string typel = boost::algorithm::to_lower_copy(type);
     const std::string otherl = boost::algorithm::to_lower_copy(other);
 
-    // std::cout << "ITO: start" << std::endl;
     auto view = std::cref(typel);
-    // std::cout << "ITO: " << view.get() << " " << otherl << std::endl;
     while (not((r = view.get() == otherl)  //
                or view.get() == PDDLBOAT_OBJECT_CLASS))
     {
         auto it = types.find(view);
         view = std::cref(it->second);
-        // std::cout << "ITO: " << view.get() << " " << otherl << std::endl;
     }
-
-    // std::cout << "ITO: " << r << std::endl;
 
     return r;
 }
@@ -842,6 +865,9 @@ void Domain::removePredicate(const std::string &name)
 void Domain::addDerivedPredicate(const DerivedPredicateDefinitionPtr &predicate)
 {
     // check if predicate exists
+    addRequirement(Requirements::DERIVED_PREDICATES);
+    if (predicate->expression)
+        addRequirementsFromExpression(predicate->expression);
 
     auto [it, r] = derived.emplace(predicate->name, predicate);
     if (not r)
@@ -891,6 +917,9 @@ const DerivedPredicateDefinitionPtr Domain::getDerivedPredicate(const std::strin
 
 void Domain::addAction(const ActionPtr &action)
 {
+    addRequirementsFromExpression(action->precondition);
+    addRequirementsFromExpression(action->effect);
+
     auto [it, r] = actions.emplace(action->name, action);
     if (not r)
         it->second = action;
@@ -907,13 +936,39 @@ const ActionPtr Domain::getAction(const std::string &name) const
     return it->second;
 }
 
+void Domain::addRequirementsFromExpression(const ExpressionPtr &expression)
+{
+    auto type = expression->getTypes();
+    if (isIn(Expression::NOT, type))
+        addRequirement(Requirements::NEGATIVE_PRECONDITIONS);
+
+    if (isIn(Expression::OR, type))
+        addRequirement(Requirements::DISJUNCTIVE_PRECONDITIONS);
+
+    if (isIn(Expression::EQUALS, type))
+        addRequirement(Requirements::EQUALITY);
+
+    if (isIn(Expression::EXISTS, type))
+        addRequirement(Requirements::EXISTENTIAL_PRECONDITIONS);
+
+    if (isIn(Expression::FORALL, type))
+        addRequirement(Requirements::UNIVERSAL_PRECONDITIONS);
+
+    if (isIn(Expression::WHEN, type))
+        addRequirement(Requirements::CONDITIONAL_EFFECTS);
+}
+
 std::ostream &Domain::toPDDL(std::ostream &out) const
 {
     const unsigned int INDENT = 2;
     const std::string SPACE = std::string(INDENT, ' ');
 
     out << "(define (domain " << name << ")" << std::endl;
-    out << SPACE << "(:requirements :strips)" << std::endl;  // TODO
+    out << SPACE << "(:requirements" << std::endl;
+    for (const auto &string : Requirements::toStrings(requirements))
+        out << SPACE << SPACE << string << std::endl;
+    out << SPACE << ")" << std::endl;
+
     if (not types.empty())
     {
         out << SPACE << "(:types" << std::endl;
