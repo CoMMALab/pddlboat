@@ -52,7 +52,6 @@ std::vector<std::string> Requirements::toStrings(Keyword req)
     addIf(DERIVED_PREDICATES);
     addIf(PREFERENCES);
     addIf(CONSTRAINTS);
-    addIf(ACTION_COSTS);
 
     return strings;
 }

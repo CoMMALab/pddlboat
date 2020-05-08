@@ -900,6 +900,18 @@ void Domain::addType(const std::string &type, const std::string &parent)
         it->second = parentl;
 }
 
+std::string Domain::getParent(const std::string &type) const
+{
+    if (not isType(type))
+        throw std::runtime_error(log::format("Invalid type %1%!", type));
+
+    if (type == PDDLBOAT_OBJECT_CLASS)
+        return type;
+
+    auto it = types.find(type);
+    return it->second;
+}
+
 bool Domain::isType(const std::string &type) const
 {
     return type == PDDLBOAT_OBJECT_CLASS  //
@@ -1090,7 +1102,17 @@ std::ostream &Domain::toPDDL(std::ostream &out) const
         for (const auto &type : types)
             names.emplace_back(type.first);
 
-        std::sort(names.begin(), names.end(), [&](const auto &a, const auto &b) { return isTypeOf(a, b); });
+        std::sort(names.begin(), names.end(), [&](const auto &a, const auto &b) {
+            if (isTypeOf(a, b))
+                return false;
+            if (isTypeOf(b, a))
+                return true;
+
+            if (getParent(a) == getParent(b))
+                return a < b;
+
+            return getParent(a) > getParent(b);
+        });
 
         for (const auto &name : names)
         {

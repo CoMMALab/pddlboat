@@ -254,7 +254,9 @@ pddlboat::DerivedPredicateDefinitionPtr pddlboat::toDerived(const ast::Action &a
     const auto &variables = getVariables(action.parameters);
     auto pred = makeDerivedPred(action.name, variables, nullptr);
     domain->addDerivedPredicate(pred);
-    pred->expression = toExpression(action.precondition, variables, domain);
+    pred->expression = (action.precondition.op.toOp() != Operators::Keyword::NONE) ?
+                           toExpression(action.precondition, variables, domain) :
+                           makeOr({});
 
     return pred;
 }

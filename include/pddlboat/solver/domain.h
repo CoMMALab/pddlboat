@@ -951,6 +951,12 @@ namespace pddlboat
          */
         void addType(const std::string &type, const std::string &parent = PDDLBOAT_OBJECT_CLASS);
 
+        /** \brief Get the parent type of this type.
+         *  \param[in] type Type to check.
+         *  \return The parent type.
+         */
+        std::string getParent(const std::string &type) const;
+
         /** \brief Get a list of all types in the domain.
          *  \return A list of all types in the domain.
          */
