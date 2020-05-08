@@ -57,6 +57,13 @@ namespace pddlboat
     Expression::Type operator&(Expression::Type lhs, Expression::Type rhs);
     bool isIn(Expression::Type type, Expression::Type set);
 
+    class NumericExpression : public Expression
+    {
+    public:
+        bool evaluate(const StatePtr &state, const Assignment &vars) const override;
+        virtual double getValue(const StatePtr &state, const Assignment &vars) = 0;
+    };
+
     /** \brief A bound value.
      */
     struct Value

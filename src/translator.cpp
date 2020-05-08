@@ -244,8 +244,7 @@ pddlboat::ActionPtr pddlboat::toAction(const ast::Action &action, const DomainPt
                       toExpression(action.effect, variables, domain));
 }
 
-pddlboat::DerivedPredicateDefinitionPtr pddlboat::toDerived(const ast::Action &action,
-                                                            DomainPtr &domain)
+pddlboat::DerivedPredicateDefinitionPtr pddlboat::toDerived(const ast::Action &action, DomainPtr &domain)
 {
     // need to add before parsing expression due to recursive definitions
     const auto &variables = getVariables(action.parameters);
@@ -289,6 +288,27 @@ pddlboat::DomainPtr pddlboat::toDomain(const ast::Domain &domain)
         }
 
         r->addPredicate(pddlboat::makePred(predicate.name, variables));
+    }
+
+    for (const auto &functionlist : domain.functions)
+    {
+        const auto &listparent = (functionlist.parent != "") ? functionlist.parent : PDDLBOAT_NUMERIC_CLASS;
+        for (const auto &function : functionlist.formulas)
+        {
+            std::vector<Variable> variables;
+
+            for (const auto &list : function.variables)
+            {
+                const auto &parent = (list.parent != "") ? list.parent : PDDLBOAT_OBJECT_CLASS;
+                for (const auto &variable : list.types)
+                    variables.emplace_back(variable, parent);
+            }
+
+            if (listparent == PDDLBOAT_NUMERIC_CLASS)
+                r->addFunction(pddlboat::makeFunction(function.name, variables));
+            else
+                r->addFunction(pddlboat::makeObjectFunction(function.name, listparent, variables));
+        }
     }
 
     for (const auto &action : domain.actions)

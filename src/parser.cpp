@@ -215,7 +215,7 @@ namespace parser
     struct bound_predicate_class;
     const x3::rule<bound_predicate_class, ast::Expression> bound_predicate = "bound_predicate";
     const auto bound_predicate_def =                                                     //
-        '(' >> name >> x3::attr(std::vector<ast::TypedList>{}) >> +expression >> ')'  //
+        '(' >> name >> x3::attr(std::vector<ast::TypedList>{}) >> *expression >> ')'  //
         ;
     PARSE(bound_predicate)
 

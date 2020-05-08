@@ -746,6 +746,79 @@ std::string DerivedPredicate::toID(const Assignment &vars) const
 }
 
 ///
+/// Functions
+///
+
+FunctionDefinition::FunctionDefinition(const std::string &name, const VariableList &parameters,
+                                       const std::string &type)
+  : name(name), parameters(parameters), type(type)
+{
+}
+
+bool FunctionDefinition::isValidAssignment(const Problem *problem,
+                                           const std::vector<std::string> &objects) const
+{
+    if (objects.size() != arity())
+        return false;
+
+    for (unsigned int i = 0; i < objects.size(); ++i)
+    {
+        ObjectPtr obj;
+        if (not(obj = problem->getObject(objects[i])))
+            return false;
+
+        if (not problem->domain->isTypeOf(obj->type, parameters[i].type))
+            return false;
+    }
+
+    return true;
+}
+
+unsigned int FunctionDefinition::arity() const
+{
+    return parameters.size();
+}
+
+std::ostream &FunctionDefinition::toPDDL(std::ostream &out) const
+{
+    out << "(" << name;
+    for (const auto &variable : parameters)
+    {
+        out << " ";
+        out << "?" << variable.name;
+        if (variable.type != PDDLBOAT_OBJECT_CLASS)
+            out << " - " << variable.type;
+    }
+    out << ")";
+
+    if (type != PDDLBOAT_NUMERIC_CLASS)
+        out << " - " << type;
+    return out;
+}
+
+NumericFunctionDefinition::NumericFunctionDefinition(const std::string &name, const VariableList &parameters)
+  : FunctionDefinition(name, parameters, PDDLBOAT_NUMERIC_CLASS)
+{
+}
+
+NumericFunctionDefinitionPtr pddlboat::makeFunction(const std::string &name, const VariableList &variables)
+{
+    return std::make_shared<NumericFunctionDefinition>(name, variables);
+}
+
+ObjectFunctionDefinition::ObjectFunctionDefinition(const std::string &name, const VariableList &parameters,
+                                                   const std::string &type)
+  : FunctionDefinition(name, parameters, type)
+{
+}
+
+ObjectFunctionDefinitionPtr pddlboat::makeObjectFunction(const std::string &name, const std::string &type,
+                                                         const VariableList &variables)
+{
+    return std::make_shared<ObjectFunctionDefinition>(name, variables, type);
+}
+
+///
 /// Domain
 ///
 
@@ -818,6 +891,9 @@ void Domain::addType(const std::string &type, const std::string &parent)
 
     const std::string typel = boost::algorithm::to_lower_copy(type);
     const std::string parentl = boost::algorithm::to_lower_copy(parent);
+
+    if (not isType(parentl))
+        throw std::runtime_error(log::format("Invalid parent type %1%!", parentl));
 
     auto [it, r] = types.emplace(typel, parentl);
     if (not r)
@@ -915,6 +991,39 @@ const DerivedPredicateDefinitionPtr Domain::getDerivedPredicate(const std::strin
     return it->second;
 }
 
+void Domain::addFunction(const FunctionDefinitionPtr &function)
+{
+    auto [it, r] = functions.emplace(function->name, function);
+    if (not r)
+        it->second = function;
+}
+
+void Domain::removeFunction(const std::string &name)
+{
+    auto it = functions.find(name);
+    if (it != functions.end())
+        functions.erase(it);
+}
+
+bool Domain::isFunction(const std::string &name) const
+{
+    const std::string namel = boost::algorithm::to_lower_copy(name);
+
+    auto it = functions.find(namel);
+    return it != functions.end();
+}
+
+const FunctionDefinitionPtr Domain::getFunction(const std::string &name) const
+{
+    const std::string namel = boost::algorithm::to_lower_copy(name);
+
+    auto it = functions.find(namel);
+    if (it == functions.end())
+        throw std::invalid_argument(log::format("Function %1% does not exist!", namel));
+
+    return it->second;
+}
+
 void Domain::addAction(const ActionPtr &action)
 {
     addRequirementsFromExpression(action->precondition);
@@ -1005,13 +1114,27 @@ std::ostream &Domain::toPDDL(std::ostream &out) const
         out << SPACE << ")" << std::endl;
     }
 
-    out << SPACE << "(:predicates " << std::endl;
-    for (const auto &key : predicates)
+    if (not predicates.empty())
     {
-        out << SPACE << SPACE;
-        key.second->toPDDL(out) << std::endl;
+        out << SPACE << "(:predicates " << std::endl;
+        for (const auto &key : predicates)
+        {
+            out << SPACE << SPACE;
+            key.second->toPDDL(out) << std::endl;
+        }
+        out << SPACE << ")" << std::endl;
     }
-    out << SPACE << ")" << std::endl;
+
+    if (not functions.empty())
+    {
+        out << SPACE << "(:functions " << std::endl;
+        for (const auto &key : functions)
+        {
+            out << SPACE << SPACE;
+            key.second->toPDDL(out) << std::endl;
+        }
+        out << SPACE << ")" << std::endl;
+    }
 
     std::set<std::string> toPrint;
     for (const auto &key : derived)

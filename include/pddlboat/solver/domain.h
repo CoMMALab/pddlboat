@@ -14,6 +14,7 @@
 #include <pddlboat/solver/expression.h>
 
 #define PDDLBOAT_OBJECT_CLASS "object"
+#define PDDLBOAT_NUMERIC_CLASS "number"
 
 namespace pddlboat
 {
@@ -23,6 +24,9 @@ namespace pddlboat
     PDDLBOAT_CLASS_FORWARD(Predicate)
     PDDLBOAT_CLASS_FORWARD(DerivedPredicateDefinition)
     PDDLBOAT_CLASS_FORWARD(DerivedPredicate)
+    PDDLBOAT_CLASS_FORWARD(FunctionDefinition)
+    PDDLBOAT_CLASS_FORWARD(NumericFunctionDefinition)
+    PDDLBOAT_CLASS_FORWARD(ObjectFunctionDefinition)
     PDDLBOAT_CLASS_FORWARD(Domain)
     PDDLBOAT_CLASS_FORWARD(Problem)
     PDDLBOAT_CLASS_FORWARD(State)
@@ -58,6 +62,24 @@ namespace pddlboat
 
     /** \class pddlboat::DerivedPredicateConstPtr
         \brief A const shared pointer wrapper for pddlboat::DerivedPredicate. */
+
+    /** \class pddlboat::FunctionDefinitionPtr
+        \brief A shared pointer wrapper for pddlboat::Function. */
+
+    /** \class pddlboat::FunctionDefinitionConstPtr
+        \brief A const shared pointer wrapper for pddlboat::Function. */
+
+    /** \class pddlboat::NumericFunctionDefinitionPtr
+        \brief A shared pointer wrapper for pddlboat::NumericFunction. */
+
+    /** \class pddlboat::NumericFunctionDefinitionConstPtr
+        \brief A const shared pointer wrapper for pddlboat::NumericFunction. */
+
+    /** \class pddlboat::ObjectFunctionDefinitionPtr
+        \brief A shared pointer wrapper for pddlboat::ObjectFunction. */
+
+    /** \class pddlboat::ObjectFunctionDefinitionConstPtr
+        \brief A const shared pointer wrapper for pddlboat::ObjectFunction. */
 
     /** \class pddlboat::DomainPtr
         \brief A shared pointer wrapper for pddlboat::Domain. */
@@ -709,6 +731,88 @@ namespace pddlboat
     };
 
     ///
+    /// Functions
+    ///
+
+    /** \brief Definition of a PDDL fluent (function).
+     */
+    class FunctionDefinition
+    {
+    public:
+        const std::string name;         ///< Name of this function.
+        const VariableList parameters;  ///< Parameters this function has.
+        const std::string type;         /// Return type of this function.
+
+        /** \brief Checks if the set of object names is a valid assignment to this predicate. That is, do
+         * their types match the argument types.
+         *  \param[in] problem Problem to check with.
+         *  \param[in] objects Objects to check against.
+         *  \return True if this is a valid binding, false otherwise.
+         */
+        bool isValidAssignment(const Problem *problem, const std::vector<std::string> &objects) const;
+
+        /** \brief Returns the arity of this predicate, i.e., how many arguments.
+         *  \return The arity of the predicate.
+         */
+        unsigned int arity() const;
+
+        /** \brief Outputs this predicate definition to PDDL.
+         *  \param[in,out] out Output stream to use.
+         *  \return The output stream.
+         */
+        std::ostream &toPDDL(std::ostream &out = std::cout) const;
+
+    protected:
+        /** \brief Constructor.
+         *  \param[in] name Name of function.
+         *  \param[in] variables Argument list of function.
+         *  \param[in] type Type of the function.
+         */
+        FunctionDefinition(const std::string &name, const VariableList &parameters, const std::string &type);
+    };
+
+    /** \brief Definition of a PDDL numeric fluent.
+     */
+    class NumericFunctionDefinition : public FunctionDefinition
+    {
+    public:
+        /** \brief Constructor.
+         *  \param[in] name Name of function.
+         *  \param[in] variables Argument list of function.
+         */
+        NumericFunctionDefinition(const std::string &name, const VariableList &parameters);
+    };
+
+    /** \brief Helper function to create a function definition.
+     *  \param[in] name Name of the function to create.
+     *  \param[in] variables Arguments of the function.
+     *  \return The created function definition.
+     */
+    NumericFunctionDefinitionPtr makeFunction(const std::string &name, const VariableList &variables = {});
+
+    /** \brief Definition of a PDDL object fluent.
+     */
+    class ObjectFunctionDefinition : public FunctionDefinition
+    {
+    public:
+        /** \brief Constructor.
+         *  \param[in] name Name of function.
+         *  \param[in] variables Argument list of function.
+         *  \param[in] type Type of the function.
+         */
+        ObjectFunctionDefinition(const std::string &name, const VariableList &parameters,
+                                 const std::string &type);
+    };
+
+    /** \brief Helper function to create an object function definition.
+     *  \param[in] name Name of the function to create.
+     *  \param[in] variables Arguments of the function.
+     *  \return The created function definition.
+     */
+    ObjectFunctionDefinitionPtr makeObjectFunction(const std::string &name, const std::string &type,
+                                                   const VariableList &variables = {});
+
+    ///
     /// Action
     ///
 
@@ -801,6 +905,7 @@ namespace pddlboat
         Requirements::Keyword requirements{Requirements::NONE};    ///< Domain requirements.
         std::map<std::string, std::string> types;                  ///< Mapping of type to its parent type.
         std::vector<ObjectPtr> constants;                          ///< Constants in this domain.
+        std::map<std::string, FunctionDefinitionPtr> functions;    ///< Functions defined in this domain.
         std::map<std::string, PredicateDefinitionPtr> predicates;  ///< Predicates defined in this domain.
         std::map<std::string, DerivedPredicateDefinitionPtr> derived;  ///< Derived predicates in this domain.
         std::map<std::string, ActionPtr> actions;                      ///< Actions defined in this domain.
@@ -866,7 +971,7 @@ namespace pddlboat
 
         /** \} */
 
-        /* \name Types
+        /* \name Constants
            \{ */
 
         /** \brief Get a constant in this domain.
@@ -933,6 +1038,34 @@ namespace pddlboat
          *  \throw std::invalid_argument if the predicate does not exist.
          */
         const DerivedPredicateDefinitionPtr getDerivedPredicate(const std::string &name) const;
+
+        /** \} */
+
+        /* \name Predicates
+           \{ */
+
+        /** \brief Define a new predicate in the domain.
+         *  \param[in] predicate Predicate to add.
+         */
+        void addFunction(const FunctionDefinitionPtr &function);
+
+        /** \brief Remove a function definition from the domain.
+         *  \param[in] name The name of the function to remove.
+         */
+        void removeFunction(const std::string &name);
+
+        /** \brief Returns true if this function exists.
+         *  \param[in] name Name of function to check.
+         *  \return True if the function exists.
+         */
+        bool isFunction(const std::string &name) const;
+
+        /** \brief Retrieve a function defined in the domain.
+         *  \param[in] name Name of function to retrieve.
+         *  \return The named function definition.
+         *  \throw std::invalid_argument if the function does not exist.
+         */
+        const FunctionDefinitionPtr getFunction(const std::string &name) const;
 
         /** \} */
 
