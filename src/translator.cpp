@@ -240,8 +240,12 @@ pddlboat::ActionPtr pddlboat::toAction(const ast::Action &action, const DomainPt
 {
     const auto &variables = getVariables(action.parameters);
     return makeAction(action.name, variables,  //
-                      toExpression(action.precondition, variables, domain),
-                      toExpression(action.effect, variables, domain));
+                      (action.precondition.op.toOp() != Operators::Keyword::NONE) ?
+                          toExpression(action.precondition, variables, domain) :
+                          makeAnd({}),
+                      (action.effect.op.toOp() != Operators::Keyword::NONE) ?
+                          toExpression(action.effect, variables, domain) :
+                          makeAnd({}));
 }
 
 pddlboat::DerivedPredicateDefinitionPtr pddlboat::toDerived(const ast::Action &action, DomainPtr &domain)

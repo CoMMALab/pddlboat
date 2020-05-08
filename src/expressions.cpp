@@ -255,7 +255,9 @@ std::ostream &And::toPDDL(std::ostream &out, unsigned int indent, unsigned int l
     const std::string SPACE = std::string(indent * level, ' ');
     out << SPACE;
 
-    out << "(and" << std::endl;
+    out << "(and";
+    if (not terms_.empty())
+        out << std::endl;
     for (std::size_t i = 0; i < terms_.size(); ++i)
     {
         terms_[i]->toPDDL(out, indent, level + 1);
@@ -308,7 +310,10 @@ std::ostream &Or::toPDDL(std::ostream &out, unsigned int indent, unsigned int le
     const std::string SPACE = std::string(indent * level, ' ');
     out << SPACE;
 
-    out << "(or" << std::endl;
+    out << "(or";
+    if (not terms_.empty())
+        out << std::endl;
+
     for (std::size_t i = 0; i < terms_.size(); ++i)
     {
         terms_[i]->toPDDL(out, indent, level + 1);

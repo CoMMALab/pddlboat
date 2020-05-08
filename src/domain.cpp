@@ -993,6 +993,11 @@ const DerivedPredicateDefinitionPtr Domain::getDerivedPredicate(const std::strin
 
 void Domain::addFunction(const FunctionDefinitionPtr &function)
 {
+    if (function->type == PDDLBOAT_NUMERIC_CLASS)
+        addRequirement(Requirements::NUMERIC_FLUENTS);
+    else
+        addRequirement(Requirements::OBJECT_FLUENTS);
+
     auto [it, r] = functions.emplace(function->name, function);
     if (not r)
         it->second = function;

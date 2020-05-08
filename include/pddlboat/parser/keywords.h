@@ -42,7 +42,6 @@ namespace pddlboat
             DERIVED_PREDICATES = 1 << 11,
             PREFERENCES = 1 << 12,
             CONSTRAINTS = 1 << 13,
-            ACTION_COSTS = 1 << 14,
         };
 
         typedef boost::bimap<std::string, Keyword> bimap;
