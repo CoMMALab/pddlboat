@@ -138,8 +138,11 @@ namespace parser
 
     struct requirements_class;
     const x3::rule<requirements_class, std::vector<Requirements::Keyword>> requirements = "requirements";
-    const auto requirements_def =                                             //
-        '(' >> x3::lit(":requirements") >> *ast::RequirementsKeywords >> ')'  //
+    const auto requirements_def =                 //
+        '(' >> x3::lit(":requirements") >>        //
+        *(ast::RequirementsKeywords |             //
+          (x3::attr(Requirements::Keyword::NONE) >> ':' >> x3::omit[name])  //
+          ) >> ')'  //
         ;
     PARSE(requirements);
 
@@ -221,12 +224,12 @@ namespace parser
 
     struct action_class;
     const x3::rule<action_class, ast::Action> action = "action";
-    const auto action_def =                                               //
-        '(' >> x3::attr(false) >> x3::lit(":action") > name >             //
-        -(x3::lit(":parameters") > '(' >> *typedlist_variable >> ')') >>  //
-        -(x3::lit(":precondition") > expression) >>                       //
-        -(x3::lit(":effect") > expression) >>                             //
-        ')'                                                               //
+    const auto action_def =                                                //
+        '(' >> x3::attr(false) >> x3::lit(":action") >> name >>            //
+        -(x3::lit(":parameters") >> '(' >> *typedlist_variable >> ')') >>  //
+        -(x3::lit(":precondition") >> expression) >>                       //
+        -(x3::lit(":effect") >> expression) >>                             //
+        ')'                                                                //
         ;
     PARSE(action)
     struct action_class : error_handler
@@ -239,12 +242,12 @@ namespace parser
 
     struct derived_class;
     const x3::rule<derived_class, ast::Action> derived = "derived";
-    const auto derived_def =                            //
-        '(' >> x3::attr(true) >> x3::lit(":derived") >  //
-        '(' > name >> *typedlist_variable >> ')' >>     //
-        -(expression) >>                                //
-        x3::attr(ast::Expression{}) >>                  //
-        ')'                                             //
+    const auto derived_def =                             //
+        '(' >> x3::attr(true) >> x3::lit(":derived") >>  //
+        '(' >> name >> *typedlist_variable >> ')' >>     //
+        -(expression) >>                                 //
+        x3::attr(ast::Expression{}) >>                   //
+        ')'                                              //
         ;
     PARSE(derived)
     struct derived_class : error_handler
@@ -257,16 +260,16 @@ namespace parser
 
     struct domain_class;
     const x3::rule<domain_class, ast::Domain> domain = "domain";
-    const auto domain_def =                     //
-        '(' > x3::lit("define") >               //
-        '(' > x3::lit("domain") > name > ')' >  //
-        -requirements >                         //
-        -types >                                //
-        -constants >                            //
-        -predicates >                           //
-        -functions >                            //
-        *(action | derived) >                   //
-        ')'                                     //
+    const auto domain_def =                         //
+        '(' >> x3::lit("define") >>                 //
+        '(' >> x3::lit("domain") >> name >> ')' >>  //
+        -requirements >>                            //
+        -types >>                                   //
+        -constants >>                               //
+        -predicates >>                              //
+        -functions >>                               //
+        *(action | derived) >>                      //
+        ')'                                         //
         ;
     PARSE(domain);
     struct domain_class : error_handler

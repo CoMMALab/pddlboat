@@ -48,9 +48,11 @@ std::vector<std::string> Requirements::toStrings(Keyword req)
     }
 
     addIf(DURATIVE_ACTIONS);
+
     addIf(DERIVED_PREDICATES);
     addIf(PREFERENCES);
     addIf(CONSTRAINTS);
+    addIf(ACTION_COSTS);
 
     return strings;
 }
@@ -64,6 +66,7 @@ Requirements::bimap &Requirements::getMap()
 void Requirements::initialize()
 {
     auto &map = getMap();
+    map.insert(bimap::value_type("invalid", NONE));                                          //
     map.insert(bimap::value_type(":strips", STRIPS));                                        //
     map.insert(bimap::value_type(":typing", TYPING));                                        //
     map.insert(bimap::value_type(":negative-preconditions", NEGATIVE_PRECONDITIONS));        //
@@ -81,6 +84,7 @@ void Requirements::initialize()
     map.insert(bimap::value_type(":derived-predicates", DERIVED_PREDICATES));                //
     map.insert(bimap::value_type(":preferences", PREFERENCES));                              //
     map.insert(bimap::value_type(":constraints", CONSTRAINTS));                              //
+    map.insert(bimap::value_type(":action-costs", ACTION_COSTS));                            //
 }
 
 bool Requirements::isSubset(Keyword subset, Keyword set)

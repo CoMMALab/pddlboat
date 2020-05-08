@@ -15,6 +15,8 @@ void testDomain(const std::string &file)
     bool r = pddlboat::parseFile(std::string(PDDLBOAT_RESOURCE_DIRECTORY "/") + file, domain);
     if (r)
         domain.toString(std::cout) << std::endl << std::endl;
+    else
+        std::cout << "FAILED!" << std::endl << std::endl;
 }
 
 void testProblem(const std::string &file)
@@ -29,7 +31,7 @@ void testProblem(const std::string &file)
 
 int main(int argc, char **argv)
 {
-    for (unsigned int i = 1; i <= 27; ++i)
+    for (unsigned int i = 1; i <= 28; ++i)
         testDomain(pddlboat::log::format("parsing/domain_%1$02u.pddl", i));
 
     // testDomain("blocks/blockworld.pddl");
