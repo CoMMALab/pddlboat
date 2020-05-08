@@ -80,11 +80,6 @@ namespace parser
     PARSE(variable);
     PARSE(variablelist);
 
-    struct nameorvarlist_class;
-    const x3::rule<nameorvarlist_class, std::vector<std::string>> nameorvarlist = "nameorvarlist";
-    const auto nameorvarlist_def = +(name | variable);
-    PARSE(nameorvarlist);
-
     /// Terms
     struct term_class;
     struct termlist_class;
@@ -138,11 +133,12 @@ namespace parser
 
     struct requirements_class;
     const x3::rule<requirements_class, std::vector<Requirements::Keyword>> requirements = "requirements";
-    const auto requirements_def =                 //
-        '(' >> x3::lit(":requirements") >>        //
-        *(ast::RequirementsKeywords |             //
+    const auto requirements_def =                                           //
+        '(' >> x3::lit(":requirements") >>                                  //
+        *(ast::RequirementsKeywords |                                       //
           (x3::attr(Requirements::Keyword::NONE) >> ':' >> x3::omit[name])  //
-          ) >> ')'  //
+          ) >>
+        ')'  //
         ;
     PARSE(requirements);
 
@@ -204,21 +200,34 @@ namespace parser
     struct expression_class;
     const x3::rule<expression_class, ast::Expression> expression = "expression";
 
+    // struct nameorvarlist_class;
+    // const x3::rule<nameorvarlist_class, std::vector<std::string>> nameorvarlist = "nameorvarlist";
+    // const auto nameorvarlist_def = +(name | variable);
+    // PARSE(nameorvarlist);
+
+    struct name_expression_class;
+    const x3::rule<name_expression_class, ast::Expression> name_expression = "name_expression";
+    const auto name_expression_def =
+        (name | variable) >>
+        x3::attr(std::vector<ast::TypedList>{}) >> x3::attr(std::vector<ast::Expression>{});
+    PARSE(name_expression)
+
     struct bound_predicate_class;
     const x3::rule<bound_predicate_class, ast::Expression> bound_predicate = "bound_predicate";
     const auto bound_predicate_def =                                                     //
-        '(' >> name >> x3::attr(std::vector<ast::TypedList>{}) >> -nameorvarlist >> ')'  //
+        '(' >> name >> x3::attr(std::vector<ast::TypedList>{}) >> +expression >> ')'  //
         ;
     PARSE(bound_predicate)
 
     struct boolean_operator_class;
     const x3::rule<boolean_operator_class, ast::Expression> boolean_operator = "boolean_operator";
     const auto boolean_operator_def =                                                                //
-        '(' >> ast::OperatorsKeywords >> -('(' >> +typedlist_variable >> ')') >> +expression >> ')'  //
+        '(' >> ast::OperatorsKeywords >> -('(' >> +typedlist_variable >> ')') >> *expression >> ')'  //
         ;
     PARSE(boolean_operator)
 
-    const auto expression_def = boolean_operator | bound_predicate  //
+    // const auto expression_def = boolean_operator | bound_predicate  //
+    const auto expression_def = boolean_operator | name_expression | bound_predicate   //
         ;
     PARSE(expression)
 
