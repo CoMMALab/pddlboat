@@ -33,8 +33,10 @@ namespace pddlboat
         Expression::Type getTypes() const override;
         void getVariables(VariableSet &vars) const override;
 
-        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
-        void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
+        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                               const Assignment &vars) const override;
+        void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                   const Assignment &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
         void renameVariable(const std::string &old, const std::string &name) override;
@@ -126,8 +128,10 @@ namespace pddlboat
         Expression::Type type() const override;
         Expression::Type getTypes() const override;
         void getVariables(VariableSet &vars) const override;
-        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
-        void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
+        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                               const Assignment &vars) const override;
+        void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                   const Assignment &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
         void renameVariable(const std::string &old, const std::string &name) override;
@@ -158,7 +162,8 @@ namespace pddlboat
         Expression::Type type() const override;
         Expression::Type getTypes() const override;
 
-        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
+        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                               const Assignment &vars) const override;
         void getVariables(VariableSet &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
@@ -192,8 +197,10 @@ namespace pddlboat
         Expression::Type getTypes() const override;
 
         void getVariables(VariableSet &vars) const override;
-        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
-        void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
+        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                               const Assignment &vars) const override;
+        void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                   const Assignment &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
         void renameVariable(const std::string &old, const std::string &name) override;
@@ -222,7 +229,8 @@ namespace pddlboat
 
         Expression::Type type() const override;
         Expression::Type getTypes() const override;
-        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
+        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                               const Assignment &vars) const override;
         void getVariables(VariableSet &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
@@ -264,7 +272,8 @@ namespace pddlboat
 
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
         void assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const override;
-        void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
+        void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                   const Assignment &vars) const override;
         Expression::Type type() const override;
         std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
                              unsigned int level = 0) const override;
@@ -311,13 +320,15 @@ namespace pddlboat
     public:
         ComparisonExpression(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
 
-        bool evaluate(const StatePtr &state, const Assignment &vars) const override;
-        Expression::Type type() const override;
-        Expression::Type getTypes() const override;
+        Type getTypes() const override;
         void getVariables(VariableSet &vars) const override;
+        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                               const Assignment &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
         void renameVariable(const std::string &old, const std::string &name) override;
+        std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
+                             unsigned int level = 0) const override;
 
     protected:
         const NumericExpressionPtr lhs_;
@@ -328,8 +339,49 @@ namespace pddlboat
     /// Greater Than
     ///
 
-    // class GreaterThan::
+    class GreaterThan : public ComparisonExpression
+    {
+    public:
+        GreaterThan(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+        Expression::Type type() const override;
+        bool evaluate(const StatePtr &state, const Assignment &vars) const override;
+    };
 
+    ///
+    /// Less Than
+    ///
+
+    class LessThan : public ComparisonExpression
+    {
+    public:
+        LessThan(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+        Expression::Type type() const override;
+        bool evaluate(const StatePtr &state, const Assignment &vars) const override;
+    };
+
+    ///
+    /// Greater Or Equal
+    ///
+
+    class GreaterOrEqual : public ComparisonExpression
+    {
+    public:
+        GreaterOrEqual(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+        Expression::Type type() const override;
+        bool evaluate(const StatePtr &state, const Assignment &vars) const override;
+    };
+
+    ///
+    /// Less Or Equal
+    ///
+
+    class LessOrEqual : public ComparisonExpression
+    {
+    public:
+        LessOrEqual(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+        Expression::Type type() const override;
+        bool evaluate(const StatePtr &state, const Assignment &vars) const override;
+    };
 }  // namespace pddlboat
 
 #endif

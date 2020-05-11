@@ -933,7 +933,8 @@ std::pair<Value, Value> Equals::getTerms() const
 void Equals::assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const
 {
     if (term1_.function)
-        out->assignN(term1_.name, getValueObjects(term1_.function->bindings, in, vars), term2_.getObject(in, vars));
+        out->assignN(term1_.name, getValueObjects(term1_.function->bindings, in, vars),
+                     term2_.getObject(in, vars));
     else
         throw std::invalid_argument(log::format("Cannot assign with = with non-function first term."));
 }
@@ -991,4 +992,156 @@ std::ostream &Equals::toPDDL(std::ostream &out, unsigned int indent, unsigned in
 EqualsPtr pddlboat::makeEquals(const Value &term1, const Value &term2)
 {
     return std::make_shared<Equals>(term1, term2);
+}
+
+///
+/// Comparison
+///
+
+ComparisonExpression::ComparisonExpression(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
+  : lhs_(lhs), rhs_(rhs)
+{
+}
+
+Expression::Type ComparisonExpression::getTypes() const
+{
+    return type() | lhs_->getTypes() | rhs_->getTypes();
+}
+
+void ComparisonExpression::getVariables(VariableSet &vars) const
+{
+    lhs_->getVariables(vars);
+    rhs_->getVariables(vars);
+}
+
+void ComparisonExpression::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                             const Assignment &vars) const
+{
+    lhs_->getUsedPredicates(predicates, state, vars);
+    rhs_->getUsedPredicates(predicates, state, vars);
+}
+
+bool ComparisonExpression::containsVariable(const std::string &variable) const
+{
+    return lhs_->containsVariable(variable) or rhs_->containsVariable(variable);
+}
+
+bool ComparisonExpression::containsPredicate(const std::string &predicate) const
+{
+    return lhs_->containsPredicate(predicate) or rhs_->containsPredicate(predicate);
+}
+
+void ComparisonExpression::renameVariable(const std::string &old, const std::string &name)
+{
+    lhs_->renameVariable(old, name);
+    rhs_->renameVariable(old, name);
+}
+
+std::ostream &ComparisonExpression::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
+{
+    const std::string SPACE = std::string(indent * level, ' ');
+    out << SPACE;
+
+    out << "(";
+    switch (type())
+    {
+        case Expression::GREATER_THAN:
+            out << ">";
+            break;
+        case Expression::LESS_THAN:
+            out << "<";
+            break;
+        case Expression::GREATER_OR_EQUAL:
+            out << ">=";
+            break;
+        case Expression::LESS_OR_EQUAL:
+            out << "<=";
+            break;
+        default:
+            throw std::runtime_error("Invalid type for comparison expression!");
+    };
+
+    out << " " << std::endl;
+    lhs_->toPDDL(out, indent, level + 1);
+    out << std::endl;
+    rhs_->toPDDL(out, indent, level + 1);
+    out << ")";
+
+    return out;
+}
+
+///
+/// Greater Than
+///
+
+GreaterThan::GreaterThan(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
+  : ComparisonExpression(lhs, rhs)
+{
+}
+
+Expression::Type GreaterThan::type() const
+{
+    return Expression::GREATER_THAN;
+}
+
+bool GreaterThan::evaluate(const StatePtr &state, const Assignment &vars) const
+{
+    return lhs_->getValue(state, vars) > rhs_->getValue(state, vars);
+}
+
+///
+/// Less Than
+///
+
+LessThan::LessThan(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
+  : ComparisonExpression(lhs, rhs)
+{
+}
+
+Expression::Type LessThan::type() const
+{
+    return Expression::LESS_THAN;
+}
+
+bool LessThan::evaluate(const StatePtr &state, const Assignment &vars) const
+{
+    return lhs_->getValue(state, vars) < rhs_->getValue(state, vars);
+}
+
+///
+/// Greater OrEqual
+///
+
+GreaterOrEqual::GreaterOrEqual(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
+  : ComparisonExpression(lhs, rhs)
+{
+}
+
+Expression::Type GreaterOrEqual::type() const
+{
+    return Expression::GREATER_OR_EQUAL;
+}
+
+bool GreaterOrEqual::evaluate(const StatePtr &state, const Assignment &vars) const
+{
+    return lhs_->getValue(state, vars) >= rhs_->getValue(state, vars);
+}
+
+///
+/// Less Or Equal
+///
+
+LessOrEqual::LessOrEqual(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
+  : ComparisonExpression(lhs, rhs)
+{
+}
+
+Expression::Type LessOrEqual::type() const
+{
+    return Expression::LESS_OR_EQUAL;
+}
+
+bool LessOrEqual::evaluate(const StatePtr &state, const Assignment &vars) const
+{
+    return lhs_->getValue(state, vars) <= rhs_->getValue(state, vars);
 }
