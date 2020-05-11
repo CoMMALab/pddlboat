@@ -248,6 +248,241 @@ pddlboat::ExpressionPtr pddlboat::toExpression(const ast::Expression &expression
 
             return pddlboat::makeEquals(e1t, e2t);
         }
+        case Operators::MINUS:
+        {
+            if (debug)
+                std::cout << "Translating Minus" << std::endl;
+
+            if (expression.terms.size() != 2)
+                throw std::invalid_argument("Expression Minus must have two terms!");
+
+            auto e1 = std::dynamic_pointer_cast<NumericExpression>(
+                toExpression(expression.terms[0], variables, domain, problem));
+            auto e2 = std::dynamic_pointer_cast<NumericExpression>(
+                toExpression(expression.terms[1], variables, domain, problem));
+            if (not e1 or not e2)
+                throw std::invalid_argument("Expression Minus terms must be numeric!");
+
+            return pddlboat::makeMinus(e1, e2);
+        }
+        case Operators::DIVIDE:
+        {
+            if (debug)
+                std::cout << "Translating Divide" << std::endl;
+
+            if (expression.terms.size() != 2)
+                throw std::invalid_argument("Expression Divide must have two terms!");
+
+            auto e1 = std::dynamic_pointer_cast<NumericExpression>(
+                toExpression(expression.terms[0], variables, domain, problem));
+            auto e2 = std::dynamic_pointer_cast<NumericExpression>(
+                toExpression(expression.terms[1], variables, domain, problem));
+            if (not e1 or not e2)
+                throw std::invalid_argument("Expression Divide terms must be numeric!");
+
+            return pddlboat::makeDivide(e1, e2);
+        }
+        case Operators::MULTIPLY:
+        {
+            if (debug)
+                std::cout << "Translating Multiply" << std::endl;
+
+            if (expression.terms.size() != 2)
+                throw std::invalid_argument("Expression Multiply must have two terms!");
+
+            auto e1 = std::dynamic_pointer_cast<NumericExpression>(
+                toExpression(expression.terms[0], variables, domain, problem));
+            auto e2 = std::dynamic_pointer_cast<NumericExpression>(
+                toExpression(expression.terms[1], variables, domain, problem));
+            if (not e1 or not e2)
+                throw std::invalid_argument("Expression Multiply terms must be numeric!");
+
+            return pddlboat::makeMultiply(e1, e2);
+        }
+        case Operators::PLUS:
+        {
+            if (debug)
+                std::cout << "Translating Plus" << std::endl;
+
+            if (expression.terms.size() != 2)
+                throw std::invalid_argument("Expression Plus must have two terms!");
+
+            auto e1 = std::dynamic_pointer_cast<NumericExpression>(
+                toExpression(expression.terms[0], variables, domain, problem));
+            auto e2 = std::dynamic_pointer_cast<NumericExpression>(
+                toExpression(expression.terms[1], variables, domain, problem));
+            if (not e1 or not e2)
+                throw std::invalid_argument("Expression Plus terms must be numeric!");
+
+            return pddlboat::makePlus(e1, e2);
+        }
+        case Operators::GREATER:
+        {
+            if (debug)
+                std::cout << "Translating Greater" << std::endl;
+
+            if (expression.terms.size() != 2)
+                throw std::invalid_argument("Expression Greater must have two terms!");
+
+            auto e1 = std::dynamic_pointer_cast<NumericExpression>(
+                toExpression(expression.terms[0], variables, domain, problem));
+            auto e2 = std::dynamic_pointer_cast<NumericExpression>(
+                toExpression(expression.terms[1], variables, domain, problem));
+            if (not e1 or not e2)
+                throw std::invalid_argument("Expression Greater terms must be numeric!");
+
+            return pddlboat::makeGreaterThan(e1, e2);
+        }
+        case Operators::LESS:
+        {
+            if (debug)
+                std::cout << "Translating Less" << std::endl;
+
+            if (expression.terms.size() != 2)
+                throw std::invalid_argument("Expression Less must have two terms!");
+
+            auto e1 = std::dynamic_pointer_cast<NumericExpression>(
+                toExpression(expression.terms[0], variables, domain, problem));
+            auto e2 = std::dynamic_pointer_cast<NumericExpression>(
+                toExpression(expression.terms[1], variables, domain, problem));
+            if (not e1 or not e2)
+                throw std::invalid_argument("Expression Less terms must be numeric!");
+
+            return pddlboat::makeLessThan(e1, e2);
+        }
+        case Operators::GREATER_OR_EQUAL:
+        {
+            if (debug)
+                std::cout << "Translating GreaterOrEqual" << std::endl;
+
+            if (expression.terms.size() != 2)
+                throw std::invalid_argument("Expression GreaterOrEqual must have two terms!");
+
+            auto e1 = std::dynamic_pointer_cast<NumericExpression>(
+                toExpression(expression.terms[0], variables, domain, problem));
+            auto e2 = std::dynamic_pointer_cast<NumericExpression>(
+                toExpression(expression.terms[1], variables, domain, problem));
+            if (not e1 or not e2)
+                throw std::invalid_argument("Expression GreaterOrEqual terms must be numeric!");
+
+            return pddlboat::makeGreaterOrEqual(e1, e2);
+        }
+        case Operators::LESS_OR_EQUAL:
+        {
+            if (debug)
+                std::cout << "Translating LessOrEqual" << std::endl;
+
+            if (expression.terms.size() != 2)
+                throw std::invalid_argument("Expression LessOrEqual must have two terms!");
+
+            auto e1 = std::dynamic_pointer_cast<NumericExpression>(
+                toExpression(expression.terms[0], variables, domain, problem));
+            auto e2 = std::dynamic_pointer_cast<NumericExpression>(
+                toExpression(expression.terms[1], variables, domain, problem));
+            if (not e1 or not e2)
+                throw std::invalid_argument("Expression LessOrEqual terms must be numeric!");
+
+            return pddlboat::makeLessOrEqual(e1, e2);
+        }
+        case Operators::ASSIGN:
+        {
+            if (debug)
+                std::cout << "Translating Assign" << std::endl;
+
+            if (expression.terms.size() != 2)
+                throw std::invalid_argument("Expression Assign must have two terms!");
+
+            auto lhs = toExpression(expression.terms[0], variables, domain, problem);
+            auto olhs = std::dynamic_pointer_cast<ObjectFunction>(lhs);
+            auto nlhs = std::dynamic_pointer_cast<NumericFunction>(lhs);
+
+            if (olhs)
+            {
+                const auto &value = parseArgument(expression.terms[1], variables, domain, problem);
+                return pddlboat::makeAssign(olhs, value);
+            }
+
+            if (nlhs)
+            {
+                auto rhs = toExpression(expression.terms[1], variables, domain, problem);
+                auto nrhs = std::dynamic_pointer_cast<NumericExpression>(rhs);
+                return pddlboat::makeAssign(nlhs, nrhs);
+            }
+
+            throw std::invalid_argument("Error in Expression Assign!");
+        }
+        case Operators::SCALE_UP:
+        {
+            if (debug)
+                std::cout << "Translating Scale Up" << std::endl;
+
+            if (expression.terms.size() != 2)
+                throw std::invalid_argument("Expression Scale Up must have two terms!");
+
+            auto lhs = std::dynamic_pointer_cast<NumericFunction>(
+                toExpression(expression.terms[0], variables, domain, problem));
+            auto rhs = std::dynamic_pointer_cast<NumericExpression>(
+                toExpression(expression.terms[1], variables, domain, problem));
+
+            if (not lhs or not rhs)
+                throw std::invalid_argument("Expression Scale Up terms must be numeric!");
+
+            return pddlboat::makeScaleUp(lhs, rhs);
+        }
+        case Operators::SCALE_DOWN:
+        {
+            if (debug)
+                std::cout << "Translating Scale Down" << std::endl;
+
+            if (expression.terms.size() != 2)
+                throw std::invalid_argument("Expression Scale Down must have two terms!");
+
+            auto lhs = std::dynamic_pointer_cast<NumericFunction>(
+                toExpression(expression.terms[0], variables, domain, problem));
+            auto rhs = std::dynamic_pointer_cast<NumericExpression>(
+                toExpression(expression.terms[1], variables, domain, problem));
+
+            if (not lhs or not rhs)
+                throw std::invalid_argument("Expression Scale Down terms must be numeric!");
+
+            return pddlboat::makeScaleDown(lhs, rhs);
+        }
+        case Operators::INCREASE:
+        {
+            if (debug)
+                std::cout << "Translating Increase" << std::endl;
+
+            if (expression.terms.size() != 2)
+                throw std::invalid_argument("Expression Increase must have two terms!");
+
+            auto lhs = std::dynamic_pointer_cast<NumericFunction>(
+                toExpression(expression.terms[0], variables, domain, problem));
+            auto rhs = std::dynamic_pointer_cast<NumericExpression>(
+                toExpression(expression.terms[1], variables, domain, problem));
+
+            if (not lhs or not rhs)
+                throw std::invalid_argument("Expression Increase terms must be numeric!");
+
+            return pddlboat::makeIncrease(lhs, rhs);
+        }
+        case Operators::DECREASE:
+        {
+            if (debug)
+                std::cout << "Translating Decrease" << std::endl;
+
+            if (expression.terms.size() != 2)
+                throw std::invalid_argument("Expression Decrease must have two terms!");
+
+            auto lhs = std::dynamic_pointer_cast<NumericFunction>(
+                toExpression(expression.terms[0], variables, domain, problem));
+            auto rhs = std::dynamic_pointer_cast<NumericExpression>(
+                toExpression(expression.terms[1], variables, domain, problem));
+
+            if (not lhs or not rhs)
+                throw std::invalid_argument("Expression Decrease terms must be numeric!");
+
+            return pddlboat::makeDecrease(lhs, rhs);
+        }
         default:
             throw std::invalid_argument(
                 log::format("Expression type %1% not supported!", expression.op.toString()));

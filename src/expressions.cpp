@@ -1449,7 +1449,7 @@ std::ostream &AssignNumber::toPDDL(std::ostream &out, unsigned int indent, unsig
             throw std::runtime_error("Invalid type for assign expression!");
     };
 
-    out << " " << std::endl;
+    out << " ";
     lhs_->toPDDL(out) << " ";
     if (rhs_)
         rhs_->toPDDL(out);
