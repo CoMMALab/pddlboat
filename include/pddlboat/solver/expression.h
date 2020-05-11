@@ -11,6 +11,7 @@ namespace pddlboat
     PDDLBOAT_CLASS_FORWARD(Domain)
     PDDLBOAT_CLASS_FORWARD(Problem)
     PDDLBOAT_CLASS_FORWARD(State)
+    PDDLBOAT_CLASS_FORWARD(ObjectFunction)
 
     ///
     /// Expression
@@ -61,7 +62,7 @@ namespace pddlboat
     {
     public:
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
-        virtual double getValue(const StatePtr &state, const Assignment &vars) = 0;
+        virtual double getValue(const StatePtr &state, const Assignment &vars) const = 0;
     };
 
     /** \brief A bound value.
@@ -75,9 +76,28 @@ namespace pddlboat
          */
         Value(bool isVar, const std::string &name, const std::string &type);
 
-        bool isVar;        ///< Is this value a variable to be substituted?
-        std::string name;  ///< Name of this value.
-        std::string type;  ///< Type of this value.
+        /** \brief Constructor.
+         *  \param[in] function Function that returns an object value.
+         */
+        Value(const ObjectFunctionPtr &function);
+
+        bool isVar{false};                        ///< Is this value a variable to be substituted?
+        std::string name;                         ///< Name of this value.
+        std::string type{PDDLBOAT_OBJECT_CLASS};  ///< Type of this value.
+        ObjectFunctionPtr function{nullptr};      ///< Object returning function.
+
+        /** \brief Retrieve the object this value is bound to.
+         *  \param[in] state State of the world.
+         *  \param[in] vars The assignment to variables.
+         *  \return The object this value is currently ground to.
+         */
+        std::string getObject(const StatePtr &state, const Assignment &vars) const;
+
+        /** \brief Print this value out.
+         *  \param[in,out] out Output stream.
+         *  \return The output stream.
+         */
+        std::ostream &toPDDL(std::ostream &out) const;
 
         /** \brief Print this value out.
          *  \param[in,out] out Output stream.
@@ -86,8 +106,14 @@ namespace pddlboat
         std::ostream &toString(std::ostream &out) const;
     };
 
+    std::vector<std::string> getValueObjects(const std::vector<Value> &values, const StatePtr &state, const Assignment &assignment);
+
     Value getValue(const std::string &term, const Variable *variable, const ProblemPtr &problem,
                    const DomainPtr &domain);
+
+    std::vector<Value> getValues(const std::vector<std::string> &terms,
+                                 const std::vector<Variable> &variables, const ProblemPtr &problem,
+                                 const DomainPtr &domain);
 }  // namespace pddlboat
 
 #endif

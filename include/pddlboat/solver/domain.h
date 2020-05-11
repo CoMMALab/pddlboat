@@ -26,7 +26,9 @@ namespace pddlboat
     PDDLBOAT_CLASS_FORWARD(DerivedPredicate)
     PDDLBOAT_CLASS_FORWARD(FunctionDefinition)
     PDDLBOAT_CLASS_FORWARD(NumericFunctionDefinition)
+    PDDLBOAT_CLASS_FORWARD(NumericFunction)
     PDDLBOAT_CLASS_FORWARD(ObjectFunctionDefinition)
+    PDDLBOAT_CLASS_FORWARD(ObjectFunction)
     PDDLBOAT_CLASS_FORWARD(Domain)
     PDDLBOAT_CLASS_FORWARD(Problem)
     PDDLBOAT_CLASS_FORWARD(State)
@@ -64,21 +66,33 @@ namespace pddlboat
         \brief A const shared pointer wrapper for pddlboat::DerivedPredicate. */
 
     /** \class pddlboat::FunctionDefinitionPtr
-        \brief A shared pointer wrapper for pddlboat::Function. */
+        \brief A shared pointer wrapper for pddlboat::FunctionDefinition. */
 
     /** \class pddlboat::FunctionDefinitionConstPtr
-        \brief A const shared pointer wrapper for pddlboat::Function. */
+        \brief A const shared pointer wrapper for pddlboat::FunctionDefinition. */
 
     /** \class pddlboat::NumericFunctionDefinitionPtr
-        \brief A shared pointer wrapper for pddlboat::NumericFunction. */
+        \brief A shared pointer wrapper for pddlboat::NumericFunctionDefinition. */
 
     /** \class pddlboat::NumericFunctionDefinitionConstPtr
-        \brief A const shared pointer wrapper for pddlboat::NumericFunction. */
+        \brief A const shared pointer wrapper for pddlboat::NumericFunctionDefinition. */
 
     /** \class pddlboat::ObjectFunctionDefinitionPtr
-        \brief A shared pointer wrapper for pddlboat::ObjectFunction. */
+        \brief A shared pointer wrapper for pddlboat::ObjectFunctionDefinition. */
 
     /** \class pddlboat::ObjectFunctionDefinitionConstPtr
+        \brief A const shared pointer wrapper for pddlboat::ObjectFunctionDefinition. */
+
+    /** \class pddlboat::NumericFunctionPtr
+        \brief A shared pointer wrapper for pddlboat::NumericFunction. */
+
+    /** \class pddlboat::NumericFunctionConstPtr
+        \brief A const shared pointer wrapper for pddlboat::NumericFunction. */
+
+    /** \class pddlboat::ObjectFunctionPtr
+        \brief A shared pointer wrapper for pddlboat::ObjectFunction. */
+
+    /** \class pddlboat::ObjectFunctionConstPtr
         \brief A const shared pointer wrapper for pddlboat::ObjectFunction. */
 
     /** \class pddlboat::DomainPtr
@@ -325,18 +339,6 @@ namespace pddlboat
          */
         std::set<std::string> getVariables() const;
 
-        /** \brief Get the corresponding bound objects given a set of bindings for this assignment.
-         *  \param[in] bindings Bindings to ground given this assignment.
-         *  \return Vector of object names.
-         */
-        std::vector<std::string> getObjects(const std::vector<Value> &bindings) const;
-
-        /** \brief Get the corresponding bound object given a binding for this assignment.
-         *  \param[in] binding Binding to ground given this assignment.
-         *  \return Object name.
-         */
-        std::string getObject(const Value &binding) const;
-
         /** \brief Serialize this assignment.
          *  \param[in,out] out Output stream to use.
          *  \return The output stream.
@@ -384,6 +386,13 @@ namespace pddlboat
          */
         PredicatePtr bind(const std::vector<std::string> &bound, const ProblemPtr &problem = nullptr,
                           const DomainPtr &domain = nullptr) const;
+
+        /** \brief Bind this n-ary predicate to an evaluatable Predicate.
+         *  \param[in] values The values to bind to this predicate.
+         *  \return A bound version of a n-ary predicate.
+         *  \throw std::invalid_argument if this is not a valid binding.
+         */
+        PredicatePtr bindValues(const std::vector<Value> &values) const;
 
         /** \brief Checks if the set of object names is a valid assignment to this predicate. That is, do
          * their types match the argument types.
@@ -433,27 +442,6 @@ namespace pddlboat
          *  \param[in] bindings Argument bindings.
          */
         Predicate(const PredicateDefinition *predicate, const std::vector<Value> &bindings);
-
-        /** \brief Bind this 0-ary predicate to another evaluatable Predicate.
-         *  \return A bound version of a 0-ary predicate.
-         *  \throw std::invalid_argument if this is not a 0-ary predicate.
-         */
-        PredicatePtr rebind() const;
-
-        /** \brief Bind this n-ary predicate to another evaluatable Predicate.
-         *  Can be bound to either grounded variables or a named variable that exists in some expression.
-         *  The bound list consists of variables, e.g. ?x, ?y --- and objects, e.g, a, b.
-         *  If a `?` is in the first position, the label is bound as a variable.
-         *  Otherwise, it is bound as an object, and will throw an error if not a valid object to bind.
-         *  \param[in] bound List of bindings of variables and objects.
-         *  \param[in] problem Optional, but if any objects exist in the bindings the problem is required.
-         *  \param[in] domain Optional, but if any constants exist without a problem the domain is required.
-         *                    Not needed if a problem is provided.
-         *  \return A bound version of a n-ary predicate.
-         *  \throw std::invalid_argument if this is not a valid binding.
-         */
-        PredicatePtr rebind(const std::vector<std::string> &bound, const ProblemPtr &problem = nullptr,
-                            const DomainPtr &domain = nullptr) const;
 
         /** \brief Return the list of unbound arguments to this predicate.
          *  \return The unbound variables for this predicate.
@@ -525,10 +513,11 @@ namespace pddlboat
                              unsigned int level = 0) const override;
 
         /** \brief Convert this predicate to a grounded ID.
+         *  \param[in] state State to use to generated grounding.
          *  \param[in] vars Grounding to use for ID.
          *  \return The ID of this grounded predicate.
          */
-        std::string toID(const Assignment &vars) const;
+        std::string toID(const StatePtr &state, const Assignment &vars) const;
 
         /** \brief Return the name of this predicate.
          *  \return The name of the predicate.
@@ -589,6 +578,13 @@ namespace pddlboat
         DerivedPredicatePtr bind(const std::vector<std::string> &bound, const ProblemPtr &problem = nullptr,
                                  const DomainPtr &domain = nullptr) const;
 
+        /** \brief Bind this n-ary predicate to an evaluatable Predicate.
+         *  \param[in] values The values to bind to this predicate.
+         *  \return A bound version of a n-ary predicate.
+         *  \throw std::invalid_argument if this is not a valid binding.
+         */
+        DerivedPredicatePtr bindValues(const std::vector<Value> &values) const;
+
         /** \brief Checks if the set of object names is a valid assignment to this predicate. That is, do
          * their types match the argument types.
          *  \param[in] problem Problem to check with.
@@ -635,27 +631,6 @@ namespace pddlboat
          *  \param[in] bindings Argument bindings.
          */
         DerivedPredicate(const DerivedPredicateDefinition *predicate, const std::vector<Value> &bindings);
-
-        /** \brief Bind this 0-ary predicate to another evaluatable Predicate.
-         *  \return A bound version of a 0-ary predicate.
-         *  \throw std::invalid_argument if this is not a 0-ary predicate.
-         */
-        DerivedPredicatePtr rebind() const;
-
-        /** \brief Bind this n-ary predicate to another evaluatable Predicate.
-         *  Can be bound to either grounded variables or a named variable that exists in some expression.
-         *  The bound list consists of variables, e.g. ?x, ?y --- and objects, e.g, a, b.
-         *  If a `?` is in the first position, the label is bound as a variable.
-         *  Otherwise, it is bound as an object, and will throw an error if not a valid object to bind.
-         *  \param[in] bound List of bindings of variables and objects.
-         *  \param[in] problem Optional, but if any objects exist in the bindings the problem is required.
-         *  \param[in] domain Optional, but if any constants exist without a problem the domain is required.
-         *                    Not needed if a problem is provided.
-         *  \return A bound version of a n-ary predicate.
-         *  \throw std::invalid_argument if this is not a valid binding.
-         */
-        DerivedPredicatePtr rebind(const std::vector<std::string> &bound, const ProblemPtr &problem = nullptr,
-                                   const DomainPtr &domain = nullptr) const;
 
         /** \brief Return the list of unbound arguments to this predicate.
          *  \return The unbound variables for this predicate.
@@ -719,13 +694,14 @@ namespace pddlboat
         const std::string &name() const;
 
         /** \brief Generates a unique ID for this predicate definition given a grounding.
+         *  \param[in] state State to use for grounding.
          *  \param[in] vars A grounding of this predicate.
          *  \return ID of the grounded predicate.
          */
-        std::string toID(const Assignment &vars) const;
+        std::string toID(const StatePtr &state, const Assignment &vars) const;
 
     private:
-        Assignment getBinding(const Assignment &vars) const;
+        Assignment getBinding(const StatePtr &state, const Assignment &vars) const;
 
         const DerivedPredicateDefinition *predicate;
     };
@@ -790,6 +766,27 @@ namespace pddlboat
      */
     NumericFunctionDefinitionPtr makeFunction(const std::string &name, const VariableList &variables = {});
 
+    /** \brief A bound numeric function.
+     */
+    class NumericFunction : public NumericExpression
+    {
+    public:
+        /** \brief Constructor.
+         *  \param[in] function Function definition that this function is a binding for.
+         *  \param[in] bindings Argument bindings.
+         */
+        NumericFunction(const NumericFunctionDefinition *function, const std::vector<Value> &bindings);
+
+        /** \brief Get the numeric value for this function.
+         *  \param[in] state State of the world.
+         *  \parma[in] vars The assignment to this function.
+         */
+        double getValue(const StatePtr &state, const Assignment &vars) const override;
+
+    private:
+        const NumericFunctionDefinition *function;
+    };
+
     /** \brief Definition of a PDDL object fluent.
      */
     class ObjectFunctionDefinition : public FunctionDefinition
@@ -811,6 +808,34 @@ namespace pddlboat
      */
     ObjectFunctionDefinitionPtr makeObjectFunction(const std::string &name, const std::string &type,
                                                    const VariableList &variables = {});
+
+    /** \brief A bound object function.
+     */
+    class ObjectFunction
+    {
+    public:
+        std::vector<Value> bindings;
+
+        /** \brief Constructor.
+         *  \param[in] function Function definition that this function is a binding for.
+         *  \param[in] bindings Argument bindings.
+         */
+        ObjectFunction(const ObjectFunctionDefinition *function, const std::vector<Value> &bindings);
+
+        /** \brief Get the object value for this function.
+         *  \param[in] state State of the world.
+         *  \parma[in] vars The assignment to this function.
+         */
+        std::string getObject(const StatePtr &state, const Assignment &vars) const;
+
+        /** \brief Output to PDDL
+         */
+        virtual std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
+                                     unsigned int level = 0) const = 0;
+
+    private:
+        const ObjectFunctionDefinition *function;
+    };
 
     ///
     /// Action
@@ -1184,7 +1209,9 @@ namespace pddlboat
          */
         using Key = std::pair<std::string, std::vector<std::string>>;
 
-        std::map<Key, bool> assignments;  ///< Map from grounded predicate to truth value.
+        std::map<Key, bool> assignments;    ///< Map from grounded predicate to truth value.
+        std::map<Key, double> numeric;      ///< Map from grounded function to value.
+        std::map<Key, std::string> values;  ///< Map from grounded object function to value.
 
         /** \brief Constructor.
          *  \param[in] problem Problem this state is for.
@@ -1243,24 +1270,57 @@ namespace pddlboat
         void assignN(const std::string &predicate, const std::vector<std::string> &objects,
                      bool value = true);
 
+        /** \brief Assign the value of a 0-ary function.
+         *  \param[in] function Name of function to assign.
+         *  \param[in] value Value to assign.
+         *  \throw std::invalid_argument If not a 0-ary function.
+         */
+        void assign0(const std::string &function, double value);
+
+        /** \brief Assign the value of a 1-ary function.
+         *  \param[in] function Name of function to assign.
+         *  \param[in] object Object to ground to function.
+         *  \param[in] value Value to assign.
+         *  \throw std::invalid_argument If not a 1-ary function or not a valid assignment.
+         */
+        void assign1(const std::string &function, const std::string &object, double value);
+
+        /** \brief Assign the value of a n-ary function.
+         *  \param[in] function Name of function to assign.
+         *  \param[in] objects Objects to ground to function.
+         *  \param[in] value Value to assign.
+         *  \throw std::invalid_argument If not a valid assignment.
+         */
+        void assignN(const std::string &function, const std::vector<std::string> &objects, double value);
+
+        /** \brief Assign the value of a 0-ary function.
+         *  \param[in] function Name of function to assign.
+         *  \param[in] value Value to assign.
+         *  \throw std::invalid_argument If not a 0-ary function.
+         */
+        void assign0(const std::string &function, const std::string &value);
+
+        /** \brief Assign the value of a 1-ary function.
+         *  \param[in] function Name of function to assign.
+         *  \param[in] object Object to ground to function.
+         *  \param[in] value Value to assign.
+         *  \throw std::invalid_argument If not a 1-ary function or not a valid assignment.
+         */
+        void assign1(const std::string &function, const std::string &object, const std::string &value);
+
+        /** \brief Assign the value of a n-ary function.
+         *  \param[in] function Name of function to assign.
+         *  \param[in] objects Objects to ground to function.
+         *  \param[in] value Value to assign.
+         *  \throw std::invalid_argument If not a valid assignment.
+         */
+        void assignN(const std::string &function, const std::vector<std::string> &objects,
+                     const std::string &value);
+
         /** \} */
 
-        /* \name Truth Evaluation
+        /* \name Value Retrieval
            \{ */
-
-        /** \brief Checks if a predicate given an assignment is currently true in the state.
-         *  \param[in] predicate Predicate to check.
-         *  \param[in] assignment Grounding of predicate.
-         *  \return True if predicate is true in the state, false otherwise.
-         */
-        bool isTrue(const PredicateDefinitionPtr &predicate, const Assignment &assignment) const;
-
-        /** \brief Checks if a predicate given an assignment is currently true in the state.
-         *  \param[in] predicate Name of predicate to check.
-         *  \param[in] assignment Grounding of predicate.
-         *  \return True if predicate is true in the state, false otherwise.
-         */
-        bool isTrue(const std::string &predicate, const Assignment &assignment) const;
 
         /** \brief Checks if a predicate given an assignment is currently true in the state.
          *  \param[in] predicate Name of predicate to check.
@@ -1268,6 +1328,20 @@ namespace pddlboat
          *  \return True if predicate is true in the state, false otherwise.
          */
         bool isTrue(const std::string &predicate, const std::vector<std::string> &objects) const;
+
+        /** \brief Gets the value of an assignment to a function.
+         *  \param[in] function Name of function to check.
+         *  \param[in] objects Grounding of function.
+         *  \return True if function is true in the state, false otherwise.
+         */
+        double getValue(const std::string &function, const std::vector<std::string> &objects) const;
+
+        /** \brief Gets the value of an assignment to a function.
+         *  \param[in] function Name of function to check.
+         *  \param[in] objects Grounding of function.
+         *  \return True if function is true in the state, false otherwise.
+         */
+        std::string getObject(const std::string &function, const std::vector<std::string> &objects) const;
 
         /** \} */
 

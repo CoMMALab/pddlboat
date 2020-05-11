@@ -188,7 +188,7 @@ z3::expr Z3Planner::exprAtTime(const ExpressionPtr &expr, const Assignment &assi
         case Expression::Type::PREDICATE:
         {
             const auto &predicate_expr = std::static_pointer_cast<Predicate>(expr);
-            return toBool(addTimeToString(predicate_expr->toID(assignment), step));
+            return toBool(addTimeToString(predicate_expr->toID(nullptr, assignment), step));
         }
         case Expression::Type::AND:
         {
@@ -482,7 +482,12 @@ void Z3Planner::addStartState()
             z3::expr p = toBool(addTimeToString(pred_string, 0));
 
             // Anything that is not true is false within the initial state.
-            z3::expr clause = (problem_->start->isTrue(name_predptr.second, assignment)) ? p : not p;
+
+            std::vector<std::string> objects;
+            for (const auto &variable : name_predptr.second->variables)
+                objects.emplace_back(assignment.assigned(variable.name)->name);
+
+            z3::expr clause = (problem_->start->isTrue(name_predptr.first, objects)) ? p : not p;
 
             solver_->add(clause);
 
