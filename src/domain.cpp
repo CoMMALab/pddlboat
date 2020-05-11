@@ -376,8 +376,7 @@ Expression::Type Predicate::type() const
 void Predicate::getVariables(VariableSet &vars) const
 {
     for (const auto &binding : bindings)
-        if (binding.isVar)
-            vars.addVariable({binding.name, binding.type});
+        binding.getVariables(vars);
 }
 
 void Predicate::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
@@ -405,7 +404,7 @@ VariableList Predicate::arguments() const
 bool Predicate::containsVariable(const std::string &variable) const
 {
     for (const auto &v : bindings)
-        if (v.isVar and v.name == variable)
+        if (v.containsVariable(variable))
             return true;
 
     return false;
@@ -419,10 +418,7 @@ bool Predicate::containsPredicate(const std::string &pred) const
 void Predicate::renameVariable(const std::string &old, const std::string &name)
 {
     for (auto &binding : bindings)
-    {
-        if (binding.isVar and binding.name == old)
-            binding.name = name;
-    }
+        binding.renameVariable(old, name);
 }
 
 std::ostream &Predicate::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
@@ -616,8 +612,7 @@ Expression::Type DerivedPredicate::type() const
 void DerivedPredicate::getVariables(VariableSet &vars) const
 {
     for (const auto &binding : bindings)
-        if (binding.isVar)
-            vars.addVariable({binding.name, binding.type});
+        binding.getVariables(vars);
 }
 
 void DerivedPredicate::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
@@ -645,7 +640,7 @@ VariableList DerivedPredicate::arguments() const
 bool DerivedPredicate::containsVariable(const std::string &variable) const
 {
     for (const auto &v : bindings)
-        if (v.isVar and v.name == variable)
+        if (v.containsVariable(variable))
             return true;
 
     return false;
@@ -663,12 +658,7 @@ bool DerivedPredicate::containsPredicate(const std::string &pred) const
 void DerivedPredicate::renameVariable(const std::string &old, const std::string &name)
 {
     for (auto &binding : bindings)
-    {
-        if (binding.isVar and binding.name == old)
-            binding.name = name;
-    }
-
-    // shouldn't affect expression...
+        binding.renameVariable(old, name);
 }
 
 std::ostream &DerivedPredicate::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
@@ -681,9 +671,7 @@ std::ostream &DerivedPredicate::toPDDL(std::ostream &out, unsigned int indent, u
     for (const auto &binding : bindings)
     {
         out << " ";
-        if (binding.isVar)
-            out << "?";
-        out << binding.name;
+        binding.toPDDL(out);
     }
 
     out << ")";
@@ -764,6 +752,8 @@ std::ostream &FunctionDefinition::toPDDL(std::ostream &out) const
     return out;
 }
 
+// Numeric
+
 NumericFunctionDefinition::NumericFunctionDefinition(const std::string &name, const VariableList &parameters)
   : FunctionDefinition(name, parameters, PDDLBOAT_NUMERIC_CLASS)
 {
@@ -773,6 +763,63 @@ NumericFunctionDefinitionPtr pddlboat::makeFunction(const std::string &name, con
 {
     return std::make_shared<NumericFunctionDefinition>(name, variables);
 }
+
+NumericFunction::NumericFunction(const NumericFunctionDefinition *function,
+                                 const std::vector<Value> &bindings)
+  : bindings(bindings), function(function)
+{
+}
+
+std::string NumericFunction::getName() const
+{
+    return function->name;
+}
+
+double NumericFunction::getValue(const StatePtr &state, const Assignment &vars) const
+{
+    return state->getValue(function->name, getValueObjects(bindings, state, vars));
+}
+
+Expression::Type NumericFunction::type() const
+{
+    return Expression::NUMERIC_FUNCTION;
+}
+
+void NumericFunction::getVariables(VariableSet &vars) const
+{
+    for (const auto &binding : bindings)
+        binding.getVariables(vars);
+}
+
+bool NumericFunction::containsVariable(const std::string &variable) const
+{
+    for (const auto &v : bindings)
+        if (v.containsVariable(variable))
+            return true;
+
+    return false;
+}
+
+void NumericFunction::renameVariable(const std::string &old, const std::string &name)
+{
+    for (auto &binding : bindings)
+        binding.renameVariable(old, name);
+}
+
+std::ostream &NumericFunction::toPDDL(std::ostream &out) const
+{
+    out << "(" << function->name;
+    for (const auto &binding : bindings)
+    {
+        out << " ";
+        binding.toPDDL(out);
+    }
+    out << ")";
+
+    return out;
+}
+
+// Object
 
 ObjectFunctionDefinition::ObjectFunctionDefinition(const std::string &name, const VariableList &parameters,
                                                    const std::string &type)
@@ -787,12 +834,62 @@ ObjectFunctionDefinitionPtr pddlboat::makeObjectFunction(const std::string &name
 }
 
 ObjectFunction::ObjectFunction(const ObjectFunctionDefinition *function, const std::vector<Value> &bindings)
+  : bindings(bindings), function(function)
 {
+}
+
+std::string ObjectFunction::getName() const
+{
+    return function->name;
+}
+
+std::string ObjectFunction::getReturnType() const
+{
+    return function->type;
 }
 
 std::string ObjectFunction::getObject(const StatePtr &state, const Assignment &vars) const
 {
     return state->getObject(function->name, getValueObjects(bindings, state, vars));
+}
+
+Expression::Type ObjectFunction::type() const
+{
+    return Expression::OBJECT_FUNCTION;
+}
+
+void ObjectFunction::getVariables(VariableSet &vars) const
+{
+    for (const auto &binding : bindings)
+        binding.getVariables(vars);
+}
+
+bool ObjectFunction::containsVariable(const std::string &variable) const
+{
+    for (const auto &v : bindings)
+        if (v.containsVariable(variable))
+            return true;
+
+    return false;
+}
+
+void ObjectFunction::renameVariable(const std::string &old, const std::string &name)
+{
+    for (auto &binding : bindings)
+        binding.renameVariable(old, name);
+}
+
+std::ostream &ObjectFunction::toPDDL(std::ostream &out) const
+{
+    out << "(" << function->name;
+    for (const auto &binding : bindings)
+    {
+        out << " ";
+        binding.toPDDL(out);
+    }
+    out << ")";
+
+    return out;
 }
 
 ///

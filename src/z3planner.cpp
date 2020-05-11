@@ -267,8 +267,8 @@ z3::expr Z3Planner::exprAtTime(const ExpressionPtr &expr, const Assignment &assi
             const auto &equals_expr = std::static_pointer_cast<Equals>(expr);
             const auto &[t1, t2] = equals_expr->getTerms();
 
-            auto t1o = equals_expr->getObject(t1, assignment);
-            auto t2o = equals_expr->getObject(t2, assignment);
+            auto t1o = t1.getObject(nullptr, assignment);
+            auto t2o = t2.getObject(nullptr, assignment);
 
             return ctx_->bool_val(t1o == t2o);
         }

@@ -36,9 +36,28 @@ namespace pddlboat
             EXISTS = 1 << 9,
             QUANTIFIER = EXISTS | FORALL,
             WHEN = 1 << 10,
+
+            OBJECT_FUNCTION = 1 << 11,
+            NUMERIC_FUNCTION = 1 << 12,
+
+            GREATER_THAN = 1 << 13,
+            LESS_THAN = 1 << 14,
+            GREATER_OR_EQUAL = 1 << 15,
+            LESS_OR_EQUAL = 1 << 16,
+
+            MINUS = 1 << 17,
+            DIVIDE = 1 << 18,
+            MULTIPLY = 1 << 19,
+            PLUS = 1 << 20,
+
+            ASSIGN = 1 << 21,
+            SCALE_UP = 1 << 22,
+            SCALE_DOWN = 1 << 23,
+            INCREASE = 1 << 24,
+            DECREASE = 1 << 25,
         };
 
-        virtual bool evaluate(const StatePtr &state, const Assignment &vars) const = 0;
+        virtual bool evaluate(const StatePtr &state, const Assignment &vars) const;
         virtual void assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const;
         virtual Type type() const;
         virtual Type getTypes() const;
@@ -58,10 +77,10 @@ namespace pddlboat
     Expression::Type operator&(Expression::Type lhs, Expression::Type rhs);
     bool isIn(Expression::Type type, Expression::Type set);
 
+    PDDLBOAT_CLASS_FORWARD(NumericExpression)
     class NumericExpression : public Expression
     {
     public:
-        bool evaluate(const StatePtr &state, const Assignment &vars) const override;
         virtual double getValue(const StatePtr &state, const Assignment &vars) const = 0;
     };
 
@@ -72,7 +91,7 @@ namespace pddlboat
         /** \brief Constructor.
          *  \param[in] isVar Is this a variable name?
          *  \param[in] name Name of variable or object.
-         *  \param[in] type Type of argument.
+         *  \param[in] type Type of argument
          */
         Value(bool isVar, const std::string &name, const std::string &type);
 
@@ -93,6 +112,10 @@ namespace pddlboat
          */
         std::string getObject(const StatePtr &state, const Assignment &vars) const;
 
+        void getVariables(VariableSet &vars) const;
+        bool containsVariable(const std::string &variable) const;
+        void renameVariable(const std::string &old, const std::string &name);
+
         /** \brief Print this value out.
          *  \param[in,out] out Output stream.
          *  \return The output stream.
@@ -106,7 +129,8 @@ namespace pddlboat
         std::ostream &toString(std::ostream &out) const;
     };
 
-    std::vector<std::string> getValueObjects(const std::vector<Value> &values, const StatePtr &state, const Assignment &assignment);
+    std::vector<std::string> getValueObjects(const std::vector<Value> &values, const StatePtr &state,
+                                             const Assignment &assignment);
 
     Value getValue(const std::string &term, const Variable *variable, const ProblemPtr &problem,
                    const DomainPtr &domain);

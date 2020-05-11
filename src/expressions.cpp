@@ -19,6 +19,11 @@ Value::Value(bool isVar, const std::string &name, const std::string &type)
 {
 }
 
+Value::Value(const ObjectFunctionPtr &function)
+  : name(function->getName()), type(function->getReturnType()), function(function)
+{
+}
+
 std::string Value::getObject(const StatePtr &state, const Assignment &vars) const
 {
     if (isVar)
@@ -88,6 +93,33 @@ std::vector<Value> pddlboat::getValues(const std::vector<std::string> &terms,
     return toUse;
 }
 
+void Value::getVariables(VariableSet &vars) const
+{
+    if (isVar)
+        vars.addVariable({name, type});
+    if (function)
+        function->getVariables(vars);
+}
+
+bool Value::containsVariable(const std::string &variable) const
+{
+    if (isVar and name == variable)
+        return true;
+
+    if (function and function->containsVariable(variable))
+        return true;
+
+    return false;
+}
+
+void Value::renameVariable(const std::string &old, const std::string &newname)
+{
+    if (isVar and name == old)
+        name = newname;
+    if (function)
+        function->renameVariable(old, newname);
+}
+
 std::ostream &Value::toPDDL(std::ostream &out) const
 {
     if (isVar)
@@ -120,6 +152,11 @@ Expression::Type Expression::type() const
 Expression::Type Expression::getTypes() const
 {
     return type();
+}
+
+bool Expression::evaluate(const StatePtr &state, const Assignment &vars) const
+{
+    throw std::invalid_argument(log::format("Cannot evaluate with expression type %1%", type()));
 }
 
 void Expression::assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const
@@ -174,15 +211,6 @@ Expression::Type pddlboat::operator&(Expression::Type lhs, Expression::Type rhs)
 bool pddlboat::isIn(Expression::Type type, Expression::Type set)
 {
     return (type & set) == type;
-}
-
-///
-/// NumericExpression
-///
-
-bool NumericExpression::evaluate(const StatePtr &state, const Assignment &vars) const
-{
-    throw std::invalid_argument(log::format("Cannot evaluate numeric expression: type %1%", type()));
 }
 
 ///
@@ -902,17 +930,17 @@ std::pair<Value, Value> Equals::getTerms() const
     return {term1_, term2_};
 }
 
-std::string Equals::getObject(const Value &term, const Assignment &vars) const
+void Equals::assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const
 {
-    if (term.isVar)
-        return vars.assigned(term.name)->name;
+    if (term1_.function)
+        out->assignN(term1_.name, getValueObjects(term1_.function->bindings, in, vars), term2_.getObject(in, vars));
     else
-        return term.name;
+        throw std::invalid_argument(log::format("Cannot assign with = with non-function first term."));
 }
 
 bool Equals::evaluate(const StatePtr &state, const Assignment &vars) const
 {
-    return getObject(term1_, vars) == getObject(term2_, vars);
+    return term1_.getObject(state, vars) == term2_.getObject(state, vars);
 }
 
 Expression::Type Equals::type() const
@@ -927,16 +955,13 @@ Expression::Type Equals::getTypes() const
 
 void Equals::getVariables(VariableSet &vars) const
 {
-    if (term1_.isVar)
-        vars.addVariable(Variable(term1_.name, term1_.type));
-    if (term2_.isVar)
-        vars.addVariable(Variable(term2_.name, term2_.type));
+    term1_.getVariables(vars);
+    term2_.getVariables(vars);
 }
 
 bool Equals::containsVariable(const std::string &variable) const
 {
-    return (term1_.isVar ? variable == term1_.name : false) or
-           (term2_.isVar ? variable == term2_.name : false);
+    return term1_.containsVariable(variable) or term2_.containsVariable(variable);
 }
 
 bool Equals::containsPredicate(const std::string &predicate) const
@@ -946,10 +971,8 @@ bool Equals::containsPredicate(const std::string &predicate) const
 
 void Equals::renameVariable(const std::string &old, const std::string &name)
 {
-    if (term1_.isVar and term1_.name == old)
-        term1_.name = name;
-    if (term2_.isVar and term2_.name == old)
-        term2_.name = name;
+    term1_.renameVariable(old, name);
+    term2_.renameVariable(old, name);
 }
 
 std::ostream &Equals::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
@@ -963,7 +986,6 @@ std::ostream &Equals::toPDDL(std::ostream &out, unsigned int indent, unsigned in
     out << ")";
 
     return out;
-
 }
 
 EqualsPtr pddlboat::makeEquals(const Value &term1, const Value &term2)

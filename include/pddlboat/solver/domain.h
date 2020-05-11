@@ -771,17 +771,28 @@ namespace pddlboat
     class NumericFunction : public NumericExpression
     {
     public:
+        std::vector<Value> bindings;
+
         /** \brief Constructor.
          *  \param[in] function Function definition that this function is a binding for.
          *  \param[in] bindings Argument bindings.
          */
         NumericFunction(const NumericFunctionDefinition *function, const std::vector<Value> &bindings);
 
+        std::string getName() const;
+
         /** \brief Get the numeric value for this function.
          *  \param[in] state State of the world.
          *  \parma[in] vars The assignment to this function.
          */
         double getValue(const StatePtr &state, const Assignment &vars) const override;
+
+        Type type() const override;
+        void getVariables(VariableSet &vars) const override;
+        bool containsVariable(const std::string &variable) const;
+        void renameVariable(const std::string &old, const std::string &name);
+
+        std::ostream &toPDDL(std::ostream &out) const;
 
     private:
         const NumericFunctionDefinition *function;
@@ -811,7 +822,7 @@ namespace pddlboat
 
     /** \brief A bound object function.
      */
-    class ObjectFunction
+    class ObjectFunction : public Expression
     {
     public:
         std::vector<Value> bindings;
@@ -822,16 +833,21 @@ namespace pddlboat
          */
         ObjectFunction(const ObjectFunctionDefinition *function, const std::vector<Value> &bindings);
 
+        std::string getName() const;
+        std::string getReturnType() const;
+
         /** \brief Get the object value for this function.
          *  \param[in] state State of the world.
          *  \parma[in] vars The assignment to this function.
          */
         std::string getObject(const StatePtr &state, const Assignment &vars) const;
 
-        /** \brief Output to PDDL
-         */
-        virtual std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
-                                     unsigned int level = 0) const = 0;
+        Type type() const override;
+        void getVariables(VariableSet &vars) const override;
+        bool containsVariable(const std::string &variable) const;
+        void renameVariable(const std::string &old, const std::string &name);
+
+        std::ostream &toPDDL(std::ostream &out) const;
 
     private:
         const ObjectFunctionDefinition *function;

@@ -230,7 +230,6 @@ namespace pddlboat
 
     protected:
         VariableList domain_;
-        VariableList internal_;
         ExpressionPtr formula_;
     };
 
@@ -285,7 +284,7 @@ namespace pddlboat
 
         std::pair<Value, Value> getTerms() const;
 
-        std::string getObject(const Value &term, const Assignment &vars) const;
+        void assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const override;
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
         Expression::Type type() const override;
         Expression::Type getTypes() const override;
@@ -302,6 +301,34 @@ namespace pddlboat
     };
 
     EqualsPtr makeEquals(const Value &term1, const Value &term2);
+
+    ///
+    /// Comparison
+    ///
+
+    class ComparisonExpression : public Expression
+    {
+    public:
+        ComparisonExpression(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+
+        bool evaluate(const StatePtr &state, const Assignment &vars) const override;
+        Expression::Type type() const override;
+        Expression::Type getTypes() const override;
+        void getVariables(VariableSet &vars) const override;
+        bool containsVariable(const std::string &variable) const override;
+        bool containsPredicate(const std::string &predicate) const override;
+        void renameVariable(const std::string &old, const std::string &name) override;
+
+    protected:
+        const NumericExpressionPtr lhs_;
+        const NumericExpressionPtr rhs_;
+    };
+
+    ///
+    /// Greater Than
+    ///
+
+    // class GreaterThan::
 
 }  // namespace pddlboat
 
