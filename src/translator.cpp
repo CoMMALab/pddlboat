@@ -30,12 +30,15 @@ namespace
         return variables;
     }
 
-    bool isVariable(const std::string &name, const std::vector<Variable> &variables)
+    const Variable *isVariable(const std::string &name, const std::vector<Variable> &variables)
     {
         auto vit = std::find_if(variables.begin(), variables.end(),
                                 [&name](const auto &var) { return var.name == name; });
 
-        return vit != variables.end();
+        if (vit != variables.end())
+            return &*vit;
+        else
+            return nullptr;
     }
 
     bool isObject(const std::string &name, const DomainPtr &domain, const ProblemPtr &problem)
@@ -57,20 +60,30 @@ namespace
         return false;
     }
 
-    std::string parseArgument(const ast::Expression &term, const std::vector<Variable> &variables,
-                              const DomainPtr &domain, const ProblemPtr &problem)
+    Value parseArgument(const ast::Expression &term, const std::vector<Variable> &variables,
+                        const DomainPtr &domain, const ProblemPtr &problem)
     {
         if (term.op.toOp() != Operators::LITERAL)
-            return "";
+            throw std::invalid_argument(log::format("Invalid op %1% in predicate!", term.op.toString()));
 
         const auto &name = term.op.toString();
-        if (isVariable(name, variables))
-            return "?" + name;
+        const Variable *var = isVariable(name, variables);
+        if (domain->isFunction(name))
+        {
+            auto exp = toExpression(term, variables, domain, problem);
+            auto of = std::dynamic_pointer_cast<ObjectFunction>(exp);
+            if (of)
+                return Value(of);
+            else
+                throw std::invalid_argument(log::format("Invalid term %1% in predicate!", name));
+        }
+        else if (var or isObject(name, domain, problem))
+        {
+            auto temp = (var ? "?" : "") + name;
+            return getValue(temp, var, problem, domain);
+        }
 
-        if (isObject(name, domain, problem))
-            return name;
-
-        return "";
+        throw std::invalid_argument(log::format("Invalid term %1% in predicate!", name));
     }
 }  // namespace
 
@@ -88,29 +101,42 @@ pddlboat::ExpressionPtr pddlboat::toExpression(const ast::Expression &expression
                 std::cout << "Translating Literal " << s << std::endl;
 
             bool basic = domain->isPredicate(s);
+            bool function = domain->isFunction(s);
             bool derived = domain->isDerivedPredicate(s);
-            if (basic or derived)
+            if (basic or derived or function)
             {
-                std::vector<std::string> bindings;
+                std::vector<Value> bindings;
 
-                for (const auto &term : expression.terms)
+                for (std::size_t i = 0; i < expression.terms.size(); ++i)
                 {
-                    const auto &name = parseArgument(term, variables, domain, problem);
-                    if (name.empty())
-                        throw std::invalid_argument(log::format("Invalid term %1% in predicate!", s));
+                    auto &term = expression.terms[i];
 
-                    bindings.emplace_back(name);
+                    const auto &value = parseArgument(term, variables, domain, problem);
+                    bindings.emplace_back(value);
                 }
 
                 if (derived)
                 {
                     auto derived = domain->getDerivedPredicate(s);
-                    return derived->bind(bindings, problem, domain);
+                    return derived->bindValues(bindings);
+                }
+                else if (function)
+                {
+                    if (domain->isNumericFunction(s))
+                    {
+                        auto function = domain->getNumericFunction(s);
+                        return function->bindValues(bindings);
+                    }
+                    else
+                    {
+                        auto function = domain->getObjectFunction(s);
+                        return function->bindValues(bindings);
+                    }
                 }
                 else
                 {
                     auto pred = domain->getPredicate(s);
-                    return pred->bind(bindings, problem, domain);
+                    return pred->bindValues(bindings);
                 }
             }
             else
@@ -220,13 +246,7 @@ pddlboat::ExpressionPtr pddlboat::toExpression(const ast::Expression &expression
             auto e1t = parseArgument(e1, variables, domain, problem);
             auto e2t = parseArgument(e2, variables, domain, problem);
 
-            if (e1t.empty())
-                throw std::invalid_argument(log::format("Invalid first Equal variable!"));
-            if (e2t.empty())
-                throw std::invalid_argument(log::format("Invalid second Equal variable!"));
-
-            return pddlboat::makeEquals(getValue(e1t, nullptr, problem, domain),
-                                        getValue(e2t, nullptr, problem, domain));
+            return pddlboat::makeEquals(e1t, e2t);
         }
         default:
             throw std::invalid_argument(

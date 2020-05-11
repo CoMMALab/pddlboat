@@ -719,6 +719,8 @@ namespace pddlboat
         const VariableList parameters;  ///< Parameters this function has.
         const std::string type;         /// Return type of this function.
 
+        virtual ~FunctionDefinition() = default;
+
         /** \brief Checks if the set of object names is a valid assignment to this predicate. That is, do
          * their types match the argument types.
          *  \param[in] problem Problem to check with.
@@ -757,6 +759,11 @@ namespace pddlboat
          *  \param[in] variables Argument list of function.
          */
         NumericFunctionDefinition(const std::string &name, const VariableList &parameters);
+
+        NumericFunctionPtr bind() const;
+        NumericFunctionPtr bind(const std::vector<std::string> &bound, const ProblemPtr &problem = nullptr,
+                                const DomainPtr &domain = nullptr) const;
+        NumericFunctionPtr bindValues(const std::vector<Value> &values) const;
     };
 
     /** \brief Helper function to create a function definition.
@@ -816,6 +823,11 @@ namespace pddlboat
          */
         ObjectFunctionDefinition(const std::string &name, const VariableList &parameters,
                                  const std::string &type);
+
+        ObjectFunctionPtr bind() const;
+        ObjectFunctionPtr bind(const std::vector<std::string> &bound, const ProblemPtr &problem = nullptr,
+                                const DomainPtr &domain = nullptr) const;
+        ObjectFunctionPtr bindValues(const std::vector<Value> &values) const;
     };
 
     /** \brief Helper function to create an object function definition.
@@ -1119,12 +1131,38 @@ namespace pddlboat
          */
         bool isFunction(const std::string &name) const;
 
+        /** \brief Returns true if this object function exists.
+         *  \param[in] name Name of function to check.
+         *  \return True if the function exists.
+         */
+        bool isObjectFunction(const std::string &name) const;
+
+        /** \brief Returns true if this numeric function exists.
+         *  \param[in] name Name of function to check.
+         *  \return True if the function exists.
+         */
+        bool isNumericFunction(const std::string &name) const;
+
         /** \brief Retrieve a function defined in the domain.
          *  \param[in] name Name of function to retrieve.
          *  \return The named function definition.
          *  \throw std::invalid_argument if the function does not exist.
          */
-        const FunctionDefinitionPtr getFunction(const std::string &name) const;
+        FunctionDefinitionPtr getFunction(const std::string &name) const;
+
+        /** \brief Retrieve an object function defined in the domain.
+         *  \param[in] name Name of function to retrieve.
+         *  \return The named function definition, or nullptr if not an object function.
+         *  \throw std::invalid_argument if the function does not exist.
+         */
+        ObjectFunctionDefinitionPtr getObjectFunction(const std::string &name) const;
+
+        /** \brief Retrieve an object function defined in the domain.
+         *  \param[in] name Name of function to retrieve.
+         *  \return The named function definition, or nullptr if not an object function.
+         *  \throw std::invalid_argument if the function does not exist.
+         */
+        NumericFunctionDefinitionPtr getNumericFunction(const std::string &name) const;
 
         /** \} */
 

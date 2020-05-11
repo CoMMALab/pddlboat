@@ -274,9 +274,10 @@ PredicatePtr PredicateDefinition::bindValues(const std::vector<Value> &values) c
     if (variables.size() != values.size())
         throw std::invalid_argument("Cannot bind variables, size mismatch!");
 
-    for (std::size_t i = 0; i < values.size(); ++i)
-        if (values[i].type != variables[i].type)
-            throw std::invalid_argument("Cannot bind variables, type mismatch!");
+    // for (std::size_t i = 0; i < values.size(); ++i)
+    //     if (values[i].type != variables[i].type)
+    //         throw std::invalid_argument(log::format("Cannot bind parameters in %1%, type mismatch %2% - %3%!",
+    //                                                 name, values[i].type, variables[i].type));
 
     return std::make_shared<Predicate>(this, values);
 }
@@ -496,9 +497,10 @@ DerivedPredicatePtr DerivedPredicateDefinition::bindValues(const std::vector<Val
     if (parameters.size() != values.size())
         throw std::invalid_argument("Cannot bind variables, size mismatch!");
 
-    for (std::size_t i = 0; i < values.size(); ++i)
-        if (values[i].type != parameters[i].type)
-            throw std::invalid_argument("Cannot bind variables, type mismatch!");
+    // for (std::size_t i = 0; i < values.size(); ++i)
+    //     if (values[i].type != parameters[i].type)
+    //         throw std::invalid_argument(log::format("Cannot bind parameters in %1%, type mismatch %2% - %3%!",
+    //                                                 name, values[i].type, parameters[i].type));
 
     return std::make_shared<DerivedPredicate>(this, values);
 }
@@ -759,6 +761,33 @@ NumericFunctionDefinition::NumericFunctionDefinition(const std::string &name, co
 {
 }
 
+NumericFunctionPtr NumericFunctionDefinition::bind() const
+{
+    return bind(std::vector<std::string>{});
+}
+
+NumericFunctionPtr NumericFunctionDefinition::bind(const std::vector<std::string> &bound,
+                                                   const ProblemPtr &problem, const DomainPtr &domain) const
+{
+    if (parameters.size() != bound.size())
+        throw std::invalid_argument("Cannot bind parameters, size mismatch!");
+
+    return bindValues(getValues(bound, parameters, problem, domain));
+}
+
+NumericFunctionPtr NumericFunctionDefinition::bindValues(const std::vector<Value> &values) const
+{
+    if (parameters.size() != values.size())
+        throw std::invalid_argument("Cannot bind parameters, size mismatch!");
+
+    // for (std::size_t i = 0; i < values.size(); ++i)
+    //     if (values[i].type != parameters[i].type)
+    //         throw std::invalid_argument(log::format("Cannot bind parameters in %1%, type mismatch %2% - %3%!",
+    //                                                 name, values[i].type, parameters[i].type));
+
+    return std::make_shared<NumericFunction>(this, values);
+}
+
 NumericFunctionDefinitionPtr pddlboat::makeFunction(const std::string &name, const VariableList &variables)
 {
     return std::make_shared<NumericFunctionDefinition>(name, variables);
@@ -858,6 +887,33 @@ ObjectFunctionDefinition::ObjectFunctionDefinition(const std::string &name, cons
                                                    const std::string &type)
   : FunctionDefinition(name, parameters, type)
 {
+}
+
+ObjectFunctionPtr ObjectFunctionDefinition::bind() const
+{
+    return bind(std::vector<std::string>{});
+}
+
+ObjectFunctionPtr ObjectFunctionDefinition::bind(const std::vector<std::string> &bound,
+                                                 const ProblemPtr &problem, const DomainPtr &domain) const
+{
+    if (parameters.size() != bound.size())
+        throw std::invalid_argument("Cannot bind parameters, size mismatch!");
+
+    return bindValues(getValues(bound, parameters, problem, domain));
+}
+
+ObjectFunctionPtr ObjectFunctionDefinition::bindValues(const std::vector<Value> &values) const
+{
+    if (parameters.size() != values.size())
+        throw std::invalid_argument("Cannot bind parameters, size mismatch!");
+
+    // for (std::size_t i = 0; i < values.size(); ++i)
+    //     if (values[i].type != parameters[i].type)
+    //         throw std::invalid_argument(log::format("Cannot bind parameters in %1%, type mismatch %2% - %3%!",
+    //                                                 name, values[i].type, parameters[i].type));
+
+    return std::make_shared<ObjectFunction>(this, values);
 }
 
 ObjectFunctionDefinitionPtr pddlboat::makeObjectFunction(const std::string &name, const std::string &type,
@@ -1170,7 +1226,17 @@ bool Domain::isFunction(const std::string &name) const
     return it != functions.end();
 }
 
-const FunctionDefinitionPtr Domain::getFunction(const std::string &name) const
+bool Domain::isObjectFunction(const std::string &name) const
+{
+    return isFunction(name) and std::dynamic_pointer_cast<ObjectFunctionDefinition>(getFunction(name));
+}
+
+bool Domain::isNumericFunction(const std::string &name) const
+{
+    return isFunction(name) and std::dynamic_pointer_cast<NumericFunctionDefinition>(getFunction(name));
+}
+
+FunctionDefinitionPtr Domain::getFunction(const std::string &name) const
 {
     const std::string namel = boost::algorithm::to_lower_copy(name);
 
@@ -1179,6 +1245,16 @@ const FunctionDefinitionPtr Domain::getFunction(const std::string &name) const
         throw std::invalid_argument(log::format("Function %1% does not exist!", namel));
 
     return it->second;
+}
+
+ObjectFunctionDefinitionPtr Domain::getObjectFunction(const std::string &name) const
+{
+    return std::dynamic_pointer_cast<ObjectFunctionDefinition>(getFunction(name));
+}
+
+NumericFunctionDefinitionPtr Domain::getNumericFunction(const std::string &name) const
+{
+    return std::dynamic_pointer_cast<NumericFunctionDefinition>(getFunction(name));
 }
 
 void Domain::addAction(const ActionPtr &action)
@@ -1233,7 +1309,7 @@ std::ostream &Domain::toPDDL(std::ostream &out) const
     out << SPACE << "(:requirements" << std::endl;
     for (const auto &string : Requirements::toStrings(requirements))
         out << SPACE << SPACE << string << std::endl;
-    out << SPACE << ")" << std::endl;
+    out << SPACE << ")" << std::endl << std::endl;
 
     if (not types.empty())
     {
@@ -1265,7 +1341,7 @@ std::ostream &Domain::toPDDL(std::ostream &out) const
             out << std::endl;
         }
 
-        out << SPACE << ")" << std::endl;
+        out << SPACE << ")" << std::endl << std::endl;
     }
 
     if (not constants.empty())
@@ -1278,7 +1354,7 @@ std::ostream &Domain::toPDDL(std::ostream &out) const
                 out << " - " << constant->type;
             out << std::endl;
         }
-        out << SPACE << ")" << std::endl;
+        out << SPACE << ")" << std::endl << std::endl;
     }
 
     if (not predicates.empty())
@@ -1289,7 +1365,7 @@ std::ostream &Domain::toPDDL(std::ostream &out) const
             out << SPACE << SPACE;
             key.second->toPDDL(out) << std::endl;
         }
-        out << SPACE << ")" << std::endl;
+        out << SPACE << ")" << std::endl << std::endl;
     }
 
     if (not functions.empty())
@@ -1300,7 +1376,7 @@ std::ostream &Domain::toPDDL(std::ostream &out) const
             out << SPACE << SPACE;
             key.second->toPDDL(out) << std::endl;
         }
-        out << SPACE << ")" << std::endl;
+        out << SPACE << ")" << std::endl << std::endl;
     }
 
     std::set<std::string> toPrint;
@@ -1323,12 +1399,12 @@ std::ostream &Domain::toPDDL(std::ostream &out) const
                 break;
         }
 
-        ptr->toPDDL(out, INDENT) << std::endl;
+        ptr->toPDDL(out, INDENT) << std::endl << std::endl;
         toPrint.erase(toPrint.find(ptr->name));
     }
 
     for (const auto &key : actions)
-        key.second->toPDDL(out, INDENT) << std::endl;
+        key.second->toPDDL(out, INDENT) << std::endl << std::endl;
 
     out << ")";
 
