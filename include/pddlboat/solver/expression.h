@@ -81,7 +81,7 @@ namespace pddlboat
     class NumericExpression : public Expression
     {
     public:
-        virtual double getValue(const StatePtr &state, const Assignment &vars) const = 0;
+        virtual double getValue(const StatePtr &state, const Assignment &vars) const;
     };
 
     /** \brief A bound value.

@@ -214,6 +214,15 @@ bool pddlboat::isIn(Expression::Type type, Expression::Type set)
 }
 
 ///
+/// Numeric Expression
+///
+
+double NumericExpression::getValue(const StatePtr &state, const Assignment &vars) const
+{
+    throw std::invalid_argument(log::format("Cannot getValue with numeric expression type %1%", type()));
+}
+
+///
 /// Variadic Expression
 ///
 
@@ -995,49 +1004,49 @@ EqualsPtr pddlboat::makeEquals(const Value &term1, const Value &term2)
 }
 
 ///
-/// Comparison
+/// Binary
 ///
 
-ComparisonExpression::ComparisonExpression(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
+BinaryExpression::BinaryExpression(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
   : lhs_(lhs), rhs_(rhs)
 {
 }
 
-Expression::Type ComparisonExpression::getTypes() const
+Expression::Type BinaryExpression::getTypes() const
 {
     return type() | lhs_->getTypes() | rhs_->getTypes();
 }
 
-void ComparisonExpression::getVariables(VariableSet &vars) const
+void BinaryExpression::getVariables(VariableSet &vars) const
 {
     lhs_->getVariables(vars);
     rhs_->getVariables(vars);
 }
 
-void ComparisonExpression::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
-                                             const Assignment &vars) const
+void BinaryExpression::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                         const Assignment &vars) const
 {
     lhs_->getUsedPredicates(predicates, state, vars);
     rhs_->getUsedPredicates(predicates, state, vars);
 }
 
-bool ComparisonExpression::containsVariable(const std::string &variable) const
+bool BinaryExpression::containsVariable(const std::string &variable) const
 {
     return lhs_->containsVariable(variable) or rhs_->containsVariable(variable);
 }
 
-bool ComparisonExpression::containsPredicate(const std::string &predicate) const
+bool BinaryExpression::containsPredicate(const std::string &predicate) const
 {
     return lhs_->containsPredicate(predicate) or rhs_->containsPredicate(predicate);
 }
 
-void ComparisonExpression::renameVariable(const std::string &old, const std::string &name)
+void BinaryExpression::renameVariable(const std::string &old, const std::string &name)
 {
     lhs_->renameVariable(old, name);
     rhs_->renameVariable(old, name);
 }
 
-std::ostream &ComparisonExpression::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
+std::ostream &BinaryExpression::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
 {
     const std::string SPACE = std::string(indent * level, ' ');
     out << SPACE;
@@ -1045,6 +1054,18 @@ std::ostream &ComparisonExpression::toPDDL(std::ostream &out, unsigned int inden
     out << "(";
     switch (type())
     {
+        case Expression::MINUS:
+            out << "-";
+            break;
+        case Expression::DIVIDE:
+            out << "/";
+            break;
+        case Expression::MULTIPLY:
+            out << "*";
+            break;
+        case Expression::PLUS:
+            out << "+";
+            break;
         case Expression::GREATER_THAN:
             out << ">";
             break;
@@ -1058,7 +1079,7 @@ std::ostream &ComparisonExpression::toPDDL(std::ostream &out, unsigned int inden
             out << "<=";
             break;
         default:
-            throw std::runtime_error("Invalid type for comparison expression!");
+            throw std::runtime_error("Invalid type for binary expression!");
     };
 
     out << " " << std::endl;
@@ -1075,7 +1096,7 @@ std::ostream &ComparisonExpression::toPDDL(std::ostream &out, unsigned int inden
 ///
 
 GreaterThan::GreaterThan(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
-  : ComparisonExpression(lhs, rhs)
+  : BinaryExpression(lhs, rhs)
 {
 }
 
@@ -1089,12 +1110,17 @@ bool GreaterThan::evaluate(const StatePtr &state, const Assignment &vars) const
     return lhs_->getValue(state, vars) > rhs_->getValue(state, vars);
 }
 
+GreaterThanPtr pddlboat::makeGreaterThan(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
+{
+    return std::make_shared<GreaterThan>(lhs, rhs);
+}
+
 ///
 /// Less Than
 ///
 
 LessThan::LessThan(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
-  : ComparisonExpression(lhs, rhs)
+  : BinaryExpression(lhs, rhs)
 {
 }
 
@@ -1108,12 +1134,17 @@ bool LessThan::evaluate(const StatePtr &state, const Assignment &vars) const
     return lhs_->getValue(state, vars) < rhs_->getValue(state, vars);
 }
 
+LessThanPtr pddlboat::makeLessThan(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
+{
+    return std::make_shared<LessThan>(lhs, rhs);
+}
+
 ///
 /// Greater OrEqual
 ///
 
 GreaterOrEqual::GreaterOrEqual(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
-  : ComparisonExpression(lhs, rhs)
+  : BinaryExpression(lhs, rhs)
 {
 }
 
@@ -1127,12 +1158,18 @@ bool GreaterOrEqual::evaluate(const StatePtr &state, const Assignment &vars) con
     return lhs_->getValue(state, vars) >= rhs_->getValue(state, vars);
 }
 
+GreaterOrEqualPtr pddlboat::makeGreaterOrEqual(const NumericExpressionPtr &lhs,
+                                               const NumericExpressionPtr &rhs)
+{
+    return std::make_shared<GreaterOrEqual>(lhs, rhs);
+}
+
 ///
 /// Less Or Equal
 ///
 
 LessOrEqual::LessOrEqual(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
-  : ComparisonExpression(lhs, rhs)
+  : BinaryExpression(lhs, rhs)
 {
 }
 
@@ -1144,4 +1181,102 @@ Expression::Type LessOrEqual::type() const
 bool LessOrEqual::evaluate(const StatePtr &state, const Assignment &vars) const
 {
     return lhs_->getValue(state, vars) <= rhs_->getValue(state, vars);
+}
+
+LessOrEqualPtr pddlboat::makeLessOrEqual(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
+{
+    return std::make_shared<LessOrEqual>(lhs, rhs);
+}
+
+///
+/// Minus
+///
+
+Minus::Minus(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs) : BinaryExpression(lhs, rhs)
+{
+}
+
+Expression::Type Minus::type() const
+{
+    return Expression::MINUS;
+}
+
+double Minus::getValue(const StatePtr &state, const Assignment &vars) const
+{
+    return lhs_->getValue(state, vars) - rhs_->getValue(state, vars);
+}
+
+MinusPtr pddlboat::makeMinus(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
+{
+    return std::make_shared<Minus>(lhs, rhs);
+}
+
+///
+/// Divide
+///
+
+Divide::Divide(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs) : BinaryExpression(lhs, rhs)
+{
+}
+
+Expression::Type Divide::type() const
+{
+    return Expression::DIVIDE;
+}
+
+double Divide::getValue(const StatePtr &state, const Assignment &vars) const
+{
+    return lhs_->getValue(state, vars) / rhs_->getValue(state, vars);
+}
+
+DividePtr pddlboat::makeDivide(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
+{
+    return std::make_shared<Divide>(lhs, rhs);
+}
+
+///
+/// Multiply
+///
+
+Multiply::Multiply(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
+  : BinaryExpression(lhs, rhs)
+{
+}
+
+Expression::Type Multiply::type() const
+{
+    return Expression::MULTIPLY;
+}
+
+double Multiply::getValue(const StatePtr &state, const Assignment &vars) const
+{
+    return lhs_->getValue(state, vars) * rhs_->getValue(state, vars);
+}
+
+MultiplyPtr pddlboat::makeMultiply(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
+{
+    return std::make_shared<Multiply>(lhs, rhs);
+}
+
+///
+/// Plus
+///
+
+Plus::Plus(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs) : BinaryExpression(lhs, rhs)
+{
+}
+
+Expression::Type Plus::type() const
+{
+    return Expression::PLUS;
+}
+
+double Plus::getValue(const StatePtr &state, const Assignment &vars) const
+{
+    return lhs_->getValue(state, vars) + rhs_->getValue(state, vars);
+}
+
+PlusPtr pddlboat::makePlus(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
+{
+    return std::make_shared<Plus>(lhs, rhs);
 }

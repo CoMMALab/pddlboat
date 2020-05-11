@@ -312,13 +312,13 @@ namespace pddlboat
     EqualsPtr makeEquals(const Value &term1, const Value &term2);
 
     ///
-    /// Comparison
+    /// Binary Op
     ///
 
-    class ComparisonExpression : public Expression
+    class BinaryExpression : public NumericExpression
     {
     public:
-        ComparisonExpression(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+        BinaryExpression(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
 
         Type getTypes() const override;
         void getVariables(VariableSet &vars) const override;
@@ -339,7 +339,8 @@ namespace pddlboat
     /// Greater Than
     ///
 
-    class GreaterThan : public ComparisonExpression
+    PDDLBOAT_CLASS_FORWARD(GreaterThan)
+    class GreaterThan : public BinaryExpression
     {
     public:
         GreaterThan(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
@@ -347,11 +348,14 @@ namespace pddlboat
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
     };
 
+    GreaterThanPtr makeGreaterThan(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+
     ///
     /// Less Than
     ///
 
-    class LessThan : public ComparisonExpression
+    PDDLBOAT_CLASS_FORWARD(LessThan)
+    class LessThan : public BinaryExpression
     {
     public:
         LessThan(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
@@ -359,11 +363,14 @@ namespace pddlboat
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
     };
 
+    LessThanPtr makeLessThan(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+
     ///
     /// Greater Or Equal
     ///
 
-    class GreaterOrEqual : public ComparisonExpression
+    PDDLBOAT_CLASS_FORWARD(GreaterOrEqual)
+    class GreaterOrEqual : public BinaryExpression
     {
     public:
         GreaterOrEqual(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
@@ -371,17 +378,83 @@ namespace pddlboat
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
     };
 
+    GreaterOrEqualPtr makeGreaterOrEqual(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+
     ///
     /// Less Or Equal
     ///
 
-    class LessOrEqual : public ComparisonExpression
+    PDDLBOAT_CLASS_FORWARD(LessOrEqual)
+    class LessOrEqual : public BinaryExpression
     {
     public:
         LessOrEqual(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
         Expression::Type type() const override;
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
     };
+
+    LessOrEqualPtr makeLessOrEqual(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+
+    ///
+    /// Minus
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(Minus)
+    class Minus : public BinaryExpression
+    {
+    public:
+        Minus(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+        Expression::Type type() const override;
+        double getValue(const StatePtr &state, const Assignment &vars) const override;
+    };
+
+    MinusPtr makeMinus(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+
+    ///
+    /// Divide
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(Divide)
+    class Divide : public BinaryExpression
+    {
+    public:
+        Divide(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+        Expression::Type type() const override;
+        double getValue(const StatePtr &state, const Assignment &vars) const override;
+    };
+
+    DividePtr makeDivide(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+
+    ///
+    /// Multiply
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(Multiply)
+    class Multiply : public BinaryExpression
+    {
+    public:
+        Multiply(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+        Expression::Type type() const override;
+        double getValue(const StatePtr &state, const Assignment &vars) const override;
+    };
+
+    MultiplyPtr makeMultiply(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+
+    ///
+    /// Plus
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(Plus)
+    class Plus : public BinaryExpression
+    {
+    public:
+        Plus(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+        Expression::Type type() const override;
+        double getValue(const StatePtr &state, const Assignment &vars) const override;
+    };
+
+    PlusPtr makePlus(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+
 }  // namespace pddlboat
 
 #endif
