@@ -792,7 +792,13 @@ namespace pddlboat
         bool containsVariable(const std::string &variable) const;
         void renameVariable(const std::string &old, const std::string &name);
 
-        std::ostream &toPDDL(std::ostream &out) const;
+        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                               const Assignment &vars) const override;
+        void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                   const Assignment &vars) const override;
+
+        std::string toID(const StatePtr &state, const Assignment &vars) const;
+        std::ostream &toPDDL(std::ostream &out, unsigned int indent = 0, unsigned int level = 0) const;
 
     private:
         const NumericFunctionDefinition *function;
@@ -847,7 +853,13 @@ namespace pddlboat
         bool containsVariable(const std::string &variable) const;
         void renameVariable(const std::string &old, const std::string &name);
 
-        std::ostream &toPDDL(std::ostream &out) const;
+        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                               const Assignment &vars) const override;
+        void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                   const Assignment &vars) const override;
+
+        std::string toID(const StatePtr &state, const Assignment &vars) const;
+        std::ostream &toPDDL(std::ostream &out, unsigned int indent = 0, unsigned int level = 0) const;
 
     private:
         const ObjectFunctionDefinition *function;

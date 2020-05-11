@@ -120,6 +120,13 @@ void Value::renameVariable(const std::string &old, const std::string &newname)
         function->renameVariable(old, newname);
 }
 
+void Value::getUsedFunctions(std::set<std::string> &functions, const StatePtr &state,
+                             const Assignment &vars) const
+{
+    if (function)
+        function->getUsedPredicates(functions, state, vars);
+}
+
 std::ostream &Value::toPDDL(std::ostream &out) const
 {
     if (isVar)
@@ -1279,4 +1286,319 @@ double Plus::getValue(const StatePtr &state, const Assignment &vars) const
 PlusPtr pddlboat::makePlus(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
 {
     return std::make_shared<Plus>(lhs, rhs);
+}
+
+///
+/// Assign Object
+///
+
+AssignObject::AssignObject(const ObjectFunctionPtr &lhs, const Value &rhs) : lhs_(lhs), rhs_(rhs)
+{
+}
+
+void AssignObject::assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const
+{
+    out->assignN(lhs_->getName(), getValueObjects(lhs_->bindings, in, vars), rhs_.getObject(in, vars));
+}
+
+Expression::Type AssignObject::type() const
+{
+    return Expression::ASSIGN;
+}
+
+void AssignObject::getVariables(VariableSet &vars) const
+{
+    lhs_->getVariables(vars);
+    rhs_.getVariables(vars);
+}
+
+void AssignObject::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                     const Assignment &vars) const
+{
+    lhs_->getUsedPredicates(predicates, state, vars);
+    rhs_.getUsedFunctions(predicates, state, vars);
+}
+
+void AssignObject::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                         const Assignment &vars) const
+{
+    lhs_->getAssignedPredicates(predicates, state, vars);
+}
+
+bool AssignObject::containsVariable(const std::string &variable) const
+{
+    return lhs_->containsVariable(variable) or rhs_.containsVariable(variable);
+}
+
+void AssignObject::renameVariable(const std::string &old, const std::string &name)
+{
+    lhs_->renameVariable(old, name);
+    rhs_.renameVariable(old, name);
+}
+
+std::ostream &AssignObject::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
+{
+    const std::string SPACE = std::string(indent * level, ' ');
+    out << SPACE;
+    out << "(assign ";
+    lhs_->toPDDL(out) << " ";
+    rhs_.toPDDL(out);
+    out << ")";
+
+    return out;
+}
+
+AssignObjectPtr pddlboat::makeAssign(const ObjectFunctionPtr &lhs, const Value &rhs)
+{
+    return std::make_shared<AssignObject>(lhs, rhs);
+}
+
+///
+/// Assign Number
+///
+
+AssignNumber::AssignNumber(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs)
+  : lhs_(lhs), rhs_(rhs)
+{
+}
+
+AssignNumber::AssignNumber(const NumericFunctionPtr &lhs, double rhs) : lhs_(lhs), constant_(rhs)
+{
+}
+
+double AssignNumber::getRHS(const StatePtr &in, const Assignment &vars) const
+{
+    if (rhs_)
+        return rhs_->getValue(in, vars);
+    else
+        return constant_;
+}
+
+double AssignNumber::getLHS(const StatePtr &in, const Assignment &vars) const
+{
+    return in->getValue(lhs_->getName(), getValueObjects(lhs_->bindings, in, vars));
+}
+
+void AssignNumber::assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const
+{
+    out->assignN(lhs_->getName(), getValueObjects(lhs_->bindings, in, vars), getRHS(in, vars));
+}
+
+Expression::Type AssignNumber::type() const
+{
+    return Expression::ASSIGN;
+}
+
+void AssignNumber::getVariables(VariableSet &vars) const
+{
+    lhs_->getVariables(vars);
+    if (rhs_)
+        rhs_->getVariables(vars);
+}
+
+void AssignNumber::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                     const Assignment &vars) const
+{
+    lhs_->getUsedPredicates(predicates, state, vars);
+    if (rhs_)
+        rhs_->getUsedPredicates(predicates, state, vars);
+}
+
+void AssignNumber::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                         const Assignment &vars) const
+{
+    lhs_->getAssignedPredicates(predicates, state, vars);
+}
+
+bool AssignNumber::containsVariable(const std::string &variable) const
+{
+    return lhs_->containsVariable(variable) or (rhs_ and rhs_->containsVariable(variable));
+}
+
+void AssignNumber::renameVariable(const std::string &old, const std::string &name)
+{
+    lhs_->renameVariable(old, name);
+    if (rhs_)
+        rhs_->renameVariable(old, name);
+}
+
+std::ostream &AssignNumber::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
+{
+    const std::string SPACE = std::string(indent * level, ' ');
+    out << SPACE;
+
+    out << "(";
+    switch (type())
+    {
+        case Expression::ASSIGN:
+            out << "assign";
+            break;
+        case Expression::SCALE_UP:
+            out << "scale-up";
+            break;
+        case Expression::SCALE_DOWN:
+            out << "scale-down";
+            break;
+        case Expression::INCREASE:
+            out << "increase";
+            break;
+        case Expression::DECREASE:
+            out << "decrease";
+            break;
+        default:
+            throw std::runtime_error("Invalid type for assign expression!");
+    };
+
+    out << " " << std::endl;
+    lhs_->toPDDL(out) << " ";
+    if (rhs_)
+        rhs_->toPDDL(out);
+    else
+    {
+        double intpart;
+        if (std::modf(constant_, &intpart) == 0.0)
+            out << log::format("%1$d", (int)constant_);
+        else
+            out << log::format("%1$f", constant_);
+    }
+    out << ")";
+
+    return out;
+}
+
+AssignNumberPtr pddlboat::makeAssign(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs)
+{
+    return std::make_shared<AssignNumber>(lhs, rhs);
+}
+
+AssignNumberPtr pddlboat::makeAssign(const NumericFunctionPtr &lhs, double rhs)
+{
+    return std::make_shared<AssignNumber>(lhs, rhs);
+}
+
+///
+/// Scale Up
+///
+
+ScaleUp::ScaleUp(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs) : AssignNumber(lhs, rhs)
+{
+}
+
+ScaleUp::ScaleUp(const NumericFunctionPtr &lhs, double rhs) : AssignNumber(lhs, rhs)
+{
+}
+
+Expression::Type ScaleUp::type() const
+{
+    return Expression::SCALE_UP;
+}
+
+double ScaleUp::getRHS(const StatePtr &in, const Assignment &vars) const
+{
+    return getLHS(in, vars) * AssignNumber::getRHS(in, vars);
+}
+
+ScaleUpPtr pddlboat::makeScaleUp(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs)
+{
+    return std::make_shared<ScaleUp>(lhs, rhs);
+}
+
+ScaleUpPtr pddlboat::makeScaleUp(const NumericFunctionPtr &lhs, double rhs)
+{
+    return std::make_shared<ScaleUp>(lhs, rhs);
+}
+
+///
+/// Scale Down
+///
+
+ScaleDown::ScaleDown(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs) : AssignNumber(lhs, rhs)
+{
+}
+
+ScaleDown::ScaleDown(const NumericFunctionPtr &lhs, double rhs) : AssignNumber(lhs, rhs)
+{
+}
+
+Expression::Type ScaleDown::type() const
+{
+    return Expression::SCALE_DOWN;
+}
+
+double ScaleDown::getRHS(const StatePtr &in, const Assignment &vars) const
+{
+    return getLHS(in, vars) / AssignNumber::getRHS(in, vars);
+}
+
+ScaleDownPtr pddlboat::makeScaleDown(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs)
+{
+    return std::make_shared<ScaleDown>(lhs, rhs);
+}
+
+ScaleDownPtr pddlboat::makeScaleDown(const NumericFunctionPtr &lhs, double rhs)
+{
+    return std::make_shared<ScaleDown>(lhs, rhs);
+}
+
+///
+/// Increase
+///
+
+Increase::Increase(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs) : AssignNumber(lhs, rhs)
+{
+}
+
+Increase::Increase(const NumericFunctionPtr &lhs, double rhs) : AssignNumber(lhs, rhs)
+{
+}
+
+Expression::Type Increase::type() const
+{
+    return Expression::INCREASE;
+}
+
+double Increase::getRHS(const StatePtr &in, const Assignment &vars) const
+{
+    return getLHS(in, vars) + AssignNumber::getRHS(in, vars);
+}
+
+IncreasePtr pddlboat::makeIncrease(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs)
+{
+    return std::make_shared<Increase>(lhs, rhs);
+}
+
+IncreasePtr pddlboat::makeIncrease(const NumericFunctionPtr &lhs, double rhs)
+{
+    return std::make_shared<Increase>(lhs, rhs);
+}
+
+///
+/// Decrease
+///
+
+Decrease::Decrease(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs) : AssignNumber(lhs, rhs)
+{
+}
+Decrease::Decrease(const NumericFunctionPtr &lhs, double rhs) : AssignNumber(lhs, rhs)
+{
+}
+
+Expression::Type Decrease::type() const
+{
+    return Expression::DECREASE;
+}
+
+double Decrease::getRHS(const StatePtr &in, const Assignment &vars) const
+{
+    return getLHS(in, vars) - AssignNumber::getRHS(in, vars);
+}
+
+DecreasePtr pddlboat::makeDecrease(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs)
+{
+    return std::make_shared<Decrease>(lhs, rhs);
+}
+
+DecreasePtr pddlboat::makeDecrease(const NumericFunctionPtr &lhs, double rhs)
+{
+    return std::make_shared<Decrease>(lhs, rhs);
 }

@@ -115,6 +115,8 @@ namespace pddlboat
         void getVariables(VariableSet &vars) const;
         bool containsVariable(const std::string &variable) const;
         void renameVariable(const std::string &old, const std::string &name);
+        void getUsedFunctions(std::set<std::string> &functions, const StatePtr &state,
+                              const Assignment &vars) const;
 
         /** \brief Print this value out.
          *  \param[in,out] out Output stream.

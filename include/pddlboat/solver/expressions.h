@@ -455,6 +455,138 @@ namespace pddlboat
 
     PlusPtr makePlus(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
 
+    ///
+    /// Assign
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(AssignObject)
+    class AssignObject : public Expression
+    {
+    public:
+        AssignObject(const ObjectFunctionPtr &lhs, const Value &rhs);
+
+        void assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const override;
+        Type type() const override;
+        void getVariables(VariableSet &vars) const override;
+        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                               const Assignment &vars) const override;
+        void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                   const Assignment &vars) const override;
+        bool containsVariable(const std::string &variable) const override;
+        void renameVariable(const std::string &old, const std::string &name) override;
+        std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
+                             unsigned int level = 0) const override;
+
+    private:
+        ObjectFunctionPtr lhs_;
+        Value rhs_;
+    };
+
+    AssignObjectPtr makeAssign(const ObjectFunctionPtr &lhs, const Value &rhs);
+
+    PDDLBOAT_CLASS_FORWARD(AssignNumber)
+    class AssignNumber : public Expression
+    {
+    public:
+        AssignNumber(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs);
+        AssignNumber(const NumericFunctionPtr &lhs, double rhs);
+
+        virtual double getRHS(const StatePtr &in, const Assignment &vars) const;
+        double getLHS(const StatePtr &in, const Assignment &vars) const;
+
+        void assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const override;
+        Type type() const override;
+        void getVariables(VariableSet &vars) const override;
+        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                               const Assignment &vars) const override;
+        void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                   const Assignment &vars) const override;
+        bool containsVariable(const std::string &variable) const override;
+        void renameVariable(const std::string &old, const std::string &name) override;
+        std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
+                             unsigned int level = 0) const override;
+
+    protected:
+        NumericFunctionPtr lhs_;
+        NumericExpressionPtr rhs_{nullptr};
+        double constant_{0};
+    };
+
+    AssignNumberPtr makeAssign(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs);
+    AssignNumberPtr makeAssign(const NumericFunctionPtr &lhs, double rhs);
+
+    ///
+    /// Scale Up
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(ScaleUp)
+    class ScaleUp : public AssignNumber
+    {
+    public:
+        ScaleUp(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs);
+        ScaleUp(const NumericFunctionPtr &lhs, double rhs);
+
+        Type type() const override;
+        double getRHS(const StatePtr &in, const Assignment &vars) const override;
+    };
+
+    ScaleUpPtr makeScaleUp(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs);
+    ScaleUpPtr makeScaleUp(const NumericFunctionPtr &lhs, double rhs);
+
+    ///
+    /// Scale Down
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(ScaleDown)
+    class ScaleDown : public AssignNumber
+    {
+    public:
+        ScaleDown(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs);
+        ScaleDown(const NumericFunctionPtr &lhs, double rhs);
+
+        Type type() const override;
+        double getRHS(const StatePtr &in, const Assignment &vars) const override;
+    };
+
+    ScaleDownPtr makeScaleDown(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs);
+    ScaleDownPtr makeScaleDown(const NumericFunctionPtr &lhs, double rhs);
+
+    ///
+    /// Increase
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(Increase)
+    class Increase : public AssignNumber
+    {
+    public:
+        Increase(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs);
+        Increase(const NumericFunctionPtr &lhs, double rhs);
+
+        Type type() const override;
+        double getRHS(const StatePtr &in, const Assignment &vars) const override;
+    };
+
+    IncreasePtr makeIncrease(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs);
+    IncreasePtr makeIncrease(const NumericFunctionPtr &lhs, double rhs);
+
+    ///
+    /// Decrease
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(Decrease)
+    class Decrease : public AssignNumber
+    {
+    public:
+        Decrease(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs);
+        Decrease(const NumericFunctionPtr &lhs, double rhs);
+
+        Type type() const override;
+        double getRHS(const StatePtr &in, const Assignment &vars) const override;
+    };
+
+    DecreasePtr makeDecrease(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs);
+    DecreasePtr makeDecrease(const NumericFunctionPtr &lhs, double rhs);
+
 }  // namespace pddlboat
 
 #endif

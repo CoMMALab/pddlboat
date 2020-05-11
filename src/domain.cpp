@@ -806,7 +806,40 @@ void NumericFunction::renameVariable(const std::string &old, const std::string &
         binding.renameVariable(old, name);
 }
 
-std::ostream &NumericFunction::toPDDL(std::ostream &out) const
+void NumericFunction::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                        const Assignment &vars) const
+{
+    predicates.emplace(toID(state, vars));
+    for (const auto &v : bindings)
+        v.getUsedFunctions(predicates, state, vars);
+}
+
+void NumericFunction::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                            const Assignment &vars) const
+{
+    predicates.emplace(toID(state, vars));
+}
+
+std::string NumericFunction::toID(const StatePtr &state, const Assignment &vars) const
+{
+    std::stringstream ss;
+    ss << "FUNC:" << function->name;
+
+    ss << ":ARGS:";
+
+    auto objects = getValueObjects(bindings, state, vars);
+    for (unsigned int i = 0; i < objects.size(); ++i)
+    {
+        ss << objects[i];
+        if (i < objects.size() - 1)
+            ss << ",";
+    }
+
+    return ss.str();
+}
+
+std::ostream &NumericFunction::toPDDL(std::ostream &out, unsigned int /* indent */,
+                                      unsigned int /* level */) const
 {
     out << "(" << function->name;
     for (const auto &binding : bindings)
@@ -879,7 +912,40 @@ void ObjectFunction::renameVariable(const std::string &old, const std::string &n
         binding.renameVariable(old, name);
 }
 
-std::ostream &ObjectFunction::toPDDL(std::ostream &out) const
+void ObjectFunction::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                       const Assignment &vars) const
+{
+    predicates.emplace(toID(state, vars));
+    for (const auto &v : bindings)
+        v.getUsedFunctions(predicates, state, vars);
+}
+
+void ObjectFunction::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                           const Assignment &vars) const
+{
+    predicates.emplace(toID(state, vars));
+}
+
+std::string ObjectFunction::toID(const StatePtr &state, const Assignment &vars) const
+{
+    std::stringstream ss;
+    ss << "FUNC:" << function->name;
+
+    ss << ":ARGS:";
+
+    auto objects = getValueObjects(bindings, state, vars);
+    for (unsigned int i = 0; i < objects.size(); ++i)
+    {
+        ss << objects[i];
+        if (i < objects.size() - 1)
+            ss << ",";
+    }
+
+    return ss.str();
+}
+
+std::ostream &ObjectFunction::toPDDL(std::ostream &out, unsigned int /* indent */,
+                                     unsigned int /* level */) const
 {
     out << "(" << function->name;
     for (const auto &binding : bindings)
