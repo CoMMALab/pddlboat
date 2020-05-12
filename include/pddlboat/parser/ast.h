@@ -224,6 +224,8 @@ namespace pddlboat
             std::vector<std::string> args{};
             std::string time;
             unsigned int conv{0};
+
+            std::ostream &toPDDL(std::ostream &out) const;
         };
 
         ///
@@ -236,6 +238,7 @@ namespace pddlboat
             std::string name;
             std::vector<std::string> args{};
             std::string time{""};
+            unsigned int conv{0};
 
             std::ostream &toPDDL(std::ostream &out) const;
         };

@@ -24,6 +24,12 @@ Z3Planner::GroundedDerived::GroundedDerived(const DerivedPredicateDefinitionPtr 
 {
 }
 
+Z3Planner::GroundedPredicate::GroundedPredicate(const PredicateDefinitionPtr &predicate,
+                                                const Assignment &assignment, const std::string &string)
+  : predicate(predicate), assignment(assignment), string(string)
+{
+}
+
 Z3Planner::Z3Planner(const ProblemPtr problem, Time max_horizon, Time min_horizon, bool parallel,
                      bool diagnostics, bool dump_clauses)
   : Planner(problem)
@@ -61,8 +67,6 @@ bool Z3Planner::solve(Plan &plan)
     solver_ = new z3::solver(*ctx_);
 
     addStartState();
-    addDerivedPredicates(0);
-
     solver_->push();
 
     for (Time step = 0; step < min_horizon_; ++step)
@@ -148,13 +152,89 @@ bool Z3Planner::solve(Plan &plan)
     return false;
 }
 
+std::ostream &Z3Planner::printModel(std::ostream &out, bool only_true) const
+{
+    if (not solver_)
+        return out;
+
+    auto m = solver_->get_model();
+
+    std::vector<std::vector<std::pair<ast::z3Action, bool>>> actions(max_horizon_ + 1);
+    std::vector<std::vector<std::pair<ast::z3Predicate, bool>>> predicates(max_horizon_ + 1);
+
+    for (std::size_t i = 0; i < m.num_consts(); i++)
+    {
+        z3::expr f = m.get_const_interp(m.get_const_decl(i));
+        const std::string name = m.get_const_decl(i).name().str();
+        // out << name << ": " << (isTrue(f) ? "true" : "false") << std::endl;
+        ast::z3Action action;
+        if (parseZ3Action(name, action))
+        {
+            action.conv = std::stoi(action.time);
+
+            bool t = isTrue(f);
+            if (not only_true or (only_true and t))
+                actions[action.conv].emplace_back(action, t);
+        }
+
+        ast::z3Predicate predicate;
+        if (parseZ3Predicate(name, predicate))
+        {
+            predicate.conv = std::stoi(predicate.time);
+
+            bool t = isTrue(f);
+            if (not only_true or (only_true and t))
+                predicates[predicate.conv].emplace_back(predicate, t);
+        }
+    }
+
+    for (std::size_t i = 0; i <= max_horizon_; ++i)
+    {
+        std::sort(actions[i].begin(), actions[i].end(),
+                  [](const auto &a, const auto &b) { return a.first.name < b.first.name; });
+        std::sort(predicates[i].begin(), predicates[i].end(),
+                  [](const auto &a, const auto &b) { return a.first.name < b.first.name; });
+
+        bool isa = not actions[i].empty();
+        bool isp = not predicates[i].empty();
+
+        if (isa or isp)
+            out << "Time Step " << i << std::endl;
+
+        if (isa)
+        {
+            out << "Actions: " << std::endl;
+            for (const auto &action : actions[i])
+            {
+                out << "    ";
+                action.first.toPDDL(out) << ": " << (action.second ? "true" : "false") << std::endl;
+            }
+        }
+
+        if (isp)
+        {
+            out << "Predicates: " << std::endl;
+            for (const auto &predicate : predicates[i])
+            {
+                out << "    ";
+                predicate.first.toPDDL(out) << ": " << (predicate.second ? "true" : "false") << std::endl;
+            }
+        }
+
+        if (isa or isp)
+            out << std::endl;
+    }
+
+    return out;
+}
+
 void Z3Planner::buildPlan(Plan &plan) const
 {
     auto m = solver_->get_model();
 
     // As actions may appear `out of order`, we first collect them all.
     std::vector<ast::z3Action> actions;
-    for (size_t i = 0; i < m.num_consts(); i++)
+    for (std::size_t i = 0; i < m.num_consts(); i++)
     {
         z3::expr f = m.get_const_interp(m.get_const_decl(i));
         if (isTrue(f))
@@ -295,10 +375,9 @@ z3::expr Z3Planner::exprAtTime(const ExpressionPtr &expr, const Assignment &assi
             return ctx_->bool_val(t1o == t2o);
         }
         default:
-            std::cout << "We had an error in parsing the pddlboat expression to an expression for Z3. "
-                         "Unsupported expression "
-                      << expr->type() << std::endl;
-            throw std::runtime_error("whoops!");
+            throw std::runtime_error(log::format("We had an error in parsing the pddlboat expression to an "
+                                                 "expression for Z3. Unsupported expression %1%",
+                                                 expr->type()));
     }
 }
 
@@ -330,6 +409,22 @@ void Z3Planner::generateGroundings()
         }
     }
 
+    // get all predicates that are unassigned
+    for (const auto &name_predicateptr : problem_->domain->predicates)
+    {
+        if (problem_->domain->isDerivedPredicate(name_predicateptr.first))
+            continue;
+
+        const auto &assignments = problem_->getGroundings(name_predicateptr.second->variables);
+        for (const auto &assignment : assignments)
+        {
+            std::string predicate_string = name_predicateptr.second->toID(assignment);
+            if (predicate_effects_.find(predicate_string) == predicate_effects_.end())
+                ground_pred_.emplace_back(name_predicateptr.second, assignment, predicate_string);
+        }
+    }
+
+    // get all derived predicate groundings
     for (const auto &name_derivedptr : problem_->domain->derived)
     {
         const auto &assignments = problem_->getGroundings(name_derivedptr.second->parameters);
@@ -387,7 +482,6 @@ void Z3Planner::addDerivedPredicates(Time step)
         z3::expr expr = exprAtTime(derived.derived->expression, derived.assignment, step);
 
         z3::expr clause = pred == expr;
-
         solver_->add(clause);
 
         derived_predicates_.inc();
@@ -423,6 +517,20 @@ void Z3Planner::addFrameAxioms(Time step)
             actionex = actionex or toBool(addTimeToString(actions[i], step));
 
         z3::expr clause = imply(curr_prop != next_prop, actionex);
+
+        solver_->add(clause);
+
+        frame_axioms_.inc();
+        if (dump_clauses_)
+            std::cout << clause << std::endl;
+    }
+
+    for (const auto &predicate : ground_pred_)
+    {
+        // imply that the predicate remains the same as the next time step
+        z3::expr curr_prop = toBool(addTimeToString(predicate.string, step));
+        z3::expr next_prop = toBool(addTimeToString(predicate.string, step + 1));
+        z3::expr clause = curr_prop == next_prop;
 
         solver_->add(clause);
 

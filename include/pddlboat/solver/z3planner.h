@@ -47,6 +47,13 @@ namespace pddlboat
          */
         bool solve(Plan &plan) override;
 
+        /** \brief Print out solved model.
+         *  \param[in,out] Output stream.
+         *  \param[in] only_true Only print true assignments.
+         *  \return The output stream.
+         */
+        std::ostream &printModel(std::ostream &out, bool only_true = true) const;
+
     private:
         /** \brief From a solved Z3 instance, create a plan.
          *  \param[out] plan Plan to fill in.
@@ -191,6 +198,18 @@ namespace pddlboat
             GroundedAction(const ActionPtr &action, const Assignment &assignment, const std::string &string);
         };
 
+        /** \brief A grounded predicate.
+         */
+        struct GroundedPredicate
+        {
+            PredicateDefinitionPtr predicate;  ///< Derived predicate
+            Assignment assignment;           ///< The grounding.
+            std::string string;              ///< String representation of this assigned action.
+
+            GroundedPredicate(const PredicateDefinitionPtr &action, const Assignment &assignment,
+                              const std::string &string);
+        };
+
         /** \brief A grounded derived predicate.
          */
         struct GroundedDerived
@@ -206,6 +225,8 @@ namespace pddlboat
         std::vector<GroundedAction> ground_actions_;   ///< All grounded actions (without time step).
         std::vector<GroundedDerived> ground_derived_;  ///< All grounded derived predicates (without time
                                                        ///< step).
+        std::vector<GroundedPredicate> ground_pred_;   ///< All grounded unaffected predicates (without time
+                                                       ///< step)
     };
 
 }  // namespace pddlboat
