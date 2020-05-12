@@ -4,6 +4,14 @@
 
 using namespace pddlboat;
 
+namespace
+{
+    z3::expr imply(const z3::expr &a, const z3::expr &b)
+    {
+        return (not a) or b;
+    }
+}  // namespace
+
 Z3Planner::GroundedAction::GroundedAction(const ActionPtr &action, const Assignment &assignment,
                                           const std::string &string)
   : action(action), assignment(assignment), string(string)
@@ -62,7 +70,7 @@ bool Z3Planner::solve(Plan &plan)
         addActionImplications(step);
         addFrameAxioms(step);
         addDerivedPredicates(step);
-        addMutualExclusion(step);
+        addMutualExclusionLinear(step);
         solver_->push();
     }
 
@@ -74,7 +82,7 @@ bool Z3Planner::solve(Plan &plan)
         addActionImplications(step);
         addFrameAxioms(step);
         addDerivedPredicates(step);
-        addMutualExclusion(step);
+        addMutualExclusionLinear(step);
 
         // Solve now to create assertions that won't be popped.
         solver_->check();
@@ -227,16 +235,14 @@ z3::expr Z3Planner::exprAtTime(const ExpressionPtr &expr, const Assignment &assi
         case Expression::Type::IMPLY:
         {
             const auto &imply_expr = std::static_pointer_cast<Imply>(expr);
-            z3::expr exp = (not exprAtTime(imply_expr->getLeft(), assignment, step))  //
-                           or exprAtTime(imply_expr->getRight(), assignment, step);
-            return exp;
+            return imply(exprAtTime(imply_expr->getLeft(), assignment, step),
+                         exprAtTime(imply_expr->getRight(), assignment, step));
         }
         case Expression::Type::WHEN:
         {
             const auto &when_expr = std::static_pointer_cast<When>(expr);
-            z3::expr exp = (not exprAtTime(when_expr->getLeft(), assignment, step))  //
-                           or exprAtTime(when_expr->getRight(), assignment, step);
-            return exp;
+            return imply(exprAtTime(when_expr->getLeft(), assignment, step),
+                         exprAtTime(when_expr->getRight(), assignment, step));
         }
         case Expression::Type::EXISTS:
         {
@@ -280,12 +286,10 @@ z3::expr Z3Planner::exprAtTime(const ExpressionPtr &expr, const Assignment &assi
 
             return ctx_->bool_val(t1o == t2o);
         }
-        case Expression::Type::EXPRESSION:
-            std::cout << "Error, we do not currently support Expression types here." << std::endl;
-            [[fallthrough]];  // sweet c++17 feature
         default:
-            std::cout << "We had an error in parsing the pddlboat expression to an expression for Z3."
-                      << std::endl;
+            std::cout << "We had an error in parsing the pddlboat expression to an expression for Z3. "
+                         "Unsupported expression "
+                      << expr->type() << std::endl;
             throw std::runtime_error("whoops!");
     }
 }
@@ -446,6 +450,55 @@ void Z3Planner::addMutualExclusionCardinality(Time step)
     mutual_exclusions_.inc();
     if (dump_clauses_)
         std::cout << clause << std::endl;
+
+    mutual_exclusions_.stop();
+    if (diagnostics_)
+    {
+        std::cout << "Building Z3 Mutual Exclusion Constraints @ " << step
+                  << " took: " << io::getTiming(mutual_exclusions_.onestep) << std::endl;
+    }
+}
+
+void Z3Planner::addMutualExclusionLinearHelper(Time step, bool forward)
+{
+    const std::string prefix = std::string(forward ? "F" : "B") + ":";
+
+    for (unsigned int i = 0; i < ground_actions_.size(); ++i)
+    {
+        std::size_t index = (forward) ? i : ground_actions_.size() - i - 1;
+        const GroundedAction &action = ground_actions_[index];
+
+        z3::expr intermediate = toBool(addTimeToString(prefix + action.string, step));
+        z3::expr op = toBool(addTimeToString(action.string, step));
+
+        z3::expr clause = imply(op, intermediate);
+
+        if (i)
+        {
+            std::size_t pindex = (forward) ? i - 1 : ground_actions_.size() - i;
+            const GroundedAction &prior = ground_actions_[pindex];
+
+            z3::expr prev = toBool(addTimeToString(prefix + prior.string, step));
+            clause = clause and imply(prev, intermediate) and imply(prev, not op);
+        }
+
+        solver_->add(clause);
+
+        mutual_exclusions_.inc();
+        if (dump_clauses_)
+            std::cout << clause << std::endl;
+    }
+}
+
+void Z3Planner::addMutualExclusionLinear(Time step)
+{
+    if (dump_clauses_)
+        std::cout << ";; Adding Mutual Exclusion Constraints @ " << step << ":" << std::endl;
+
+    mutual_exclusions_.start();
+
+    addMutualExclusionLinearHelper(step, true);
+    addMutualExclusionLinearHelper(step, false);
 
     mutual_exclusions_.stop();
     if (diagnostics_)

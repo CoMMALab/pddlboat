@@ -104,6 +104,17 @@ namespace pddlboat
          */
         void addMutualExclusionCardinality(Time step);
 
+        /** \brief Helper function to add linear action implication chain.
+         *  \param[in] step Step to generate mutual exclusions for.
+         *  \param[in] forward Direction of chain.
+         */
+        void addMutualExclusionLinearHelper(Time step, bool forward);
+
+        /** \brief Generate all mutual exclusion constraints for the plan using a linear implication chain.
+         *  \param[in] step Step to generate mutual exclusions for.
+         */
+        void addMutualExclusionLinear(Time step);
+
         /** \brief Generate all mutual exclusion constraints for the plan.
          *  \param[in] step Step to generate mutual exclusions for.
          */
