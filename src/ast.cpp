@@ -225,6 +225,17 @@ std::ostream &Domain::toString(std::ostream &out) const
     return out;
 }
 
+std::ostream &Initial::toString(std::ostream &out) const
+{
+    out << "[";
+    formula.toString(out);
+    if (set)
+        out << " `" << object << "`";
+    out << "]";
+
+    return out;
+}
+
 std::ostream &Problem::toString(std::ostream &out) const
 {
     out << "problem(" << std::endl;

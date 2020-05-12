@@ -826,7 +826,7 @@ namespace pddlboat
 
         ObjectFunctionPtr bind() const;
         ObjectFunctionPtr bind(const std::vector<std::string> &bound, const ProblemPtr &problem = nullptr,
-                                const DomainPtr &domain = nullptr) const;
+                               const DomainPtr &domain = nullptr) const;
         ObjectFunctionPtr bindValues(const std::vector<Value> &values) const;
     };
 
@@ -1204,6 +1204,9 @@ namespace pddlboat
         std::vector<ObjectPtr> objects;  ///< Objects defined in this problem.
         StatePtr start;                  ///< Starting state of the world.
         ExpressionPtr goal;              ///< Goal to reach.
+
+        bool minimize{true};            ///< Minimize objective, maximize otherwise.
+        ExpressionPtr metric{nullptr};  ///< Expression to maximize.
 
         /** \brief Constructor.
          *  \param[in] name Name of the planning problem.

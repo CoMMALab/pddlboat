@@ -276,7 +276,8 @@ PredicatePtr PredicateDefinition::bindValues(const std::vector<Value> &values) c
 
     // for (std::size_t i = 0; i < values.size(); ++i)
     //     if (values[i].type != variables[i].type)
-    //         throw std::invalid_argument(log::format("Cannot bind parameters in %1%, type mismatch %2% - %3%!",
+    //         throw std::invalid_argument(log::format("Cannot bind parameters in %1%, type mismatch %2% -
+    //         %3%!",
     //                                                 name, values[i].type, variables[i].type));
 
     return std::make_shared<Predicate>(this, values);
@@ -499,7 +500,8 @@ DerivedPredicatePtr DerivedPredicateDefinition::bindValues(const std::vector<Val
 
     // for (std::size_t i = 0; i < values.size(); ++i)
     //     if (values[i].type != parameters[i].type)
-    //         throw std::invalid_argument(log::format("Cannot bind parameters in %1%, type mismatch %2% - %3%!",
+    //         throw std::invalid_argument(log::format("Cannot bind parameters in %1%, type mismatch %2% -
+    //         %3%!",
     //                                                 name, values[i].type, parameters[i].type));
 
     return std::make_shared<DerivedPredicate>(this, values);
@@ -782,7 +784,8 @@ NumericFunctionPtr NumericFunctionDefinition::bindValues(const std::vector<Value
 
     // for (std::size_t i = 0; i < values.size(); ++i)
     //     if (values[i].type != parameters[i].type)
-    //         throw std::invalid_argument(log::format("Cannot bind parameters in %1%, type mismatch %2% - %3%!",
+    //         throw std::invalid_argument(log::format("Cannot bind parameters in %1%, type mismatch %2% -
+    //         %3%!",
     //                                                 name, values[i].type, parameters[i].type));
 
     return std::make_shared<NumericFunction>(this, values);
@@ -910,7 +913,8 @@ ObjectFunctionPtr ObjectFunctionDefinition::bindValues(const std::vector<Value> 
 
     // for (std::size_t i = 0; i < values.size(); ++i)
     //     if (values[i].type != parameters[i].type)
-    //         throw std::invalid_argument(log::format("Cannot bind parameters in %1%, type mismatch %2% - %3%!",
+    //         throw std::invalid_argument(log::format("Cannot bind parameters in %1%, type mismatch %2% -
+    //         %3%!",
     //                                                 name, values[i].type, parameters[i].type));
 
     return std::make_shared<ObjectFunction>(this, values);
@@ -1201,10 +1205,10 @@ const DerivedPredicateDefinitionPtr Domain::getDerivedPredicate(const std::strin
 
 void Domain::addFunction(const FunctionDefinitionPtr &function)
 {
-    if (function->type == PDDLBOAT_NUMERIC_CLASS)
-        addRequirement(Requirements::NUMERIC_FLUENTS);
-    else
-        addRequirement(Requirements::OBJECT_FLUENTS);
+    // if (function->type == PDDLBOAT_NUMERIC_CLASS)
+    //     addRequirement(Requirements::NUMERIC_FLUENTS);
+    // else
+    //     addRequirement(Requirements::OBJECT_FLUENTS);
 
     auto [it, r] = functions.emplace(function->name, function);
     if (not r)
@@ -1552,6 +1556,17 @@ std::ostream &Problem::toPDDL(std::ostream &out) const
     {
         out << SPACE << "(:goal " << std::endl;
         goal->toPDDL(out, INDENT, 2) << std::endl;
+        out << SPACE << ")" << std::endl;
+    }
+
+    if (metric)
+    {
+        out << SPACE << "(:metric ";
+        if (minimize)
+            out << "minimize ";
+        else
+            out << "maximize ";
+        metric->toPDDL(out, INDENT, 2) << std::endl;
         out << SPACE << ")" << std::endl;
     }
 

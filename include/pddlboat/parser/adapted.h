@@ -66,13 +66,28 @@ BOOST_FUSION_ADAPT_STRUCT(                                        //
     (std::vector<pddlboat::ast::Action>, actions)                 //
 );
 
-BOOST_FUSION_ADAPT_STRUCT(                                //
-    pddlboat::ast::Problem,                               //
-    (std::string, name)                                   //
-    (std::string, domain)                                 //
-    (std::vector<pddlboat::ast::TypedList>, objects)      //
-    (std::vector<pddlboat::ast::AtomicFormula>, initial)  //
-    (pddlboat::ast::Expression, goal)                     //
+BOOST_FUSION_ADAPT_STRUCT(                   //
+    pddlboat::ast::Initial,                  //
+    (pddlboat::ast::AtomicFormula, formula)  //
+    (bool, set)                              //
+    (std::string, object)                    //
+);
+
+BOOST_FUSION_ADAPT_STRUCT(                 //
+    pddlboat::ast::Metric,                 //
+    (bool, active)                         //
+    (bool, minimize)                       //
+    (pddlboat::ast::Expression, function)  //
+);
+
+BOOST_FUSION_ADAPT_STRUCT(                            //
+    pddlboat::ast::Problem,                           //
+    (std::string, name)                               //
+    (std::string, domain)                             //
+    (std::vector<pddlboat::ast::TypedList>, objects)  //
+    (std::vector<pddlboat::ast::Initial>, initial)    //
+    (pddlboat::ast::Expression, goal)                 //
+    (pddlboat::ast::Metric, metric)                   //
 );
 
 BOOST_FUSION_ADAPT_STRUCT(                                //

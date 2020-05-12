@@ -214,7 +214,7 @@ namespace parser
 
     struct bound_predicate_class;
     const x3::rule<bound_predicate_class, ast::Expression> bound_predicate = "bound_predicate";
-    const auto bound_predicate_def =                                                     //
+    const auto bound_predicate_def =                                                  //
         '(' >> name >> x3::attr(std::vector<ast::TypedList>{}) >> *expression >> ')'  //
         ;
     PARSE(bound_predicate)
@@ -227,7 +227,7 @@ namespace parser
     PARSE(boolean_operator)
 
     // const auto expression_def = boolean_operator | bound_predicate  //
-    const auto expression_def = boolean_operator | name_expression | bound_predicate   //
+    const auto expression_def = boolean_operator | name_expression | bound_predicate  //
         ;
     PARSE(expression)
 
@@ -304,10 +304,24 @@ namespace parser
     /// Initial
     ///
 
+    struct initial_set_class;
+    const x3::rule<initial_set_class, ast::Initial> initial_set = "initial_set";
+    const auto initial_set_def =                               //
+        "(=" >> atomic_formula_name >> x3::attr(true) >> (name | number) >> ')'  //
+        ;
+    PARSE(initial_set);
+
+    struct initial_pred_class;
+    const x3::rule<initial_pred_class, ast::Initial> initial_pred = "initial_pred";
+    const auto initial_pred_def =            //
+        atomic_formula_name >> x3::attr(false) >> x3::attr("")  //
+        ;
+    PARSE(initial_pred);
+
     struct initial_class;
-    const x3::rule<initial_class, std::vector<ast::AtomicFormula>> initial = "initial";
-    const auto initial_def =                                 //
-        '(' > x3::lit(":init") > +atomic_formula_name > ')'  //
+    const x3::rule<initial_class, std::vector<ast::Initial>> initial = "initial";
+    const auto initial_def =                                          //
+        '(' > x3::lit(":init") > *(initial_set | initial_pred) > ')'  //
         ;
     PARSE(initial);
 
@@ -323,6 +337,20 @@ namespace parser
     PARSE(goal);
 
     ///
+    /// Metric
+    ///
+
+    struct metric_class;
+    const x3::rule<metric_class, ast::Metric> metric = "metric";
+    const auto metric_def =                                                    //
+        '(' >> x3::lit(":metric") >> x3::attr(true) >>                         //
+        (("minimize" >> x3::attr(true)) | ("maximize" >> x3::attr(false))) >>  //
+        expression >>                                                          //
+        ')'                                                                    //
+        ;
+    PARSE(metric);
+
+    ///
     /// Problem
     ///
 
@@ -335,7 +363,7 @@ namespace parser
         -objects >                               //
         -initial >                               //
         -goal >                                  //
-        ')'                                      //
+        -metric > ')'                            //
         ;
     PARSE(problem);
     struct problem_class : error_handler

@@ -170,14 +170,33 @@ namespace pddlboat
         /// Problem
         ///
 
+        class Initial : x3::position_tagged
+        {
+        public:
+            AtomicFormula formula;
+            bool set{false};
+            std::string object{""};
+
+            std::ostream &toString(std::ostream &out) const;
+        };
+
+        class Metric : x3::position_tagged
+        {
+        public:
+            bool active{false};
+            bool minimize;
+            Expression function;
+        };
+
         class Problem : x3::position_tagged
         {
         public:
             std::string name;
             std::string domain;
             std::vector<TypedList> objects{};
-            std::vector<AtomicFormula> initial{};
+            std::vector<Initial> initial{};
             Expression goal{};
+            Metric metric{};
 
             std::ostream &toString(std::ostream &out) const;
         };

@@ -1,6 +1,7 @@
 /** Author: Zachary Kingston */
 
 #include <boost/algorithm/string.hpp>
+#include <boost/lexical_cast.hpp>
 
 #include <pddlboat/utility.h>
 
@@ -600,14 +601,32 @@ pddlboat::ProblemPtr pddlboat::toProblem(const ast::Problem &problem, const Doma
     for (const auto &formula : problem.initial)
     {
         std::vector<std::string> names;
-        for (const auto &types : formula.variables)
+        for (const auto &types : formula.formula.variables)
             for (const auto &type : types.types)
                 names.emplace_back(type);
 
-        r->start->assignN(formula.name, names);
+        if (not formula.set)
+            r->start->assignN(formula.formula.name, names, true);
+        else
+        {
+            try
+            {
+                double x = boost::lexical_cast<double>(formula.object);
+                r->start->assignN(formula.formula.name, names, x);
+            }
+            catch (...)
+            {
+                r->start->assignN(formula.formula.name, names, formula.object);
+            }
+        }
     }
 
     r->goal = toExpression(problem.goal, {}, domain, r);
+    if (problem.metric.active)
+    {
+        r->minimize = problem.metric.minimize;
+        r->metric = toExpression(problem.metric.function, {}, domain, r);
+    }
 
     return r;
 }
