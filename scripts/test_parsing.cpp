@@ -87,7 +87,7 @@ int main(int argc, char **argv)
         testDomain(pd::log::format("parsing/domain_%1$02u.pddl", filenum));
     else
     {
-        for (unsigned int i = 1; i <= 28; ++i)
+        for (unsigned int i = 1; i <= 29; ++i)
             testDomain(pd::log::format("parsing/domain_%1$02u.pddl", i));
     }
 

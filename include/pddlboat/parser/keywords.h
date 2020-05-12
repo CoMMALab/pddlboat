@@ -28,9 +28,6 @@ namespace pddlboat
             QUANTIFIED_PRECONDITIONS = EXISTENTIAL_PRECONDITIONS |  //
                                        UNIVERSAL_PRECONDITIONS,
             CONDITIONAL_EFFECTS = 1 << 7,
-            OBJECT_FLUENTS = 1 << 8,
-            NUMERIC_FLUENTS = 1 << 9,
-            FLUENTS = OBJECT_FLUENTS | NUMERIC_FLUENTS,
             ADL = CONDITIONAL_EFFECTS |        //
                   QUANTIFIED_PRECONDITIONS |   //
                   EQUALITY |                   //
@@ -38,10 +35,14 @@ namespace pddlboat
                   NEGATIVE_PRECONDITIONS |     //
                   TYPING |                     //
                   STRIPS,
-            DURATIVE_ACTIONS = 1 << 10,
-            DERIVED_PREDICATES = 1 << 11,
-            PREFERENCES = 1 << 12,
-            CONSTRAINTS = 1 << 13,
+            DURATIVE_ACTIONS = 1 << 8,
+            DERIVED_PREDICATES = 1 << 9,
+            PREFERENCES = 1 << 10,
+            CONSTRAINTS = 1 << 11,
+            ACTION_COSTS = 1 << 12,
+            OBJECT_FLUENTS = 1 << 13,
+            NUMERIC_FLUENTS = 1 << 14 | ACTION_COSTS,
+            FLUENTS = OBJECT_FLUENTS | NUMERIC_FLUENTS,
         };
 
         typedef boost::bimap<std::string, Keyword> bimap;

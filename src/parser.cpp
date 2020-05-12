@@ -98,14 +98,14 @@ namespace parser
     struct typedlist_name_class;
     const x3::rule<typedlist_name_class, ast::TypedList> typedlist_name = "typedlist_name";
     const auto typedlist_name_def =  //
-        namelist >> -('-' >> name)   //
+        namelist >> -("- " >> name)   //
         ;
     PARSE(typedlist_name);
 
     struct typedlist_variable_class;
     const x3::rule<typedlist_variable_class, ast::TypedList> typedlist_variable = "typedlist_variable";
     const auto typedlist_variable_def =  //
-        variablelist >> -('-' >> name)   //
+        variablelist >> -("- " >> name)   //
         ;
     PARSE(typedlist_variable);
 
@@ -182,7 +182,7 @@ namespace parser
     const x3::rule<atomic_formula_list_class, ast::AtomicFormulaList> atomic_formula_list =  //
         "atomic_formula_list";
     const auto atomic_formula_list_def =   //
-        +atomic_formula >> -('-' >> name)  //
+        +atomic_formula >> -("- " >> name)  //
         ;
     PARSE(atomic_formula_list);
 

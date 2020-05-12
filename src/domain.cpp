@@ -1205,10 +1205,8 @@ const DerivedPredicateDefinitionPtr Domain::getDerivedPredicate(const std::strin
 
 void Domain::addFunction(const FunctionDefinitionPtr &function)
 {
-    // if (function->type == PDDLBOAT_NUMERIC_CLASS)
-    //     addRequirement(Requirements::NUMERIC_FLUENTS);
-    // else
-    //     addRequirement(Requirements::OBJECT_FLUENTS);
+    if (function->type == PDDLBOAT_NUMERIC_CLASS and function->name == "total-cost")
+        addRequirement(Requirements::ACTION_COSTS);
 
     auto [it, r] = functions.emplace(function->name, function);
     if (not r)
@@ -1302,6 +1300,20 @@ void Domain::addRequirementsFromExpression(const ExpressionPtr &expression)
 
     if (isIn(Expression::WHEN, type))
         addRequirement(Requirements::CONDITIONAL_EFFECTS);
+
+    if (isIn(Expression::OBJECT_FUNCTION, type))
+        addRequirement(Requirements::OBJECT_FLUENTS);
+
+    bool numeric = isIn(Expression::MINUS, type)          //
+                   or isIn(Expression::DIVIDE, type)      //
+                   or isIn(Expression::MULTIPLY, type)    //
+                   or isIn(Expression::PLUS, type)        //
+                   or isIn(Expression::ASSIGN, type)      //
+                   or isIn(Expression::SCALE_UP, type)    //
+                   or isIn(Expression::SCALE_DOWN, type)  //
+                   or isIn(Expression::DECREASE, type);
+    if (isIn(Expression::NUMERIC_FUNCTION, type) and numeric)
+        addRequirement(Requirements::NUMERIC_FLUENTS);
 }
 
 std::ostream &Domain::toPDDL(std::ostream &out) const

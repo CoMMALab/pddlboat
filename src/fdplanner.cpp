@@ -48,7 +48,7 @@ FastDownwardPlanner::~FastDownwardPlanner()
 
 Requirements::Keyword FastDownwardPlanner::getSupportedRequirements() const
 {
-    auto reqs = Requirements::ADL | Requirements::FLUENTS;
+    auto reqs = Requirements::ADL | Requirements::ACTION_COSTS;
     if (search != ASTAR)
         reqs = reqs | Requirements::DERIVED_PREDICATES;
     return reqs;
