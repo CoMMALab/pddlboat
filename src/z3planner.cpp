@@ -71,6 +71,7 @@ bool Z3Planner::solve(Plan &plan)
         addFrameAxioms(step);
         addDerivedPredicates(step);
         addMutualExclusionLinear(step);
+
         solver_->push();
     }
 
@@ -96,10 +97,10 @@ bool Z3Planner::solve(Plan &plan)
         if (diagnostics_)
             std::cout << "Solving Step " << step << " Z3 Instance took: " << io::getTiming(tl) << std::endl;
 
-        if (result == z3::sat)
-            sat = true;
-        else
-            // Pop goal expression from solver.
+        sat = result == z3::sat;
+
+        // Pop goal expression from solver.
+        if (not sat)
             solver_->pop();
     }
 
@@ -119,6 +120,13 @@ bool Z3Planner::solve(Plan &plan)
                                  frame_axioms_.total)
                   << std::endl;
         std::cout << "Total frame axiom time took: " << io::getTiming(frame_axioms_.totaltime) << std::endl;
+
+        // Derived Predicates
+        std::cout << log::format("Z3 has %1% derived predicate clauses per step (%2% total)",
+                                 derived_predicates_.count, derived_predicates_.total)
+                  << std::endl;
+        std::cout << "Total derived predicate time took: " << io::getTiming(frame_axioms_.totaltime)
+                  << std::endl;
 
         // Mutual Exclusion
         std::cout << log::format("Z3 has %1% mutual exclusion clauses per step (%2% total)",
@@ -349,7 +357,7 @@ void Z3Planner::addActionImplications(Time step)
         z3::expr effects = exprAtTime(action.action->effect, action.assignment, step + 1);
 
         // action -> preconditions_t0 and effects_t1
-        z3::expr clause = (not act) or (precond and effects);
+        z3::expr clause = imply(act, precond and effects);
 
         solver_->add(clause);
 
@@ -414,7 +422,7 @@ void Z3Planner::addFrameAxioms(Time step)
         for (std::size_t i = 1; i < actions.size(); ++i)
             actionex = actionex or toBool(addTimeToString(actions[i], step));
 
-        z3::expr clause = not(curr_prop != next_prop) or actionex;
+        z3::expr clause = imply(curr_prop != next_prop, actionex);
 
         solver_->add(clause);
 
@@ -471,7 +479,10 @@ void Z3Planner::addMutualExclusionLinearHelper(Time step, bool forward)
         z3::expr intermediate = toBool(addTimeToString(prefix + action.string, step));
         z3::expr op = toBool(addTimeToString(action.string, step));
 
-        z3::expr clause = imply(op, intermediate);
+        z3::expr clause = ctx_->bool_val(true);
+
+        if (i != ground_actions_.size() - 1)
+            clause = clause and imply(op, intermediate);
 
         if (i)
         {
