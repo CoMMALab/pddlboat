@@ -89,6 +89,11 @@ namespace pddlboat
          */
         void addActionImplications(Time step);
 
+        /** \brief Generate all derived predicate conditions.
+         *  \param[in] step Step to generate derived predicates for.
+         */
+        void addDerivedPredicates(Time step);
+
         /** \brief Generate all frame axiom constraints for the plan at a step.
          *  \param[in] step Step to generate frame axioms for.
          */
@@ -155,6 +160,7 @@ namespace pddlboat
         };
 
         Diagnostics action_implications_;
+        Diagnostics derived_predicates_;
         Diagnostics frame_axioms_;
         Diagnostics mutual_exclusions_;
         Diagnostics start_propositions_;
@@ -174,7 +180,21 @@ namespace pddlboat
             GroundedAction(const ActionPtr &action, const Assignment &assignment, const std::string &string);
         };
 
-        std::vector<GroundedAction> ground_actions_;  ///< All grounded actions (without time step).
+        /** \brief A grounded derived predicate.
+         */
+        struct GroundedDerived
+        {
+            DerivedPredicateDefinitionPtr derived;  ///< Derived predicate
+            Assignment assignment;                  ///< The grounding.
+            std::string string;                     ///< String representation of this assigned action.
+
+            GroundedDerived(const DerivedPredicateDefinitionPtr &action, const Assignment &assignment,
+                            const std::string &string);
+        };
+
+        std::vector<GroundedAction> ground_actions_;   ///< All grounded actions (without time step).
+        std::vector<GroundedDerived> ground_derived_;  ///< All grounded derived predicates (without time
+                                                       ///< step).
     };
 
 }  // namespace pddlboat

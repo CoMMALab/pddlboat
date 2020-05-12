@@ -10,6 +10,12 @@ Z3Planner::GroundedAction::GroundedAction(const ActionPtr &action, const Assignm
 {
 }
 
+Z3Planner::GroundedDerived::GroundedDerived(const DerivedPredicateDefinitionPtr &derived,
+                                            const Assignment &assignment, const std::string &string)
+  : derived(derived), assignment(assignment), string(string)
+{
+}
+
 Z3Planner::Z3Planner(const ProblemPtr problem, Time max_horizon, Time min_horizon, bool parallel,
                      bool diagnostics, bool dump_clauses)
   : Planner(problem)
@@ -29,7 +35,7 @@ Z3Planner::Z3Planner(const ProblemPtr problem, Time max_horizon, Time min_horizo
 
 Requirements::Keyword Z3Planner::getSupportedRequirements() const
 {
-    return Requirements::ADL;
+    return Requirements::ADL | Requirements::DERIVED_PREDICATES;
 }
 
 bool Z3Planner::solve(Plan &plan)
@@ -46,15 +52,16 @@ bool Z3Planner::solve(Plan &plan)
 
     solver_ = new z3::solver(*ctx_);
 
-    // Now that we have built the context, we need to add constraints. These are clauses that ensure:
-    // (1) that we start with the grounded predicates as declared in the start state.
     addStartState();
+    addDerivedPredicates(0);
+
     solver_->push();
 
     for (Time step = 0; step < min_horizon_; ++step)
     {
         addActionImplications(step);
         addFrameAxioms(step);
+        addDerivedPredicates(step);
         addMutualExclusion(step);
         solver_->push();
     }
@@ -64,13 +71,9 @@ bool Z3Planner::solve(Plan &plan)
     {
         boost::timer::cpu_timer tl;
 
-        // (2) an action implies its precondition is true and its effects will be true next time step
         addActionImplications(step);
-
-        // (3) if a proposition changes, then an action must have changed it
         addFrameAxioms(step);
-
-        // (4) only one action is taken at each time step
+        addDerivedPredicates(step);
         addMutualExclusion(step);
 
         // Solve now to create assertions that won't be popped.
@@ -188,6 +191,11 @@ z3::expr Z3Planner::exprAtTime(const ExpressionPtr &expr, const Assignment &assi
         case Expression::Type::PREDICATE:
         {
             const auto &predicate_expr = std::static_pointer_cast<Predicate>(expr);
+            return toBool(addTimeToString(predicate_expr->toID(nullptr, assignment), step));
+        }
+        case Expression::Type::DERIVED:
+        {
+            const auto &predicate_expr = std::static_pointer_cast<DerivedPredicate>(expr);
             return toBool(addTimeToString(predicate_expr->toID(nullptr, assignment), step));
         }
         case Expression::Type::AND:
@@ -309,6 +317,17 @@ void Z3Planner::generateGroundings()
             }
         }
     }
+
+    for (const auto &name_derivedptr : problem_->domain->derived)
+    {
+        const auto &assignments = problem_->getGroundings(name_derivedptr.second->parameters);
+        for (const auto &assignment : assignments)
+        {
+            // Add grounded derived
+            std::string derived_string = name_derivedptr.second->toID(assignment);
+            ground_derived_.emplace_back(name_derivedptr.second, assignment, derived_string);
+        }
+    }
 }
 
 void Z3Planner::addActionImplications(Time step)
@@ -340,6 +359,35 @@ void Z3Planner::addActionImplications(Time step)
     {
         std::cout << "Building Z3 Action Implications @ " << step
                   << " took: " << io::getTiming(action_implications_.onestep) << std::endl;
+    }
+}
+
+void Z3Planner::addDerivedPredicates(Time step)
+{
+    if (dump_clauses_)
+        std::cout << ";; Adding Derived Predicates @ " << step << ":" << std::endl;
+
+    derived_predicates_.start();
+
+    for (const auto &derived : ground_derived_)
+    {
+        z3::expr pred = toBool(addTimeToString(derived.string, step));
+        z3::expr expr = exprAtTime(derived.derived->expression, derived.assignment, step);
+
+        z3::expr clause = pred == expr;
+
+        solver_->add(clause);
+
+        derived_predicates_.inc();
+        if (dump_clauses_)
+            std::cout << clause << std::endl;
+    }
+
+    derived_predicates_.stop();
+    if (diagnostics_)
+    {
+        std::cout << "Building Z3 Derived Predicates @ " << step
+                  << " took: " << io::getTiming(derived_predicates_.onestep) << std::endl;
     }
 }
 
@@ -475,6 +523,8 @@ void Z3Planner::addStartState()
     // Add the start state
     for (const auto &name_predptr : problem_->domain->predicates)
     {
+        if (problem_->domain->isDerivedPredicate(name_predptr.first))
+            continue;
         const auto &assignments = problem_->getGroundings(name_predptr.second->variables);
         for (const auto &assignment : assignments)
         {
