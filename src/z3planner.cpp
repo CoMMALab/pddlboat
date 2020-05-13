@@ -60,10 +60,11 @@ void Z3Planner::addStep(Time step, bool incremental)
     // (2) Predicates do not change unless an action changes them
     addFrameAxioms(step);
 
-    // (3) Only one action at a time
     if (options_.simultaneous)
+        // (3) Only actions that don't conflict, if enabled
         addMutualExclusionLinearSimultaneous(step);
     else
+        // (3) Only one action at a time
         addMutualExclusionLinear(step);
 
     // (4) Derived predicates take on their value
@@ -735,6 +736,7 @@ void Z3Planner::addStartState()
     {
         if (problem_->domain->isDerivedPredicate(name_predptr.first))
             continue;
+
         const auto &assignments = problem_->getGroundings(name_predptr.second->variables);
         for (const auto &assignment : assignments)
         {
@@ -742,7 +744,6 @@ void Z3Planner::addStartState()
             z3::expr p = toBool(addTimeToString(pred_string, 0));
 
             // Anything that is not true is false within the initial state.
-
             std::vector<std::string> objects;
             for (const auto &variable : name_predptr.second->variables)
                 objects.emplace_back(assignment.assigned(variable.name)->name);
