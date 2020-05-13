@@ -19,6 +19,12 @@ Currently, _PDDLboat_ supports the following PDDL `:requirements`:
 - `:conditional-effects`: `when` is allowed in action effects.
 - `:adl`: All of the above are supported.
 - `:derived-predicates`: Predicates with values defined by expressions are allowed. Note that these definitions can be recursive.
+- `:actions-costs`: Allows for the `total-cost` numerical function and actions that assign to this total cost.
+- `:numeric-fluents`: Allows numerical function definitions and numerical operators (e.g., `-`, `+`, `assign`, etc.)
+- `:object-fluents`: Allows function definitions that return objects of a certain type.
+- `:fluents`: Both `:numeric-fluents` and `:object-fluents` are supported.
+
+Note that not all solver support all requirements.
 
 ## Concepts
 
@@ -60,7 +66,7 @@ There are two planners provided in _PDDLboat_, which implement a simple abstract
 The two planners are one based on Z3 and one based on Fast Downward.
 Both of these implement different options, but the defaults generally work well.
 Some notes about each:
-- Z3 requires providing a minimum and maximum planning horizon, which is the number of steps a plan can take. If a plan is not found, this number should be increased. Moreover, Z3 tries to incrementally solve the problem so the optimal plan (given the minimum number of steps) is found.
+- Z3 requires providing a minimum and maximum planning horizon, which is the number of steps a plan can take. If a plan is not found, this number should be increased. Moreover, Z3 tries to incrementally solve the problem so the optimal plan (given the minimum number of steps) is found. Z3 can also solve the problem "simultaneously", by enabling actions to be executed in tandem if they do not conflict.
 - Fast Downward has many different kinds of heuristics, a few defaults of which can be selected via the `pddlboat::FastDownwardPlanner::Search` enumerated type. If you want to add your own configurations, check [their website](http://www.fast-downward.org/PlannerUsage) for more configurations. Currently, the following are supported:
   - `pddlboat::FastDownwardPlanner::Search::ASTAR`: A* with landmark cut heuristic.
   - `pddlboat::FastDownwardPlanner::Search::LAZYGREEDY`:  Lazy greedy best-first search with preferred operators and the queue alternation method.
@@ -214,7 +220,6 @@ Otherwise, simply run the catkin build command.
 
 More features in _PDDLboat_ are planned soon.
 On the horizon:
-- Boolean functions.
 - Basic uncertainty (e.g., `oneof`, etc.).
 - Durative actions.
 - Incremental constraints.
