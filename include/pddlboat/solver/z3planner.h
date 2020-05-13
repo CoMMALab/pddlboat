@@ -125,11 +125,6 @@ namespace pddlboat
          */
         void addFrameAxioms(Time step);
 
-        /** \brief Generate all mutual exclusion constraints for the plan using integer cardinality.
-         *  \param[in] step Step to generate mutual exclusions for.
-         */
-        void addMutualExclusionCardinality(Time step);
-
         /** \brief Generate all mutual exclusion constraints for the plan using a linear implication chain,
          * but only on conflicting predicates.
          *  \param[in] step Step to generate mutual exclusions for.
@@ -202,21 +197,16 @@ namespace pddlboat
 
         /** \brief A grounded action.
          */
-        struct GroundedAction
+        PDDLBOAT_CLASS_FORWARD(GroundedAction)
+        class GroundedAction
         {
+        public:
             ActionPtr action;       ///< Action
             Assignment assignment;  ///< The grounding.
             std::string string;     ///< String representation of this assigned action.
 
-            GroundedAction(const ActionPtr &action, const Assignment &assignment, const std::string &string);
+            GroundedAction(const ActionPtr &action, const Assignment &assignment);
         };
-
-        /** \brief Helper function to add linear action implication chain.
-         *  \param[in] step Step to generate mutual exclusions for.
-         *  \param[in] forward Direction of chain.
-         */
-        void addMutualExclusionLinearHelper(const std::vector<GroundedAction> &actions, Time step,
-                                            const std::string &prefix, bool forward);
 
         /** \brief A grounded predicate.
          */
@@ -226,8 +216,7 @@ namespace pddlboat
             Assignment assignment;             ///< The grounding.
             std::string string;                ///< String representation of this assigned action.
 
-            GroundedPredicate(const PredicateDefinitionPtr &action, const Assignment &assignment,
-                              const std::string &string);
+            GroundedPredicate(const PredicateDefinitionPtr &action, const Assignment &assignment);
         };
 
         /** \brief A grounded derived predicate.
@@ -238,19 +227,30 @@ namespace pddlboat
             Assignment assignment;                  ///< The grounding.
             std::string string;                     ///< String representation of this assigned action.
 
-            GroundedDerived(const DerivedPredicateDefinitionPtr &action, const Assignment &assignment,
-                            const std::string &string);
+            GroundedDerived(const DerivedPredicateDefinitionPtr &action, const Assignment &assignment);
         };
 
-        std::vector<GroundedAction> ground_actions_;   ///< All grounded actions (without time step).
-        std::vector<GroundedDerived> ground_derived_;  ///< All grounded derived predicates (without time
-                                                       ///< step).
-        std::vector<GroundedPredicate> ground_pred_;   ///< All grounded unaffected predicates (without time
-                                                       ///< step)
+        std::vector<GroundedDerived> ground_derived_;  ///< All grounded derived predicates.
+        std::vector<GroundedPredicate> ground_pred_;   ///< All grounded unaffected predicates.
 
-        std::map<std::string, std::vector<GroundedAction>> predicate_effects_;  ///< Mapping of predicates to
-                                                                                ///< actions which effect
-                                                                                ///< them.
+        struct PredAction
+        {
+            GroundedActionPtr action;
+            bool relies;
+            bool effects;
+
+            PredAction(const GroundedActionPtr &action, bool relies, bool effects);
+        };
+
+        std::vector<PredAction> ground_actions_;  ///< All grounded actions.
+        std::map<std::string, std::vector<PredAction>> predicate_actions_;
+
+        /** \brief Helper function to add linear action implication chain.
+         *  \param[in] step Step to generate mutual exclusions for.
+         *  \param[in] forward Direction of chain.
+         */
+        void addMutualExclusionLinearHelper(const std::vector<PredAction> &actions, Time step,
+                                            const std::string &prefix, bool forward);
     };
 
 }  // namespace pddlboat

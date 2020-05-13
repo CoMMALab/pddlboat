@@ -12,21 +12,25 @@ namespace
     }
 }  // namespace
 
-Z3Planner::GroundedAction::GroundedAction(const ActionPtr &action, const Assignment &assignment,
-                                          const std::string &string)
-  : action(action), assignment(assignment), string(string)
+Z3Planner::GroundedAction::GroundedAction(const ActionPtr &action, const Assignment &assignment)
+  : action(action), assignment(assignment), string(action->toID(assignment))
 {
 }
 
 Z3Planner::GroundedDerived::GroundedDerived(const DerivedPredicateDefinitionPtr &derived,
-                                            const Assignment &assignment, const std::string &string)
-  : derived(derived), assignment(assignment), string(string)
+                                            const Assignment &assignment)
+  : derived(derived), assignment(assignment), string(derived->toID(assignment))
 {
 }
 
 Z3Planner::GroundedPredicate::GroundedPredicate(const PredicateDefinitionPtr &predicate,
-                                                const Assignment &assignment, const std::string &string)
-  : predicate(predicate), assignment(assignment), string(string)
+                                                const Assignment &assignment)
+  : predicate(predicate), assignment(assignment), string(predicate->toID(assignment))
+{
+}
+
+Z3Planner::PredAction::PredAction(const GroundedActionPtr &action, bool relies, bool effects)
+  : action(action), relies(relies), effects(effects)
 {
 }
 
@@ -397,29 +401,45 @@ z3::expr Z3Planner::exprAtTime(const ExpressionPtr &expr, const Assignment &assi
 
 void Z3Planner::generateGroundings()
 {
+    boost::timer::cpu_timer tl;
+
     ground_actions_.clear();
-    predicate_effects_.clear();
+    ground_derived_.clear();
+    ground_pred_.clear();
+    predicate_actions_.clear();
+
+    auto addToPredicate = [&](const std::string &predicate, const GroundedActionPtr &action, bool relies,
+                              bool effects) {
+        auto it = predicate_actions_.find(predicate);
+        if (it == predicate_actions_.end())
+            it = predicate_actions_.emplace(predicate, std::vector<PredAction>{}).first;
+
+        it->second.emplace_back(action, relies, effects);
+    };
 
     for (const auto &name_actionptr : problem_->domain->actions)
     {
         const auto &assignments = problem_->getGroundings(name_actionptr.second->parameters);
         for (const auto &assignment : assignments)
         {
-            // Add grounded action
-            std::string action_string = name_actionptr.second->toID(assignment);
-            ground_actions_.emplace_back(name_actionptr.second, assignment, action_string);
+            ground_actions_.emplace_back(std::make_shared<GroundedAction>(name_actionptr.second, assignment),
+                                         true, true);
 
             // Get all predicates this grounded action effects
-            std::set<std::string> predicates;
-            name_actionptr.second->effect->getAssignedPredicates(predicates, problem_->start, assignment);
-            for (const auto &predicate : predicates)
-            {
-                auto it = predicate_effects_.find(predicate);
-                if (it == predicate_effects_.end())
-                    it = predicate_effects_.emplace(predicate, std::vector<GroundedAction>{}).first;
+            std::set<std::string> effects, preconds;
+            name_actionptr.second->precondition->getUsedPredicates(preconds, problem_->start, assignment);
+            name_actionptr.second->effect->getAssignedPredicates(effects, problem_->start, assignment);
 
-                it->second.emplace_back(ground_actions_.back());
-            }
+            // Check all predicates that are preconditions of this action
+            for (const auto &predicate : preconds)
+                // Always relies on predicate if its in this list, just need to check if it effects
+                addToPredicate(predicate, ground_actions_.back().action, true,
+                               effects.find(predicate) != effects.end());
+
+            // Now check all predicates that are only effected by this action
+            for (const auto &predicate : effects)
+                if (preconds.find(predicate) == preconds.end())
+                    addToPredicate(predicate, ground_actions_.back().action, false, true);
         }
     }
 
@@ -432,9 +452,17 @@ void Z3Planner::generateGroundings()
         const auto &assignments = problem_->getGroundings(name_predicateptr.second->variables);
         for (const auto &assignment : assignments)
         {
-            std::string predicate_string = name_predicateptr.second->toID(assignment);
-            if (predicate_effects_.find(predicate_string) == predicate_effects_.end())
-                ground_pred_.emplace_back(name_predicateptr.second, assignment, predicate_string);
+            auto it = predicate_actions_.find(name_predicateptr.second->toID(assignment));
+            // check if predicate is never effected
+            if (it != predicate_actions_.end())
+            {
+                bool effected = false;
+                for (const auto &action : it->second)
+                    effected |= action.effects;
+
+                if (not effected)
+                    ground_pred_.emplace_back(name_predicateptr.second, assignment);
+            }
         }
     }
 
@@ -443,12 +471,11 @@ void Z3Planner::generateGroundings()
     {
         const auto &assignments = problem_->getGroundings(name_derivedptr.second->parameters);
         for (const auto &assignment : assignments)
-        {
-            // Add grounded derived
-            std::string derived_string = name_derivedptr.second->toID(assignment);
-            ground_derived_.emplace_back(name_derivedptr.second, assignment, derived_string);
-        }
+            ground_derived_.emplace_back(name_derivedptr.second, assignment);
     }
+
+    if (options_.diagnostics)
+        std::cout << "Generating Problem Groundings took: " << io::getTiming(tl) << std::endl;
 }
 
 void Z3Planner::addActionImplications(Time step)
@@ -459,11 +486,13 @@ void Z3Planner::addActionImplications(Time step)
     action_implications_.start();
 
     // add clauses for preconditions and effects of actions
-    for (const auto &action : ground_actions_)
+    for (const auto &pred : ground_actions_)
     {
-        z3::expr act = toBool(addTimeToString(action.string, step));
-        z3::expr precond = exprAtTime(action.action->precondition, action.assignment, step);
-        z3::expr effects = exprAtTime(action.action->effect, action.assignment, step + 1);
+        const auto &action = pred.action;
+
+        z3::expr act = toBool(addTimeToString(action->string, step));
+        z3::expr precond = exprAtTime(action->action->precondition, action->assignment, step);
+        z3::expr effects = exprAtTime(action->action->effect, action->assignment, step + 1);
 
         // action -> preconditions_t0 and effects_t1
         z3::expr clause = imply(act, precond and effects);
@@ -517,7 +546,7 @@ void Z3Planner::addFrameAxioms(Time step)
         std::cout << ";; Adding Frame Axioms @ " << step << ":" << std::endl;
 
     frame_axioms_.start();
-    for (const auto &[predicate, actions] : predicate_effects_)
+    for (const auto &[predicate, actions] : predicate_actions_)
     {
         // add frame axioms
         // if the prop changed, then an action changed it. it doesn't matter what the value
@@ -526,9 +555,10 @@ void Z3Planner::addFrameAxioms(Time step)
         z3::expr curr_prop = toBool(addTimeToString(predicate, step));
         z3::expr next_prop = toBool(addTimeToString(predicate, step + 1));
 
-        z3::expr actionex = toBool(addTimeToString(actions[0].string, step));
-        for (std::size_t i = 1; i < actions.size(); ++i)
-            actionex = actionex or toBool(addTimeToString(actions[i].string, step));
+        z3::expr actionex = ctx_->bool_val(false);
+        for (std::size_t i = 0; i < actions.size(); ++i)
+            if (actions[i].effects)
+                actionex = actionex or toBool(addTimeToString(actions[i].action->string, step));
 
         z3::expr clause = imply(curr_prop != next_prop, actionex);
 
@@ -561,60 +591,32 @@ void Z3Planner::addFrameAxioms(Time step)
     }
 }
 
-void Z3Planner::addMutualExclusionCardinality(Time step)
-{
-    if (options_.dump_clauses)
-        std::cout << ";; Adding Mutual Exclusion Constraints @ " << step << ":" << std::endl;
-
-    mutual_exclusions_.start();
-
-    z3::expr clause = ctx_->int_val(0);
-    for (const auto &action : ground_actions_)
-    {
-        z3::expr e = toBool(addTimeToString(action.string, step));
-        clause = clause + z3::ite(e, ctx_->int_val(1), ctx_->int_val(0));
-    }
-
-    solver_->add(clause == 1);
-
-    mutual_exclusions_.inc();
-    if (options_.dump_clauses)
-        std::cout << clause << std::endl;
-
-    mutual_exclusions_.stop();
-    if (options_.diagnostics)
-    {
-        std::cout << "Building Z3 Mutual Exclusion Constraints @ " << step
-                  << " took: " << io::getTiming(mutual_exclusions_.onestep) << std::endl;
-    }
-}
-
-void Z3Planner::addMutualExclusionLinearHelper(const std::vector<GroundedAction> &actions, Time step,
+void Z3Planner::addMutualExclusionLinearHelper(const std::vector<PredAction> &actions, Time step,
                                                const std::string &prefix, bool forward)
 {
     const std::string pp = prefix + std::string(forward ? "F" : "B") + ":";
 
+    std::size_t intermediate = 0;
+    z3::expr current = toBool(addTimeToString(pp + log::format("%1%", intermediate), step));
+
     for (unsigned int i = 0; i < actions.size(); ++i)
     {
         std::size_t index = (forward) ? i : actions.size() - i - 1;
-        const GroundedAction &action = actions[index];
+        const PredAction &pred = actions[index];
+        const GroundedActionPtr &action = pred.action;
 
-        z3::expr intermediate = toBool(addTimeToString(pp + action.string, step));
-        z3::expr op = toBool(addTimeToString(action.string, step));
-
+        z3::expr op = toBool(addTimeToString(action->string, step));
         z3::expr clause = ctx_->bool_val(true);
 
-        if (i != actions.size() - 1)
-            clause = clause and imply(op, intermediate);
-
-        if (i)
+        if (pred.relies)
         {
-            std::size_t pindex = (forward) ? i - 1 : actions.size() - i;
-            const GroundedAction &prior = actions[pindex];
-
-            z3::expr prev = toBool(addTimeToString(pp + prior.string, step));
-            clause = clause and imply(prev, intermediate) and imply(prev, not op);
+            z3::expr next = toBool(addTimeToString(pp + log::format("%1%", ++intermediate), step));
+            clause = clause and imply(current, not op) and imply(current, next);
+            current = next;
         }
+
+        if (pred.effects)
+            clause = clause and imply(op, current);
 
         solver_->add(clause);
 
@@ -631,7 +633,7 @@ void Z3Planner::addMutualExclusionLinearSimultaneous(Time step)
 
     mutual_exclusions_.start();
 
-    for (const auto &[predicate, actions] : predicate_effects_)
+    for (const auto &[predicate, actions] : predicate_actions_)
     {
         addMutualExclusionLinearHelper(actions, step, predicate, true);
         addMutualExclusionLinearHelper(actions, step, predicate, false);
@@ -673,10 +675,10 @@ void Z3Planner::addMutualExclusion(Time step)
     // add mutual exclusion axioms, i.e., we only take one action each time step
     for (unsigned int i = 0; i < ground_actions_.size(); ++i)
     {
-        const auto &action = ground_actions_[i];
+        const auto &action = *ground_actions_[i].action;
         for (unsigned int j = i + 1; j < ground_actions_.size(); ++j)
         {
-            const auto &other_action = ground_actions_[j];
+            const auto &other_action = *ground_actions_[j].action;
 
             z3::expr e = toBool(addTimeToString(action.string, step));
             z3::expr other_e = toBool(addTimeToString(other_action.string, step));
