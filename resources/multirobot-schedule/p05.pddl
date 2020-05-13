@@ -24,6 +24,8 @@
         (on c d)
         (clear c)
 
+        (clear_loc l2)
+
         (reachable l1 r1)
         (reachable l2 r2)
         (reachable l3 r3)
