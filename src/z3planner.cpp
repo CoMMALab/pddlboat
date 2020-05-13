@@ -497,14 +497,10 @@ void Z3Planner::addDerivedPredicates(Time step)
 
     for (const auto &derived : ground_derived_)
     {
-        z3::expr ax1 = toBool(addTimeToString("AX:" + derived.string, step));
-        z3::expr ax2 = toBool(addTimeToString("BX:" + derived.string, step));
-
         z3::expr pred = toBool(addTimeToString(derived.string, step));
         z3::expr expr = exprAtTime(derived.derived->expression, derived.assignment, step);
 
         z3::expr clause = pred == expr;
-        // z3::expr clause = not(pred != expr);
         solver_->add(clause);
 
         derived_predicates_.inc();
