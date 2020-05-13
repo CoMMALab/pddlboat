@@ -237,23 +237,6 @@ std::set<std::string> Assignment::getVariables() const
     return variables;
 }
 
-std::vector<std::string> Assignment::getObjects(const std::vector<Value> &bindings) const
-{
-    std::vector<std::string> objects;
-    for (const auto &binding : bindings)
-        objects.emplace_back(getObject(binding));
-
-    return objects;
-}
-
-std::string Assignment::getObject(const Value &binding) const
-{
-    if (binding.isVar)
-        return assigned(binding.name)->name;
-    else
-        return binding.name;
-}
-
 std::ostream &Assignment::toString(std::ostream &out) const
 {
     out << "(assignment";
@@ -283,11 +266,21 @@ PredicatePtr PredicateDefinition::bind(const std::vector<std::string> &bound, co
     if (variables.size() != bound.size())
         throw std::invalid_argument("Cannot bind variables, size mismatch!");
 
-    std::vector<Value> toUse;
-    for (unsigned int i = 0; i < bound.size(); ++i)
-        toUse.emplace_back(getValue(bound[i], &variables[i], problem, domain));
+    return bindValues(getValues(bound, variables, problem, domain));
+}
 
-    return std::make_shared<Predicate>(this, toUse);
+PredicatePtr PredicateDefinition::bindValues(const std::vector<Value> &values) const
+{
+    if (variables.size() != values.size())
+        throw std::invalid_argument("Cannot bind variables, size mismatch!");
+
+    // for (std::size_t i = 0; i < values.size(); ++i)
+    //     if (values[i].type != variables[i].type)
+    //         throw std::invalid_argument(log::format("Cannot bind parameters in %1%, type mismatch %2% -
+    //         %3%!",
+    //                                                 name, values[i].type, variables[i].type));
+
+    return std::make_shared<Predicate>(this, values);
 }
 
 bool PredicateDefinition::isValidAssignment(const Problem *problem,
@@ -356,20 +349,9 @@ Predicate::Predicate(const PredicateDefinition *predicate, const std::vector<Val
 {
 }
 
-PredicatePtr Predicate::rebind() const
-{
-    return rebind(std::vector<std::string>{});
-}
-
-PredicatePtr Predicate::rebind(const std::vector<std::string> &bound, const ProblemPtr &problem,
-                               const DomainPtr &domain) const
-{
-    return predicate->bind(bound, problem, domain);
-}
-
 bool Predicate::evaluate(const StatePtr &state, const Assignment &vars) const
 {
-    bool r = state->isTrue(predicate->name, vars.getObjects(bindings));
+    bool r = state->isTrue(predicate->name, getValueObjects(bindings, state, vars));
 
     if (debug)
     {
@@ -385,7 +367,7 @@ bool Predicate::evaluate(const StatePtr &state, const Assignment &vars) const
 
 void Predicate::assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const
 {
-    out->assignN(predicate->name, vars.getObjects(bindings), true);
+    out->assignN(predicate->name, getValueObjects(bindings, in, vars), true);
 }
 
 Expression::Type Predicate::type() const
@@ -396,20 +378,19 @@ Expression::Type Predicate::type() const
 void Predicate::getVariables(VariableSet &vars) const
 {
     for (const auto &binding : bindings)
-        if (binding.isVar)
-            vars.addVariable({binding.name, binding.type});
+        binding.getVariables(vars);
 }
 
 void Predicate::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
                                   const Assignment &vars) const
 {
-    predicates.emplace(toID(vars));
+    predicates.emplace(toID(state, vars));
 }
 
-void Predicate::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr & /*state*/,
+void Predicate::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
                                       const Assignment &vars) const
 {
-    predicates.emplace(toID(vars));
+    predicates.emplace(toID(state, vars));
 }
 
 VariableList Predicate::arguments() const
@@ -425,7 +406,7 @@ VariableList Predicate::arguments() const
 bool Predicate::containsVariable(const std::string &variable) const
 {
     for (const auto &v : bindings)
-        if (v.isVar and v.name == variable)
+        if (v.containsVariable(variable))
             return true;
 
     return false;
@@ -439,10 +420,7 @@ bool Predicate::containsPredicate(const std::string &pred) const
 void Predicate::renameVariable(const std::string &old, const std::string &name)
 {
     for (auto &binding : bindings)
-    {
-        if (binding.isVar and binding.name == old)
-            binding.name = name;
-    }
+        binding.renameVariable(old, name);
 }
 
 std::ostream &Predicate::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
@@ -455,23 +433,21 @@ std::ostream &Predicate::toPDDL(std::ostream &out, unsigned int indent, unsigned
     for (const auto &binding : bindings)
     {
         out << " ";
-        if (binding.isVar)
-            out << "?";
-        out << binding.name;
+        binding.toPDDL(out);
     }
 
     out << ")";
     return out;
 }
 
-std::string Predicate::toID(const Assignment &vars) const
+std::string Predicate::toID(const StatePtr &state, const Assignment &vars) const
 {
     std::stringstream ss;
     ss << "PRED:" << predicate->name;
 
     ss << ":ARGS:";
 
-    auto objects = vars.getObjects(bindings);
+    auto objects = getValueObjects(bindings, state, vars);
     for (unsigned int i = 0; i < objects.size(); ++i)
     {
         ss << objects[i];
@@ -498,6 +474,11 @@ DerivedPredicateDefinition::DerivedPredicateDefinition(const std::string &name,
 {
 }
 
+void DerivedPredicateDefinition::setFormula(const ExpressionPtr &formula)
+{
+    expression = formula;
+}
+
 DerivedPredicatePtr DerivedPredicateDefinition::bind() const
 {
     return bind(std::vector<std::string>{});
@@ -509,18 +490,21 @@ DerivedPredicatePtr DerivedPredicateDefinition::bind(const std::vector<std::stri
     if (parameters.size() != bound.size())
         throw std::invalid_argument("Cannot bind variables, size mismatch!");
 
-    // std::cout << "Binding " << name << " with ";
+    return bindValues(getValues(bound, parameters, problem, domain));
+}
 
-    std::vector<Value> toUse;
-    for (unsigned int i = 0; i < bound.size(); ++i)
-    {
-        toUse.emplace_back(getValue(bound[i], &parameters[i], problem, domain));
-        // toUse.back().toString(std::cout) << " ";
-    }
+DerivedPredicatePtr DerivedPredicateDefinition::bindValues(const std::vector<Value> &values) const
+{
+    if (parameters.size() != values.size())
+        throw std::invalid_argument("Cannot bind variables, size mismatch!");
 
-    // std::cout << std::endl;
+    // for (std::size_t i = 0; i < values.size(); ++i)
+    //     if (values[i].type != parameters[i].type)
+    //         throw std::invalid_argument(log::format("Cannot bind parameters in %1%, type mismatch %2% -
+    //         %3%!",
+    //                                                 name, values[i].type, parameters[i].type));
 
-    return std::make_shared<DerivedPredicate>(this, toUse);
+    return std::make_shared<DerivedPredicate>(this, values);
 }
 
 bool DerivedPredicateDefinition::isValidAssignment(const Problem *problem,
@@ -581,7 +565,6 @@ std::string DerivedPredicateDefinition::toID(const Assignment &vars) const
     return ss.str();
 }
 
-
 DerivedPredicateDefinitionPtr pddlboat::makeDerivedPred(const std::string &name,
                                                         const VariableList &variables,
                                                         const ExpressionPtr &expression)
@@ -595,21 +578,10 @@ DerivedPredicate::DerivedPredicate(const DerivedPredicateDefinition *predicate,
 {
 }
 
-DerivedPredicatePtr DerivedPredicate::rebind() const
-{
-    return rebind(std::vector<std::string>{});
-}
-
-DerivedPredicatePtr DerivedPredicate::rebind(const std::vector<std::string> &bound, const ProblemPtr &problem,
-                                             const DomainPtr &domain) const
-{
-    return predicate->bind(bound, problem, domain);
-}
-
-Assignment DerivedPredicate::getBinding(const Assignment &vars) const
+Assignment DerivedPredicate::getBinding(const StatePtr &state, const Assignment &vars) const
 {
     Assignment derived(vars.problem);
-    auto objects = vars.getObjects(bindings);
+    auto objects = getValueObjects(bindings, state, vars);
 
     for (std::size_t i = 0; i < predicate->parameters.size(); ++i)
         derived.assign(predicate->parameters[i].name, objects[i]);
@@ -619,7 +591,7 @@ Assignment DerivedPredicate::getBinding(const Assignment &vars) const
 
 bool DerivedPredicate::evaluate(const StatePtr &state, const Assignment &vars) const
 {
-    auto binding = getBinding(vars);
+    auto binding = getBinding(state, vars);
     bool r = predicate->expression->evaluate(state, binding);
 
     if (debug)
@@ -644,18 +616,17 @@ Expression::Type DerivedPredicate::type() const
 void DerivedPredicate::getVariables(VariableSet &vars) const
 {
     for (const auto &binding : bindings)
-        if (binding.isVar)
-            vars.addVariable({binding.name, binding.type});
+        binding.getVariables(vars);
 }
 
 void DerivedPredicate::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
                                          const Assignment &vars) const
 {
-    const auto &id = toID(vars);
+    const auto &id = toID(state, vars);
     if (predicates.find(id) == predicates.end())
     {
         predicates.emplace(id);
-        predicate->expression->getUsedPredicates(predicates, state, getBinding(vars));
+        predicate->expression->getUsedPredicates(predicates, state, getBinding(state, vars));
         predicates.erase(predicates.find(id));
     }
 }
@@ -673,7 +644,7 @@ VariableList DerivedPredicate::arguments() const
 bool DerivedPredicate::containsVariable(const std::string &variable) const
 {
     for (const auto &v : bindings)
-        if (v.isVar and v.name == variable)
+        if (v.containsVariable(variable))
             return true;
 
     return false;
@@ -691,12 +662,7 @@ bool DerivedPredicate::containsPredicate(const std::string &pred) const
 void DerivedPredicate::renameVariable(const std::string &old, const std::string &name)
 {
     for (auto &binding : bindings)
-    {
-        if (binding.isVar and binding.name == old)
-            binding.name = name;
-    }
-
-    // shouldn't affect expression...
+        binding.renameVariable(old, name);
 }
 
 std::ostream &DerivedPredicate::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
@@ -709,9 +675,7 @@ std::ostream &DerivedPredicate::toPDDL(std::ostream &out, unsigned int indent, u
     for (const auto &binding : bindings)
     {
         out << " ";
-        if (binding.isVar)
-            out << "?";
-        out << binding.name;
+        binding.toPDDL(out);
     }
 
     out << ")";
@@ -723,14 +687,14 @@ const std::string &DerivedPredicate::name() const
     return predicate->name;
 }
 
-std::string DerivedPredicate::toID(const Assignment &vars) const
+std::string DerivedPredicate::toID(const StatePtr &state, const Assignment &vars) const
 {
     std::stringstream ss;
     ss << "PRED:" << predicate->name;
 
     ss << ":ARGS:";
 
-    auto objects = vars.getObjects(bindings);
+    auto objects = getValueObjects(bindings, state, vars);
     for (unsigned int i = 0; i < objects.size(); ++i)
     {
         ss << objects[i];
@@ -742,11 +706,340 @@ std::string DerivedPredicate::toID(const Assignment &vars) const
 }
 
 ///
+/// Functions
+///
+
+FunctionDefinition::FunctionDefinition(const std::string &name, const VariableList &parameters,
+                                       const std::string &type)
+  : name(name), parameters(parameters), type(type)
+{
+}
+
+bool FunctionDefinition::isValidAssignment(const Problem *problem,
+                                           const std::vector<std::string> &objects) const
+{
+    if (objects.size() != arity())
+        return false;
+
+    for (unsigned int i = 0; i < objects.size(); ++i)
+    {
+        ObjectPtr obj;
+        if (not(obj = problem->getObject(objects[i])))
+            return false;
+
+        if (not problem->domain->isTypeOf(obj->type, parameters[i].type))
+            return false;
+    }
+
+    return true;
+}
+
+unsigned int FunctionDefinition::arity() const
+{
+    return parameters.size();
+}
+
+std::ostream &FunctionDefinition::toPDDL(std::ostream &out) const
+{
+    out << "(" << name;
+    for (const auto &variable : parameters)
+    {
+        out << " ";
+        out << "?" << variable.name;
+        if (variable.type != PDDLBOAT_OBJECT_CLASS)
+            out << " - " << variable.type;
+    }
+    out << ")";
+
+    if (type != PDDLBOAT_NUMERIC_CLASS)
+        out << " - " << type;
+    return out;
+}
+
+// Numeric
+
+NumericFunctionDefinition::NumericFunctionDefinition(const std::string &name, const VariableList &parameters)
+  : FunctionDefinition(name, parameters, PDDLBOAT_NUMERIC_CLASS)
+{
+}
+
+NumericFunctionPtr NumericFunctionDefinition::bind() const
+{
+    return bind(std::vector<std::string>{});
+}
+
+NumericFunctionPtr NumericFunctionDefinition::bind(const std::vector<std::string> &bound,
+                                                   const ProblemPtr &problem, const DomainPtr &domain) const
+{
+    if (parameters.size() != bound.size())
+        throw std::invalid_argument("Cannot bind parameters, size mismatch!");
+
+    return bindValues(getValues(bound, parameters, problem, domain));
+}
+
+NumericFunctionPtr NumericFunctionDefinition::bindValues(const std::vector<Value> &values) const
+{
+    if (parameters.size() != values.size())
+        throw std::invalid_argument("Cannot bind parameters, size mismatch!");
+
+    // for (std::size_t i = 0; i < values.size(); ++i)
+    //     if (values[i].type != parameters[i].type)
+    //         throw std::invalid_argument(log::format("Cannot bind parameters in %1%, type mismatch %2% -
+    //         %3%!",
+    //                                                 name, values[i].type, parameters[i].type));
+
+    return std::make_shared<NumericFunction>(this, values);
+}
+
+NumericFunctionDefinitionPtr pddlboat::makeFunction(const std::string &name, const VariableList &variables)
+{
+    return std::make_shared<NumericFunctionDefinition>(name, variables);
+}
+
+NumericFunction::NumericFunction(const NumericFunctionDefinition *function,
+                                 const std::vector<Value> &bindings)
+  : bindings(bindings), function(function)
+{
+}
+
+std::string NumericFunction::getName() const
+{
+    return function->name;
+}
+
+double NumericFunction::getValue(const StatePtr &state, const Assignment &vars) const
+{
+    return state->getValue(function->name, getValueObjects(bindings, state, vars));
+}
+
+Expression::Type NumericFunction::type() const
+{
+    return Expression::NUMERIC_FUNCTION;
+}
+
+void NumericFunction::getVariables(VariableSet &vars) const
+{
+    for (const auto &binding : bindings)
+        binding.getVariables(vars);
+}
+
+bool NumericFunction::containsVariable(const std::string &variable) const
+{
+    for (const auto &v : bindings)
+        if (v.containsVariable(variable))
+            return true;
+
+    return false;
+}
+
+void NumericFunction::renameVariable(const std::string &old, const std::string &name)
+{
+    for (auto &binding : bindings)
+        binding.renameVariable(old, name);
+}
+
+void NumericFunction::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                        const Assignment &vars) const
+{
+    predicates.emplace(toID(state, vars));
+    for (const auto &v : bindings)
+        v.getUsedFunctions(predicates, state, vars);
+}
+
+void NumericFunction::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                            const Assignment &vars) const
+{
+    predicates.emplace(toID(state, vars));
+}
+
+std::string NumericFunction::toID(const StatePtr &state, const Assignment &vars) const
+{
+    std::stringstream ss;
+    ss << "FUNC:" << function->name;
+
+    ss << ":ARGS:";
+
+    auto objects = getValueObjects(bindings, state, vars);
+    for (unsigned int i = 0; i < objects.size(); ++i)
+    {
+        ss << objects[i];
+        if (i < objects.size() - 1)
+            ss << ",";
+    }
+
+    return ss.str();
+}
+
+std::ostream &NumericFunction::toPDDL(std::ostream &out, unsigned int /* indent */,
+                                      unsigned int /* level */) const
+{
+    out << "(" << function->name;
+    for (const auto &binding : bindings)
+    {
+        out << " ";
+        binding.toPDDL(out);
+    }
+    out << ")";
+
+    return out;
+}
+
+// Object
+
+ObjectFunctionDefinition::ObjectFunctionDefinition(const std::string &name, const VariableList &parameters,
+                                                   const std::string &type)
+  : FunctionDefinition(name, parameters, type)
+{
+}
+
+ObjectFunctionPtr ObjectFunctionDefinition::bind() const
+{
+    return bind(std::vector<std::string>{});
+}
+
+ObjectFunctionPtr ObjectFunctionDefinition::bind(const std::vector<std::string> &bound,
+                                                 const ProblemPtr &problem, const DomainPtr &domain) const
+{
+    if (parameters.size() != bound.size())
+        throw std::invalid_argument("Cannot bind parameters, size mismatch!");
+
+    return bindValues(getValues(bound, parameters, problem, domain));
+}
+
+ObjectFunctionPtr ObjectFunctionDefinition::bindValues(const std::vector<Value> &values) const
+{
+    if (parameters.size() != values.size())
+        throw std::invalid_argument("Cannot bind parameters, size mismatch!");
+
+    // for (std::size_t i = 0; i < values.size(); ++i)
+    //     if (values[i].type != parameters[i].type)
+    //         throw std::invalid_argument(log::format("Cannot bind parameters in %1%, type mismatch %2% -
+    //         %3%!",
+    //                                                 name, values[i].type, parameters[i].type));
+
+    return std::make_shared<ObjectFunction>(this, values);
+}
+
+ObjectFunctionDefinitionPtr pddlboat::makeObjectFunction(const std::string &name, const std::string &type,
+                                                         const VariableList &variables)
+{
+    return std::make_shared<ObjectFunctionDefinition>(name, variables, type);
+}
+
+ObjectFunction::ObjectFunction(const ObjectFunctionDefinition *function, const std::vector<Value> &bindings)
+  : bindings(bindings), function(function)
+{
+}
+
+std::string ObjectFunction::getName() const
+{
+    return function->name;
+}
+
+std::string ObjectFunction::getReturnType() const
+{
+    return function->type;
+}
+
+std::string ObjectFunction::getObject(const StatePtr &state, const Assignment &vars) const
+{
+    return state->getObject(function->name, getValueObjects(bindings, state, vars));
+}
+
+Expression::Type ObjectFunction::type() const
+{
+    return Expression::OBJECT_FUNCTION;
+}
+
+void ObjectFunction::getVariables(VariableSet &vars) const
+{
+    for (const auto &binding : bindings)
+        binding.getVariables(vars);
+}
+
+bool ObjectFunction::containsVariable(const std::string &variable) const
+{
+    for (const auto &v : bindings)
+        if (v.containsVariable(variable))
+            return true;
+
+    return false;
+}
+
+void ObjectFunction::renameVariable(const std::string &old, const std::string &name)
+{
+    for (auto &binding : bindings)
+        binding.renameVariable(old, name);
+}
+
+void ObjectFunction::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                       const Assignment &vars) const
+{
+    predicates.emplace(toID(state, vars));
+    for (const auto &v : bindings)
+        v.getUsedFunctions(predicates, state, vars);
+}
+
+void ObjectFunction::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                           const Assignment &vars) const
+{
+    predicates.emplace(toID(state, vars));
+}
+
+std::string ObjectFunction::toID(const StatePtr &state, const Assignment &vars) const
+{
+    std::stringstream ss;
+    ss << "FUNC:" << function->name;
+
+    ss << ":ARGS:";
+
+    auto objects = getValueObjects(bindings, state, vars);
+    for (unsigned int i = 0; i < objects.size(); ++i)
+    {
+        ss << objects[i];
+        if (i < objects.size() - 1)
+            ss << ",";
+    }
+
+    return ss.str();
+}
+
+std::ostream &ObjectFunction::toPDDL(std::ostream &out, unsigned int /* indent */,
+                                     unsigned int /* level */) const
+{
+    out << "(" << function->name;
+    for (const auto &binding : bindings)
+    {
+        out << " ";
+        binding.toPDDL(out);
+    }
+    out << ")";
+
+    return out;
+}
+
+///
 /// Domain
 ///
 
 Domain::Domain(const std::string &name) : name(boost::algorithm::to_lower_copy(name))
 {
+    addRequirement(Requirements::STRIPS);
+}
+
+void Domain::addRequirement(const Requirements::Keyword &requirement)
+{
+    requirements = requirements | requirement;
+}
+
+bool Domain::hasRequirements(const Requirements::Keyword &requirement) const
+{
+    return Requirements::isSubset(requirement, requirements);
+}
+
+bool Domain::supportsRequirements(const Requirements::Keyword &requirement) const
+{
+    return Requirements::isSubset(requirements, requirement);
 }
 
 const ObjectPtr Domain::getConstant(const std::string &name) const
@@ -770,6 +1063,11 @@ void Domain::addConstant(const ObjectPtr &object)
     const auto &other = getConstant(object->name);
     if (other)
     {
+        if (not isType(object->type))
+            throw std::invalid_argument(  //
+                log::format("Tried adding constant %1%, but is of invalid type %2%", object->name,
+                            object->type));
+
         if (object->type != other->type)
             throw std::invalid_argument(  //
                 log::format("Tried adding constant %1% with type %2%, but already exists with type %3%",
@@ -789,17 +1087,35 @@ void Domain::addConstant(const std::string &name, const std::string &type)
 
 void Domain::addType(const std::string &type, const std::string &parent)
 {
+    addRequirement(Requirements::TYPING);
+
     const std::string typel = boost::algorithm::to_lower_copy(type);
     const std::string parentl = boost::algorithm::to_lower_copy(parent);
+
+    if (not isType(parentl))
+        throw std::runtime_error(log::format("Invalid parent type %1%!", parentl));
 
     auto [it, r] = types.emplace(typel, parentl);
     if (not r)
         it->second = parentl;
 }
 
+std::string Domain::getParent(const std::string &type) const
+{
+    if (not isType(type))
+        throw std::runtime_error(log::format("Invalid type %1%!", type));
+
+    if (type == PDDLBOAT_OBJECT_CLASS)
+        return type;
+
+    auto it = types.find(type);
+    return it->second;
+}
+
 bool Domain::isType(const std::string &type) const
 {
-    return types.find(boost::algorithm::to_lower_copy(type)) != types.end();
+    return type == PDDLBOAT_OBJECT_CLASS  //
+           or types.find(boost::algorithm::to_lower_copy(type)) != types.end();
 }
 
 bool Domain::isTypeOf(const std::string &type, const std::string &other) const
@@ -809,18 +1125,13 @@ bool Domain::isTypeOf(const std::string &type, const std::string &other) const
     const std::string typel = boost::algorithm::to_lower_copy(type);
     const std::string otherl = boost::algorithm::to_lower_copy(other);
 
-    // std::cout << "ITO: start" << std::endl;
     auto view = std::cref(typel);
-    // std::cout << "ITO: " << view.get() << " " << otherl << std::endl;
     while (not((r = view.get() == otherl)  //
                or view.get() == PDDLBOAT_OBJECT_CLASS))
     {
         auto it = types.find(view);
         view = std::cref(it->second);
-        // std::cout << "ITO: " << view.get() << " " << otherl << std::endl;
     }
-
-    // std::cout << "ITO: " << r << std::endl;
 
     return r;
 }
@@ -842,6 +1153,9 @@ void Domain::removePredicate(const std::string &name)
 void Domain::addDerivedPredicate(const DerivedPredicateDefinitionPtr &predicate)
 {
     // check if predicate exists
+    addRequirement(Requirements::DERIVED_PREDICATES);
+    if (predicate->expression)
+        addRequirementsFromExpression(predicate->expression);
 
     auto [it, r] = derived.emplace(predicate->name, predicate);
     if (not r)
@@ -889,8 +1203,67 @@ const DerivedPredicateDefinitionPtr Domain::getDerivedPredicate(const std::strin
     return it->second;
 }
 
+void Domain::addFunction(const FunctionDefinitionPtr &function)
+{
+    if (function->type == PDDLBOAT_NUMERIC_CLASS and function->name == "total-cost")
+        addRequirement(Requirements::ACTION_COSTS);
+
+    auto [it, r] = functions.emplace(function->name, function);
+    if (not r)
+        it->second = function;
+}
+
+void Domain::removeFunction(const std::string &name)
+{
+    auto it = functions.find(name);
+    if (it != functions.end())
+        functions.erase(it);
+}
+
+bool Domain::isFunction(const std::string &name) const
+{
+    const std::string namel = boost::algorithm::to_lower_copy(name);
+
+    auto it = functions.find(namel);
+    return it != functions.end();
+}
+
+bool Domain::isObjectFunction(const std::string &name) const
+{
+    return isFunction(name) and std::dynamic_pointer_cast<ObjectFunctionDefinition>(getFunction(name));
+}
+
+bool Domain::isNumericFunction(const std::string &name) const
+{
+    return isFunction(name) and std::dynamic_pointer_cast<NumericFunctionDefinition>(getFunction(name));
+}
+
+FunctionDefinitionPtr Domain::getFunction(const std::string &name) const
+{
+    const std::string namel = boost::algorithm::to_lower_copy(name);
+
+    auto it = functions.find(namel);
+    if (it == functions.end())
+        throw std::invalid_argument(log::format("Function %1% does not exist!", namel));
+
+    return it->second;
+}
+
+ObjectFunctionDefinitionPtr Domain::getObjectFunction(const std::string &name) const
+{
+    return std::dynamic_pointer_cast<ObjectFunctionDefinition>(getFunction(name));
+}
+
+NumericFunctionDefinitionPtr Domain::getNumericFunction(const std::string &name) const
+{
+    return std::dynamic_pointer_cast<NumericFunctionDefinition>(getFunction(name));
+}
+
 void Domain::addAction(const ActionPtr &action)
 {
+    addRequirementsFromExpression(action->precondition);
+    addRequirementsFromExpression(action->effect);
+
     auto [it, r] = actions.emplace(action->name, action);
     if (not r)
         it->second = action;
@@ -907,13 +1280,53 @@ const ActionPtr Domain::getAction(const std::string &name) const
     return it->second;
 }
 
+void Domain::addRequirementsFromExpression(const ExpressionPtr &expression)
+{
+    auto type = expression->getTypes();
+    if (isIn(Expression::NOT, type))
+        addRequirement(Requirements::NEGATIVE_PRECONDITIONS);
+
+    if (isIn(Expression::OR, type))
+        addRequirement(Requirements::DISJUNCTIVE_PRECONDITIONS);
+
+    if (isIn(Expression::EQUALS, type))
+        addRequirement(Requirements::EQUALITY);
+
+    if (isIn(Expression::EXISTS, type))
+        addRequirement(Requirements::EXISTENTIAL_PRECONDITIONS);
+
+    if (isIn(Expression::FORALL, type))
+        addRequirement(Requirements::UNIVERSAL_PRECONDITIONS);
+
+    if (isIn(Expression::WHEN, type))
+        addRequirement(Requirements::CONDITIONAL_EFFECTS);
+
+    if (isIn(Expression::OBJECT_FUNCTION, type))
+        addRequirement(Requirements::OBJECT_FLUENTS);
+
+    bool numeric = isIn(Expression::MINUS, type)          //
+                   or isIn(Expression::DIVIDE, type)      //
+                   or isIn(Expression::MULTIPLY, type)    //
+                   or isIn(Expression::PLUS, type)        //
+                   or isIn(Expression::ASSIGN, type)      //
+                   or isIn(Expression::SCALE_UP, type)    //
+                   or isIn(Expression::SCALE_DOWN, type)  //
+                   or isIn(Expression::DECREASE, type);
+    if (isIn(Expression::NUMERIC_FUNCTION, type) and numeric)
+        addRequirement(Requirements::NUMERIC_FLUENTS);
+}
+
 std::ostream &Domain::toPDDL(std::ostream &out) const
 {
     const unsigned int INDENT = 2;
     const std::string SPACE = std::string(INDENT, ' ');
 
     out << "(define (domain " << name << ")" << std::endl;
-    out << SPACE << "(:requirements :strips)" << std::endl;  // TODO
+    out << SPACE << "(:requirements" << std::endl;
+    for (const auto &string : Requirements::toStrings(requirements))
+        out << SPACE << SPACE << string << std::endl;
+    out << SPACE << ")" << std::endl << std::endl;
+
     if (not types.empty())
     {
         out << SPACE << "(:types" << std::endl;
@@ -921,7 +1334,17 @@ std::ostream &Domain::toPDDL(std::ostream &out) const
         for (const auto &type : types)
             names.emplace_back(type.first);
 
-        std::sort(names.begin(), names.end(), [&](const auto &a, const auto &b) { return isTypeOf(a, b); });
+        std::sort(names.begin(), names.end(), [&](const auto &a, const auto &b) {
+            if (isTypeOf(a, b))
+                return false;
+            if (isTypeOf(b, a))
+                return true;
+
+            if (getParent(a) == getParent(b))
+                return a < b;
+
+            return getParent(a) > getParent(b);
+        });
 
         for (const auto &name : names)
         {
@@ -934,7 +1357,7 @@ std::ostream &Domain::toPDDL(std::ostream &out) const
             out << std::endl;
         }
 
-        out << SPACE << ")" << std::endl;
+        out << SPACE << ")" << std::endl << std::endl;
     }
 
     if (not constants.empty())
@@ -947,16 +1370,30 @@ std::ostream &Domain::toPDDL(std::ostream &out) const
                 out << " - " << constant->type;
             out << std::endl;
         }
-        out << SPACE << ")" << std::endl;
+        out << SPACE << ")" << std::endl << std::endl;
     }
 
-    out << SPACE << "(:predicates " << std::endl;
-    for (const auto &key : predicates)
+    if (not predicates.empty())
     {
-        out << SPACE << SPACE;
-        key.second->toPDDL(out) << std::endl;
+        out << SPACE << "(:predicates " << std::endl;
+        for (const auto &key : predicates)
+        {
+            out << SPACE << SPACE;
+            key.second->toPDDL(out) << std::endl;
+        }
+        out << SPACE << ")" << std::endl << std::endl;
     }
-    out << SPACE << ")" << std::endl;
+
+    if (not functions.empty())
+    {
+        out << SPACE << "(:functions " << std::endl;
+        for (const auto &key : functions)
+        {
+            out << SPACE << SPACE;
+            key.second->toPDDL(out) << std::endl;
+        }
+        out << SPACE << ")" << std::endl << std::endl;
+    }
 
     std::set<std::string> toPrint;
     for (const auto &key : derived)
@@ -978,12 +1415,12 @@ std::ostream &Domain::toPDDL(std::ostream &out) const
                 break;
         }
 
-        ptr->toPDDL(out, INDENT) << std::endl;
+        ptr->toPDDL(out, INDENT) << std::endl << std::endl;
         toPrint.erase(toPrint.find(ptr->name));
     }
 
     for (const auto &key : actions)
-        key.second->toPDDL(out, INDENT) << std::endl;
+        key.second->toPDDL(out, INDENT) << std::endl << std::endl;
 
     out << ")";
 
@@ -1134,6 +1571,17 @@ std::ostream &Problem::toPDDL(std::ostream &out) const
         out << SPACE << ")" << std::endl;
     }
 
+    if (metric)
+    {
+        out << SPACE << "(:metric ";
+        if (minimize)
+            out << "minimize ";
+        else
+            out << "maximize ";
+        metric->toPDDL(out, INDENT, 2) << std::endl;
+        out << SPACE << ")" << std::endl;
+    }
+
     out << ")";
 
     return out;
@@ -1163,6 +1611,8 @@ const Problem *State::getProblem() const
 void State::clear()
 {
     assignments.clear();
+    numeric.clear();
+    values.clear();
 }
 
 void State::complement()
@@ -1184,26 +1634,38 @@ void State::fold(const State &other)
         if (it == assignments.end())
             assignN(key.first, key.second, value);
     }
-}
 
-bool State::isTrue(const PredicateDefinitionPtr &predicate, const Assignment &assignment) const
-{
-    std::vector<std::string> objects;
-    for (const auto &variable : predicate->variables)
-        objects.emplace_back(assignment.assigned(variable.name)->name);
+    for (const auto &[key, value] : other.numeric)
+    {
+        auto it = numeric.find(key);
+        if (it == numeric.end())
+            assignN(key.first, key.second, value);
+    }
 
-    return isTrue(predicate->name, objects);
-}
-
-bool State::isTrue(const std::string &predicate, const Assignment &assignment) const
-{
-    return isTrue(problem_->domain->getPredicate(predicate), assignment);
+    for (const auto &[key, value] : other.values)
+    {
+        auto it = values.find(key);
+        if (it == values.end())
+            assignN(key.first, key.second, value);
+    }
 }
 
 bool State::isTrue(const std::string &predicate, const std::vector<std::string> &objects) const
 {
     auto it = assignments.find(std::make_pair(predicate, objects));
     return (it != assignments.end()) ? it->second : false;
+}
+
+double State::getValue(const std::string &function, const std::vector<std::string> &objects) const
+{
+    auto it = numeric.find(std::make_pair(function, objects));
+    return (it != numeric.end()) ? it->second : 0;
+}
+
+std::string State::getObject(const std::string &function, const std::vector<std::string> &objects) const
+{
+    auto it = values.find(std::make_pair(function, objects));
+    return (it != values.end()) ? it->second : "";
 }
 
 // Assign 0-ary pred.
@@ -1256,7 +1718,86 @@ std::ostream &State::toPDDL(std::ostream &out, unsigned int indent) const
         }
     }
 
+    for (const auto &assignment : numeric)
+    {
+        out << SPACE << "(= (" << assignment.first.first;
+        for (const auto &obj : assignment.first.second)
+            out << " " << obj;
+        out << ") " << assignment.second << ")" << std::endl;
+    }
+
+    for (const auto &assignment : values)
+    {
+        out << SPACE << "(= (" << assignment.first.first;
+        for (const auto &obj : assignment.first.second)
+            out << " " << obj;
+        out << ") " << assignment.second << ")" << std::endl;
+    }
+
     return out;
+}
+
+void State::assign0(const std::string &function, double value)
+{
+    assignN(function, {}, value);
+}
+
+void State::assign1(const std::string &function, const std::string &object, double value)
+{
+    const auto &func = problem_->domain->getFunction(function);
+    if (func->arity() != 1)
+        throw std::invalid_argument(log::format("Function %1% is not 1-ary!", function));
+
+    assignN(function, {object}, value);
+}
+
+void State::assignN(const std::string &function, const std::vector<std::string> &objects, double value)
+{
+    const auto &func = problem_->domain->getFunction(function);
+
+    std::vector<std::string> objectsl;
+    for (const auto &obj : objects)
+        objectsl.emplace_back(boost::algorithm::to_lower_copy(obj));
+
+    if (not func->isValidAssignment(problem_, objectsl))
+        throw std::invalid_argument(log::format("Invalid assignment to function %1%!", func->name));
+
+    auto [it, r] = numeric.emplace(std::piecewise_construct,  //
+                                   std::forward_as_tuple(func->name, objectsl), std::forward_as_tuple(value));
+    if (not r)
+        it->second = value;
+}
+
+void State::assign0(const std::string &function, const std::string &value)
+{
+    assignN(function, {}, value);
+}
+
+void State::assign1(const std::string &function, const std::string &object, const std::string &value)
+{
+    const auto &func = problem_->domain->getFunction(function);
+    if (func->arity() != 1)
+        throw std::invalid_argument(log::format("Function %1% is not 1-ary!", function));
+
+    assignN(function, {object}, value);
+}
+
+void State::assignN(const std::string &function, const std::vector<std::string> &objects,
+                    const std::string &value)
+{
+    const auto &func = problem_->domain->getFunction(function);
+
+    std::vector<std::string> objectsl;
+    for (const auto &obj : objects)
+        objectsl.emplace_back(boost::algorithm::to_lower_copy(obj));
+
+    if (not func->isValidAssignment(problem_, objectsl))
+        throw std::invalid_argument(log::format("Invalid assignment to function %1%!", func->name));
+
+    auto [it, r] = values.emplace(std::piecewise_construct,  //
+                                  std::forward_as_tuple(func->name, objectsl), std::forward_as_tuple(value));
+    if (not r)
+        it->second = value;
 }
 
 ///

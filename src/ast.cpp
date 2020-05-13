@@ -225,6 +225,17 @@ std::ostream &Domain::toString(std::ostream &out) const
     return out;
 }
 
+std::ostream &Initial::toString(std::ostream &out) const
+{
+    out << "[";
+    formula.toString(out);
+    if (set)
+        out << " `" << object << "`";
+    out << "]";
+
+    return out;
+}
+
 std::ostream &Problem::toString(std::ostream &out) const
 {
     out << "problem(" << std::endl;
@@ -266,6 +277,15 @@ std::ostream &Plan::toString(std::ostream &out) const
             it->toString(out) << ((++it != end) ? ", " : "");
         out << ")" << std::endl;
     }
+    return out;
+}
+
+std::ostream &z3Action::toPDDL(std::ostream &out) const
+{
+    out << "(" << name;
+    for (const auto &arg : args)
+        out << " " << arg;
+    out << ")";
     return out;
 }
 

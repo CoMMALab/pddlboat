@@ -93,20 +93,24 @@ int main(int argc, char **argv)
          "Add start/goal to dependency graph output")                                //
         ;
 
-    unsigned int min_horizon, max_horizon;
-    bool parallel, diagnostics, dump_clauses;
+    pd::Z3Planner::Options options;
+    bool dump_model;
     po::options_description z3opt("z3 Planner Options");
-    z3opt.add_options()                                                             //
-        ("max_horizon,z", po::value<unsigned int>(&max_horizon)->default_value(6),  //
-         "Maximum planning horizon to use")                                         //
-        ("min_horizon,l", po::value<unsigned int>(&min_horizon)->default_value(0),  //
-         "Minimum planning horizon to use")                                         //
-        ("parallel,x", po::bool_switch(&parallel),                                  //
-         "Use Z3's cube-and-conquer parallelism")                                   //
-        ("diagnostics,w", po::bool_switch(&diagnostics),                            //
-         "Print debugging statistics")                                              //
-        ("dump_clauses,v", po::bool_switch(&dump_clauses),                          //
-         "Print all constituent clauses in plan")                                   //
+    z3opt.add_options()                                                                     //
+        ("max_horizon,z", po::value<std::size_t>(&options.horizon.max)->default_value(20),  //
+         "Maximum planning horizon to use")                                                 //
+        ("min_horizon,l", po::value<std::size_t>(&options.horizon.min)->default_value(0),   //
+         "Minimum planning horizon to use")                                                 //
+        ("parallel,x", po::bool_switch(&options.parallel),                                  //
+         "Use Z3's cube-and-conquer parallelism")                                           //
+        ("diagnostics,w", po::bool_switch(&options.diagnostics),                            //
+         "Print debugging statistics")                                                      //
+        ("dump_clauses,v", po::bool_switch(&options.dump_clauses),                          //
+         "Print all constituent clauses in plan")                                           //
+        ("simultaneous", po::bool_switch(&options.simultaneous),                            //
+         "Simultaneous action execution in Z3 encoding")                                    //
+        ("dump_model", po::bool_switch(&dump_model),                                        //
+         "Print the checked Z3 model")                                                      //
         ;
     desc.add(z3opt);
 
@@ -196,8 +200,7 @@ int main(int argc, char **argv)
     switch (plannertype)
     {
         case Z3:
-            planner = std::make_shared<pd::Z3Planner>(problem, max_horizon, min_horizon, parallel,
-                                                      diagnostics, dump_clauses);
+            planner = std::make_shared<pd::Z3Planner>(problem, options);
             break;
         case FD:
             planner = std::make_shared<pd::FastDownwardPlanner>(problem, search);
@@ -273,10 +276,10 @@ int main(int argc, char **argv)
         }
     }
     else
-    {
         std::cerr << "Planning failed!" << std::endl;
-        return 1;
-    }
 
-    return 0;
+    if (plannertype == Z3 and dump_model)
+        std::dynamic_pointer_cast<pd::Z3Planner>(planner)->printModel(std::cout);
+
+    return r;
 }

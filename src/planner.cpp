@@ -193,3 +193,9 @@ std::ostream &pddlboat::operator<<(std::ostream &out, const Plan &plan)
 Planner::Planner(const ProblemPtr &problem) : problem_(problem)
 {
 }
+
+void Planner::checkRequirements() const
+{
+    if (not problem_->domain->supportsRequirements(getSupportedRequirements()))
+        throw std::runtime_error("Planner does not support domain requirements!");
+}

@@ -80,11 +80,6 @@ namespace parser
     PARSE(variable);
     PARSE(variablelist);
 
-    struct nameorvarlist_class;
-    const x3::rule<nameorvarlist_class, std::vector<std::string>> nameorvarlist = "nameorvarlist";
-    const auto nameorvarlist_def = +(name | variable);
-    PARSE(nameorvarlist);
-
     /// Terms
     struct term_class;
     struct termlist_class;
@@ -103,14 +98,14 @@ namespace parser
     struct typedlist_name_class;
     const x3::rule<typedlist_name_class, ast::TypedList> typedlist_name = "typedlist_name";
     const auto typedlist_name_def =  //
-        namelist >> -('-' >> name)   //
+        namelist >> -("- " >> name)   //
         ;
     PARSE(typedlist_name);
 
     struct typedlist_variable_class;
     const x3::rule<typedlist_variable_class, ast::TypedList> typedlist_variable = "typedlist_variable";
     const auto typedlist_variable_def =  //
-        variablelist >> -('-' >> name)   //
+        variablelist >> -("- " >> name)   //
         ;
     PARSE(typedlist_variable);
 
@@ -138,8 +133,12 @@ namespace parser
 
     struct requirements_class;
     const x3::rule<requirements_class, std::vector<Requirements::Keyword>> requirements = "requirements";
-    const auto requirements_def =                                             //
-        '(' >> x3::lit(":requirements") >> *ast::RequirementsKeywords >> ')'  //
+    const auto requirements_def =                                           //
+        '(' >> x3::lit(":requirements") >>                                  //
+        *(ast::RequirementsKeywords |                                       //
+          (x3::attr(Requirements::Keyword::NONE) >> ':' >> x3::omit[name])  //
+          ) >>
+        ')'  //
         ;
     PARSE(requirements);
 
@@ -183,7 +182,7 @@ namespace parser
     const x3::rule<atomic_formula_list_class, ast::AtomicFormulaList> atomic_formula_list =  //
         "atomic_formula_list";
     const auto atomic_formula_list_def =   //
-        +atomic_formula >> -('-' >> name)  //
+        +atomic_formula >> -("- " >> name)  //
         ;
     PARSE(atomic_formula_list);
 
@@ -201,32 +200,45 @@ namespace parser
     struct expression_class;
     const x3::rule<expression_class, ast::Expression> expression = "expression";
 
+    // struct nameorvarlist_class;
+    // const x3::rule<nameorvarlist_class, std::vector<std::string>> nameorvarlist = "nameorvarlist";
+    // const auto nameorvarlist_def = +(name | variable);
+    // PARSE(nameorvarlist);
+
+    struct name_expression_class;
+    const x3::rule<name_expression_class, ast::Expression> name_expression = "name_expression";
+    const auto name_expression_def =
+        (name | variable) >>
+        x3::attr(std::vector<ast::TypedList>{}) >> x3::attr(std::vector<ast::Expression>{});
+    PARSE(name_expression)
+
     struct bound_predicate_class;
     const x3::rule<bound_predicate_class, ast::Expression> bound_predicate = "bound_predicate";
-    const auto bound_predicate_def =                                                     //
-        '(' >> name >> x3::attr(std::vector<ast::TypedList>{}) >> -nameorvarlist >> ')'  //
+    const auto bound_predicate_def =                                                  //
+        '(' >> name >> x3::attr(std::vector<ast::TypedList>{}) >> *expression >> ')'  //
         ;
     PARSE(bound_predicate)
 
     struct boolean_operator_class;
     const x3::rule<boolean_operator_class, ast::Expression> boolean_operator = "boolean_operator";
     const auto boolean_operator_def =                                                                //
-        '(' >> ast::OperatorsKeywords >> -('(' >> +typedlist_variable >> ')') >> +expression >> ')'  //
+        '(' >> ast::OperatorsKeywords >> -('(' >> +typedlist_variable >> ')') >> *expression >> ')'  //
         ;
     PARSE(boolean_operator)
 
-    const auto expression_def = boolean_operator | bound_predicate  //
+    // const auto expression_def = boolean_operator | bound_predicate  //
+    const auto expression_def = boolean_operator | name_expression | bound_predicate  //
         ;
     PARSE(expression)
 
     struct action_class;
     const x3::rule<action_class, ast::Action> action = "action";
-    const auto action_def =                                               //
-        '(' >> x3::attr(false) >> x3::lit(":action") > name >             //
-        -(x3::lit(":parameters") > '(' >> *typedlist_variable >> ')') >>  //
-        -(x3::lit(":precondition") > expression) >>                       //
-        -(x3::lit(":effect") > expression) >>                             //
-        ')'                                                               //
+    const auto action_def =                                                //
+        '(' >> x3::attr(false) >> x3::lit(":action") >> name >>            //
+        -(x3::lit(":parameters") >> '(' >> *typedlist_variable >> ')') >>  //
+        -(x3::lit(":precondition") >> expression) >>                       //
+        -(x3::lit(":effect") >> expression) >>                             //
+        ')'                                                                //
         ;
     PARSE(action)
     struct action_class : error_handler
@@ -239,12 +251,12 @@ namespace parser
 
     struct derived_class;
     const x3::rule<derived_class, ast::Action> derived = "derived";
-    const auto derived_def =                            //
-        '(' >> x3::attr(true) >> x3::lit(":derived") >  //
-        '(' > name >> *typedlist_variable >> ')' >>     //
-        -(expression) >>                                //
-        x3::attr(ast::Expression{}) >>                  //
-        ')'                                             //
+    const auto derived_def =                             //
+        '(' >> x3::attr(true) >> x3::lit(":derived") >>  //
+        '(' >> name >> *typedlist_variable >> ')' >>     //
+        -(expression) >>                                 //
+        x3::attr(ast::Expression{}) >>                   //
+        ')'                                              //
         ;
     PARSE(derived)
     struct derived_class : error_handler
@@ -257,16 +269,16 @@ namespace parser
 
     struct domain_class;
     const x3::rule<domain_class, ast::Domain> domain = "domain";
-    const auto domain_def =                     //
-        '(' > x3::lit("define") >               //
-        '(' > x3::lit("domain") > name > ')' >  //
-        -requirements >                         //
-        -types >                                //
-        -constants >                            //
-        -predicates >                           //
-        -functions >                            //
-        *(action | derived) >                   //
-        ')'                                     //
+    const auto domain_def =                         //
+        '(' >> x3::lit("define") >>                 //
+        '(' >> x3::lit("domain") >> name >> ')' >>  //
+        -requirements >>                            //
+        -types >>                                   //
+        -constants >>                               //
+        -predicates >>                              //
+        -functions >>                               //
+        *(action | derived) >>                      //
+        ')'                                         //
         ;
     PARSE(domain);
     struct domain_class : error_handler
@@ -292,10 +304,24 @@ namespace parser
     /// Initial
     ///
 
+    struct initial_set_class;
+    const x3::rule<initial_set_class, ast::Initial> initial_set = "initial_set";
+    const auto initial_set_def =                               //
+        "(=" >> atomic_formula_name >> x3::attr(true) >> (name | number) >> ')'  //
+        ;
+    PARSE(initial_set);
+
+    struct initial_pred_class;
+    const x3::rule<initial_pred_class, ast::Initial> initial_pred = "initial_pred";
+    const auto initial_pred_def =            //
+        atomic_formula_name >> x3::attr(false) >> x3::attr("")  //
+        ;
+    PARSE(initial_pred);
+
     struct initial_class;
-    const x3::rule<initial_class, std::vector<ast::AtomicFormula>> initial = "initial";
-    const auto initial_def =                                 //
-        '(' > x3::lit(":init") > +atomic_formula_name > ')'  //
+    const x3::rule<initial_class, std::vector<ast::Initial>> initial = "initial";
+    const auto initial_def =                                          //
+        '(' > x3::lit(":init") > *(initial_set | initial_pred) > ')'  //
         ;
     PARSE(initial);
 
@@ -311,6 +337,20 @@ namespace parser
     PARSE(goal);
 
     ///
+    /// Metric
+    ///
+
+    struct metric_class;
+    const x3::rule<metric_class, ast::Metric> metric = "metric";
+    const auto metric_def =                                                    //
+        '(' >> x3::lit(":metric") >> x3::attr(true) >>                         //
+        (("minimize" >> x3::attr(true)) | ("maximize" >> x3::attr(false))) >>  //
+        expression >>                                                          //
+        ')'                                                                    //
+        ;
+    PARSE(metric);
+
+    ///
     /// Problem
     ///
 
@@ -323,7 +363,7 @@ namespace parser
         -objects >                               //
         -initial >                               //
         -goal >                                  //
-        ')'                                      //
+        -metric > ')'                            //
         ;
     PARSE(problem);
     struct problem_class : error_handler

@@ -30,10 +30,13 @@ namespace pddlboat
         std::vector<ExpressionPtr> getTerms() const;
 
         Expression::Type type() const override;
+        Expression::Type getTypes() const override;
         void getVariables(VariableSet &vars) const override;
 
-        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
-        void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
+        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                               const Assignment &vars) const override;
+        void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                   const Assignment &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
         void renameVariable(const std::string &old, const std::string &name) override;
@@ -123,9 +126,12 @@ namespace pddlboat
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
         void assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const override;
         Expression::Type type() const override;
+        Expression::Type getTypes() const override;
         void getVariables(VariableSet &vars) const override;
-        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
-        void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
+        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                               const Assignment &vars) const override;
+        void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                   const Assignment &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
         void renameVariable(const std::string &old, const std::string &name) override;
@@ -154,8 +160,10 @@ namespace pddlboat
 
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
         Expression::Type type() const override;
+        Expression::Type getTypes() const override;
 
-        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
+        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                               const Assignment &vars) const override;
         void getVariables(VariableSet &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
@@ -186,10 +194,13 @@ namespace pddlboat
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
         void assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const override;
         Expression::Type type() const override;
+        Expression::Type getTypes() const override;
 
         void getVariables(VariableSet &vars) const override;
-        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
-        void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
+        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                               const Assignment &vars) const override;
+        void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                   const Assignment &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
         void renameVariable(const std::string &old, const std::string &name) override;
@@ -217,7 +228,9 @@ namespace pddlboat
         const ExpressionPtr &getFormula() const;
 
         Expression::Type type() const override;
-        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
+        Expression::Type getTypes() const override;
+        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                               const Assignment &vars) const override;
         void getVariables(VariableSet &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
@@ -225,7 +238,6 @@ namespace pddlboat
 
     protected:
         VariableList domain_;
-        VariableList internal_;
         ExpressionPtr formula_;
     };
 
@@ -260,7 +272,8 @@ namespace pddlboat
 
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
         void assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const override;
-        void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state, const Assignment &vars) const override;
+        void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                   const Assignment &vars) const override;
         Expression::Type type() const override;
         std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
                              unsigned int level = 0) const override;
@@ -280,9 +293,10 @@ namespace pddlboat
 
         std::pair<Value, Value> getTerms() const;
 
-        std::string getObject(const Value &term, const Assignment &vars) const;
+        void assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const override;
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
         Expression::Type type() const override;
+        Expression::Type getTypes() const override;
         void getVariables(VariableSet &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
@@ -296,6 +310,282 @@ namespace pddlboat
     };
 
     EqualsPtr makeEquals(const Value &term1, const Value &term2);
+
+    ///
+    /// Binary Op
+    ///
+
+    class BinaryExpression : public NumericExpression
+    {
+    public:
+        BinaryExpression(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+
+        Type getTypes() const override;
+        void getVariables(VariableSet &vars) const override;
+        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                               const Assignment &vars) const override;
+        bool containsVariable(const std::string &variable) const override;
+        bool containsPredicate(const std::string &predicate) const override;
+        void renameVariable(const std::string &old, const std::string &name) override;
+        std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
+                             unsigned int level = 0) const override;
+
+    protected:
+        const NumericExpressionPtr lhs_;
+        const NumericExpressionPtr rhs_;
+    };
+
+    ///
+    /// Greater Than
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(GreaterThan)
+    class GreaterThan : public BinaryExpression
+    {
+    public:
+        GreaterThan(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+        Expression::Type type() const override;
+        bool evaluate(const StatePtr &state, const Assignment &vars) const override;
+    };
+
+    GreaterThanPtr makeGreaterThan(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+
+    ///
+    /// Less Than
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(LessThan)
+    class LessThan : public BinaryExpression
+    {
+    public:
+        LessThan(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+        Expression::Type type() const override;
+        bool evaluate(const StatePtr &state, const Assignment &vars) const override;
+    };
+
+    LessThanPtr makeLessThan(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+
+    ///
+    /// Greater Or Equal
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(GreaterOrEqual)
+    class GreaterOrEqual : public BinaryExpression
+    {
+    public:
+        GreaterOrEqual(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+        Expression::Type type() const override;
+        bool evaluate(const StatePtr &state, const Assignment &vars) const override;
+    };
+
+    GreaterOrEqualPtr makeGreaterOrEqual(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+
+    ///
+    /// Less Or Equal
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(LessOrEqual)
+    class LessOrEqual : public BinaryExpression
+    {
+    public:
+        LessOrEqual(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+        Expression::Type type() const override;
+        bool evaluate(const StatePtr &state, const Assignment &vars) const override;
+    };
+
+    LessOrEqualPtr makeLessOrEqual(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+
+    ///
+    /// Minus
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(Minus)
+    class Minus : public BinaryExpression
+    {
+    public:
+        Minus(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+        Expression::Type type() const override;
+        double getValue(const StatePtr &state, const Assignment &vars) const override;
+    };
+
+    MinusPtr makeMinus(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+
+    ///
+    /// Divide
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(Divide)
+    class Divide : public BinaryExpression
+    {
+    public:
+        Divide(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+        Expression::Type type() const override;
+        double getValue(const StatePtr &state, const Assignment &vars) const override;
+    };
+
+    DividePtr makeDivide(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+
+    ///
+    /// Multiply
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(Multiply)
+    class Multiply : public BinaryExpression
+    {
+    public:
+        Multiply(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+        Expression::Type type() const override;
+        double getValue(const StatePtr &state, const Assignment &vars) const override;
+    };
+
+    MultiplyPtr makeMultiply(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+
+    ///
+    /// Plus
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(Plus)
+    class Plus : public BinaryExpression
+    {
+    public:
+        Plus(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+        Expression::Type type() const override;
+        double getValue(const StatePtr &state, const Assignment &vars) const override;
+    };
+
+    PlusPtr makePlus(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
+
+    ///
+    /// Assign
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(AssignObject)
+    class AssignObject : public Expression
+    {
+    public:
+        AssignObject(const ObjectFunctionPtr &lhs, const Value &rhs);
+
+        void assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const override;
+        Type type() const override;
+        void getVariables(VariableSet &vars) const override;
+        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                               const Assignment &vars) const override;
+        void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                   const Assignment &vars) const override;
+        bool containsVariable(const std::string &variable) const override;
+        void renameVariable(const std::string &old, const std::string &name) override;
+        std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
+                             unsigned int level = 0) const override;
+
+    private:
+        ObjectFunctionPtr lhs_;
+        Value rhs_;
+    };
+
+    AssignObjectPtr makeAssign(const ObjectFunctionPtr &lhs, const Value &rhs);
+
+    PDDLBOAT_CLASS_FORWARD(AssignNumber)
+    class AssignNumber : public Expression
+    {
+    public:
+        AssignNumber(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs);
+        AssignNumber(const NumericFunctionPtr &lhs, double rhs);
+
+        virtual double getRHS(const StatePtr &in, const Assignment &vars) const;
+        double getLHS(const StatePtr &in, const Assignment &vars) const;
+
+        void assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const override;
+        Type type() const override;
+        void getVariables(VariableSet &vars) const override;
+        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                               const Assignment &vars) const override;
+        void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                   const Assignment &vars) const override;
+        bool containsVariable(const std::string &variable) const override;
+        void renameVariable(const std::string &old, const std::string &name) override;
+        std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
+                             unsigned int level = 0) const override;
+
+    protected:
+        NumericFunctionPtr lhs_;
+        NumericExpressionPtr rhs_{nullptr};
+        double constant_{0};
+    };
+
+    AssignNumberPtr makeAssign(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs);
+    AssignNumberPtr makeAssign(const NumericFunctionPtr &lhs, double rhs);
+
+    ///
+    /// Scale Up
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(ScaleUp)
+    class ScaleUp : public AssignNumber
+    {
+    public:
+        ScaleUp(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs);
+        ScaleUp(const NumericFunctionPtr &lhs, double rhs);
+
+        Type type() const override;
+        double getRHS(const StatePtr &in, const Assignment &vars) const override;
+    };
+
+    ScaleUpPtr makeScaleUp(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs);
+    ScaleUpPtr makeScaleUp(const NumericFunctionPtr &lhs, double rhs);
+
+    ///
+    /// Scale Down
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(ScaleDown)
+    class ScaleDown : public AssignNumber
+    {
+    public:
+        ScaleDown(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs);
+        ScaleDown(const NumericFunctionPtr &lhs, double rhs);
+
+        Type type() const override;
+        double getRHS(const StatePtr &in, const Assignment &vars) const override;
+    };
+
+    ScaleDownPtr makeScaleDown(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs);
+    ScaleDownPtr makeScaleDown(const NumericFunctionPtr &lhs, double rhs);
+
+    ///
+    /// Increase
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(Increase)
+    class Increase : public AssignNumber
+    {
+    public:
+        Increase(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs);
+        Increase(const NumericFunctionPtr &lhs, double rhs);
+
+        Type type() const override;
+        double getRHS(const StatePtr &in, const Assignment &vars) const override;
+    };
+
+    IncreasePtr makeIncrease(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs);
+    IncreasePtr makeIncrease(const NumericFunctionPtr &lhs, double rhs);
+
+    ///
+    /// Decrease
+    ///
+
+    PDDLBOAT_CLASS_FORWARD(Decrease)
+    class Decrease : public AssignNumber
+    {
+    public:
+        Decrease(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs);
+        Decrease(const NumericFunctionPtr &lhs, double rhs);
+
+        Type type() const override;
+        double getRHS(const StatePtr &in, const Assignment &vars) const override;
+    };
+
+    DecreasePtr makeDecrease(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs);
+    DecreasePtr makeDecrease(const NumericFunctionPtr &lhs, double rhs);
 
 }  // namespace pddlboat
 

@@ -19,6 +19,31 @@ Value::Value(bool isVar, const std::string &name, const std::string &type)
 {
 }
 
+Value::Value(const ObjectFunctionPtr &function)
+  : name(function->getName()), type(function->getReturnType()), function(function)
+{
+}
+
+std::string Value::getObject(const StatePtr &state, const Assignment &vars) const
+{
+    if (isVar)
+        return vars.assigned(name)->name;
+    else if (function)
+        return function->getObject(state, vars);
+    else
+        return name;
+}
+
+std::vector<std::string> pddlboat::getValueObjects(const std::vector<Value> &values, const StatePtr &state,
+                                                   const Assignment &assignment)
+{
+    std::vector<std::string> objects;
+    for (const auto &value : values)
+        objects.emplace_back(value.getObject(state, assignment));
+
+    return objects;
+}
+
 Value pddlboat::getValue(const std::string &term, const Variable *variable, const ProblemPtr &problem,
                          const DomainPtr &domain)
 {
@@ -57,6 +82,63 @@ Value pddlboat::getValue(const std::string &term, const Variable *variable, cons
     return Value(isVar, b, type);
 }
 
+std::vector<Value> pddlboat::getValues(const std::vector<std::string> &terms,
+                                       const std::vector<Variable> &variables, const ProblemPtr &problem,
+                                       const DomainPtr &domain)
+{
+    std::vector<Value> toUse;
+    for (unsigned int i = 0; i < terms.size(); ++i)
+        toUse.emplace_back(getValue(terms[i], &variables[i], problem, domain));
+
+    return toUse;
+}
+
+void Value::getVariables(VariableSet &vars) const
+{
+    if (isVar)
+        vars.addVariable({name, type});
+    if (function)
+        function->getVariables(vars);
+}
+
+bool Value::containsVariable(const std::string &variable) const
+{
+    if (isVar and name == variable)
+        return true;
+
+    if (function and function->containsVariable(variable))
+        return true;
+
+    return false;
+}
+
+void Value::renameVariable(const std::string &old, const std::string &newname)
+{
+    if (isVar and name == old)
+        name = newname;
+    if (function)
+        function->renameVariable(old, newname);
+}
+
+void Value::getUsedFunctions(std::set<std::string> &functions, const StatePtr &state,
+                             const Assignment &vars) const
+{
+    if (function)
+        function->getUsedPredicates(functions, state, vars);
+}
+
+std::ostream &Value::toPDDL(std::ostream &out) const
+{
+    if (isVar)
+        out << "?";
+    if (function)
+        function->toPDDL(out);
+    else
+        out << name;
+
+    return out;
+}
+
 std::ostream &Value::toString(std::ostream &out) const
 {
     if (isVar)
@@ -72,6 +154,16 @@ std::ostream &Value::toString(std::ostream &out) const
 Expression::Type Expression::type() const
 {
     return EXPRESSION;
+}
+
+Expression::Type Expression::getTypes() const
+{
+    return type();
+}
+
+bool Expression::evaluate(const StatePtr &state, const Assignment &vars) const
+{
+    throw std::invalid_argument(log::format("Cannot evaluate with expression type %1%", type()));
 }
 
 void Expression::assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const
@@ -109,6 +201,34 @@ void Expression::renameVariable(const std::string &old, const std::string &name)
 {
 }
 
+Expression::Type pddlboat::operator|(Expression::Type lhs, Expression::Type rhs)
+{
+    return static_cast<Expression::Type>(                               //
+        static_cast<std::underlying_type<Expression::Type>::type>(lhs)  //
+        | static_cast<std::underlying_type<Expression::Type>::type>(rhs));
+}
+
+Expression::Type pddlboat::operator&(Expression::Type lhs, Expression::Type rhs)
+{
+    return static_cast<Expression::Type>(                               //
+        static_cast<std::underlying_type<Expression::Type>::type>(lhs)  //
+        & static_cast<std::underlying_type<Expression::Type>::type>(rhs));
+}
+
+bool pddlboat::isIn(Expression::Type type, Expression::Type set)
+{
+    return (type & set) == type;
+}
+
+///
+/// Numeric Expression
+///
+
+double NumericExpression::getValue(const StatePtr &state, const Assignment &vars) const
+{
+    throw std::invalid_argument(log::format("Cannot getValue with numeric expression type %1%", type()));
+}
+
 ///
 /// Variadic Expression
 ///
@@ -134,6 +254,15 @@ std::vector<ExpressionPtr> VariadicExpression::getTerms() const
 Expression::Type VariadicExpression::type() const
 {
     return Expression::VARIADIC;
+}
+
+Expression::Type VariadicExpression::getTypes() const
+{
+    Expression::Type r = type();
+    for (const auto &e : terms_)
+        r = r | e->getTypes();
+
+    return r;
 }
 
 void VariadicExpression::getVariables(VariableSet &vars) const
@@ -222,7 +351,9 @@ std::ostream &And::toPDDL(std::ostream &out, unsigned int indent, unsigned int l
     const std::string SPACE = std::string(indent * level, ' ');
     out << SPACE;
 
-    out << "(and" << std::endl;
+    out << "(and";
+    if (not terms_.empty())
+        out << std::endl;
     for (std::size_t i = 0; i < terms_.size(); ++i)
     {
         terms_[i]->toPDDL(out, indent, level + 1);
@@ -267,7 +398,7 @@ bool Or::evaluate(const StatePtr &state, const Assignment &vars) const
 
 Expression::Type Or::type() const
 {
-    return Expression::AND;
+    return Expression::OR;
 }
 
 std::ostream &Or::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
@@ -275,7 +406,10 @@ std::ostream &Or::toPDDL(std::ostream &out, unsigned int indent, unsigned int le
     const std::string SPACE = std::string(indent * level, ' ');
     out << SPACE;
 
-    out << "(or" << std::endl;
+    out << "(or";
+    if (not terms_.empty())
+        out << std::endl;
+
     for (std::size_t i = 0; i < terms_.size(); ++i)
     {
         terms_[i]->toPDDL(out, indent, level + 1);
@@ -333,6 +467,11 @@ void Not::assign(StatePtr &out, const StatePtr &in, const Assignment &vars) cons
 Expression::Type Not::type() const
 {
     return Expression::NOT;
+}
+
+Expression::Type Not::getTypes() const
+{
+    return type() | term_->getTypes();
 }
 
 void Not::getVariables(VariableSet &vars) const
@@ -421,6 +560,11 @@ bool Imply::evaluate(const StatePtr &state, const Assignment &vars) const
 Expression::Type Imply::type() const
 {
     return Expression::IMPLY;
+}
+
+Expression::Type Imply::getTypes() const
+{
+    return type() | left_->getTypes() | right_->getTypes();
 }
 
 void Imply::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
@@ -517,6 +661,11 @@ Expression::Type When::type() const
     return Expression::WHEN;
 }
 
+Expression::Type When::getTypes() const
+{
+    return type() | left_->getTypes() | right_->getTypes();
+}
+
 void When::getVariables(VariableSet &vars) const
 {
     left_->getVariables(vars);
@@ -596,6 +745,11 @@ const ExpressionPtr &QuantifierExpression::getFormula() const
 Expression::Type QuantifierExpression::type() const
 {
     return Expression::QUANTIFIER;
+}
+
+Expression::Type QuantifierExpression::getTypes() const
+{
+    return type() | formula_->getTypes();
 }
 
 void QuantifierExpression::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
@@ -792,17 +946,18 @@ std::pair<Value, Value> Equals::getTerms() const
     return {term1_, term2_};
 }
 
-std::string Equals::getObject(const Value &term, const Assignment &vars) const
+void Equals::assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const
 {
-    if (term.isVar)
-        return vars.assigned(term.name)->name;
+    if (term1_.function)
+        out->assignN(term1_.name, getValueObjects(term1_.function->bindings, in, vars),
+                     term2_.getObject(in, vars));
     else
-        return term.name;
+        throw std::invalid_argument(log::format("Cannot assign with = with non-function first term."));
 }
 
 bool Equals::evaluate(const StatePtr &state, const Assignment &vars) const
 {
-    return getObject(term1_, vars) == getObject(term2_, vars);
+    return term1_.getObject(state, vars) == term2_.getObject(state, vars);
 }
 
 Expression::Type Equals::type() const
@@ -810,18 +965,20 @@ Expression::Type Equals::type() const
     return Expression::EQUALS;
 }
 
+Expression::Type Equals::getTypes() const
+{
+    return type();
+}
+
 void Equals::getVariables(VariableSet &vars) const
 {
-    if (term1_.isVar)
-        vars.addVariable(Variable(term1_.name, term1_.type));
-    if (term2_.isVar)
-        vars.addVariable(Variable(term2_.name, term2_.type));
+    term1_.getVariables(vars);
+    term2_.getVariables(vars);
 }
 
 bool Equals::containsVariable(const std::string &variable) const
 {
-    return (term1_.isVar ? variable == term1_.name : false) or
-           (term2_.isVar ? variable == term2_.name : false);
+    return term1_.containsVariable(variable) or term2_.containsVariable(variable);
 }
 
 bool Equals::containsPredicate(const std::string &predicate) const
@@ -831,10 +988,8 @@ bool Equals::containsPredicate(const std::string &predicate) const
 
 void Equals::renameVariable(const std::string &old, const std::string &name)
 {
-    if (term1_.isVar and term1_.name == old)
-        term1_.name = name;
-    if (term2_.isVar and term2_.name == old)
-        term2_.name = name;
+    term1_.renameVariable(old, name);
+    term2_.renameVariable(old, name);
 }
 
 std::ostream &Equals::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
@@ -843,8 +998,8 @@ std::ostream &Equals::toPDDL(std::ostream &out, unsigned int indent, unsigned in
     out << SPACE;
 
     out << "(= ";
-    out << (term1_.isVar ? "?" : "") << term1_.name << " ";
-    out << (term2_.isVar ? "?" : "") << term2_.name;
+    term1_.toPDDL(out) << " ";
+    term2_.toPDDL(out);
     out << ")";
 
     return out;
@@ -853,4 +1008,597 @@ std::ostream &Equals::toPDDL(std::ostream &out, unsigned int indent, unsigned in
 EqualsPtr pddlboat::makeEquals(const Value &term1, const Value &term2)
 {
     return std::make_shared<Equals>(term1, term2);
+}
+
+///
+/// Binary
+///
+
+BinaryExpression::BinaryExpression(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
+  : lhs_(lhs), rhs_(rhs)
+{
+}
+
+Expression::Type BinaryExpression::getTypes() const
+{
+    return type() | lhs_->getTypes() | rhs_->getTypes();
+}
+
+void BinaryExpression::getVariables(VariableSet &vars) const
+{
+    lhs_->getVariables(vars);
+    rhs_->getVariables(vars);
+}
+
+void BinaryExpression::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                         const Assignment &vars) const
+{
+    lhs_->getUsedPredicates(predicates, state, vars);
+    rhs_->getUsedPredicates(predicates, state, vars);
+}
+
+bool BinaryExpression::containsVariable(const std::string &variable) const
+{
+    return lhs_->containsVariable(variable) or rhs_->containsVariable(variable);
+}
+
+bool BinaryExpression::containsPredicate(const std::string &predicate) const
+{
+    return lhs_->containsPredicate(predicate) or rhs_->containsPredicate(predicate);
+}
+
+void BinaryExpression::renameVariable(const std::string &old, const std::string &name)
+{
+    lhs_->renameVariable(old, name);
+    rhs_->renameVariable(old, name);
+}
+
+std::ostream &BinaryExpression::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
+{
+    const std::string SPACE = std::string(indent * level, ' ');
+    out << SPACE;
+
+    out << "(";
+    switch (type())
+    {
+        case Expression::MINUS:
+            out << "-";
+            break;
+        case Expression::DIVIDE:
+            out << "/";
+            break;
+        case Expression::MULTIPLY:
+            out << "*";
+            break;
+        case Expression::PLUS:
+            out << "+";
+            break;
+        case Expression::GREATER_THAN:
+            out << ">";
+            break;
+        case Expression::LESS_THAN:
+            out << "<";
+            break;
+        case Expression::GREATER_OR_EQUAL:
+            out << ">=";
+            break;
+        case Expression::LESS_OR_EQUAL:
+            out << "<=";
+            break;
+        default:
+            throw std::runtime_error("Invalid type for binary expression!");
+    };
+
+    out << " " << std::endl;
+    lhs_->toPDDL(out, indent, level + 1);
+    out << std::endl;
+    rhs_->toPDDL(out, indent, level + 1);
+    out << ")";
+
+    return out;
+}
+
+///
+/// Greater Than
+///
+
+GreaterThan::GreaterThan(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
+  : BinaryExpression(lhs, rhs)
+{
+}
+
+Expression::Type GreaterThan::type() const
+{
+    return Expression::GREATER_THAN;
+}
+
+bool GreaterThan::evaluate(const StatePtr &state, const Assignment &vars) const
+{
+    return lhs_->getValue(state, vars) > rhs_->getValue(state, vars);
+}
+
+GreaterThanPtr pddlboat::makeGreaterThan(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
+{
+    return std::make_shared<GreaterThan>(lhs, rhs);
+}
+
+///
+/// Less Than
+///
+
+LessThan::LessThan(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
+  : BinaryExpression(lhs, rhs)
+{
+}
+
+Expression::Type LessThan::type() const
+{
+    return Expression::LESS_THAN;
+}
+
+bool LessThan::evaluate(const StatePtr &state, const Assignment &vars) const
+{
+    return lhs_->getValue(state, vars) < rhs_->getValue(state, vars);
+}
+
+LessThanPtr pddlboat::makeLessThan(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
+{
+    return std::make_shared<LessThan>(lhs, rhs);
+}
+
+///
+/// Greater OrEqual
+///
+
+GreaterOrEqual::GreaterOrEqual(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
+  : BinaryExpression(lhs, rhs)
+{
+}
+
+Expression::Type GreaterOrEqual::type() const
+{
+    return Expression::GREATER_OR_EQUAL;
+}
+
+bool GreaterOrEqual::evaluate(const StatePtr &state, const Assignment &vars) const
+{
+    return lhs_->getValue(state, vars) >= rhs_->getValue(state, vars);
+}
+
+GreaterOrEqualPtr pddlboat::makeGreaterOrEqual(const NumericExpressionPtr &lhs,
+                                               const NumericExpressionPtr &rhs)
+{
+    return std::make_shared<GreaterOrEqual>(lhs, rhs);
+}
+
+///
+/// Less Or Equal
+///
+
+LessOrEqual::LessOrEqual(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
+  : BinaryExpression(lhs, rhs)
+{
+}
+
+Expression::Type LessOrEqual::type() const
+{
+    return Expression::LESS_OR_EQUAL;
+}
+
+bool LessOrEqual::evaluate(const StatePtr &state, const Assignment &vars) const
+{
+    return lhs_->getValue(state, vars) <= rhs_->getValue(state, vars);
+}
+
+LessOrEqualPtr pddlboat::makeLessOrEqual(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
+{
+    return std::make_shared<LessOrEqual>(lhs, rhs);
+}
+
+///
+/// Minus
+///
+
+Minus::Minus(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs) : BinaryExpression(lhs, rhs)
+{
+}
+
+Expression::Type Minus::type() const
+{
+    return Expression::MINUS;
+}
+
+double Minus::getValue(const StatePtr &state, const Assignment &vars) const
+{
+    return lhs_->getValue(state, vars) - rhs_->getValue(state, vars);
+}
+
+MinusPtr pddlboat::makeMinus(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
+{
+    return std::make_shared<Minus>(lhs, rhs);
+}
+
+///
+/// Divide
+///
+
+Divide::Divide(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs) : BinaryExpression(lhs, rhs)
+{
+}
+
+Expression::Type Divide::type() const
+{
+    return Expression::DIVIDE;
+}
+
+double Divide::getValue(const StatePtr &state, const Assignment &vars) const
+{
+    return lhs_->getValue(state, vars) / rhs_->getValue(state, vars);
+}
+
+DividePtr pddlboat::makeDivide(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
+{
+    return std::make_shared<Divide>(lhs, rhs);
+}
+
+///
+/// Multiply
+///
+
+Multiply::Multiply(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
+  : BinaryExpression(lhs, rhs)
+{
+}
+
+Expression::Type Multiply::type() const
+{
+    return Expression::MULTIPLY;
+}
+
+double Multiply::getValue(const StatePtr &state, const Assignment &vars) const
+{
+    return lhs_->getValue(state, vars) * rhs_->getValue(state, vars);
+}
+
+MultiplyPtr pddlboat::makeMultiply(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
+{
+    return std::make_shared<Multiply>(lhs, rhs);
+}
+
+///
+/// Plus
+///
+
+Plus::Plus(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs) : BinaryExpression(lhs, rhs)
+{
+}
+
+Expression::Type Plus::type() const
+{
+    return Expression::PLUS;
+}
+
+double Plus::getValue(const StatePtr &state, const Assignment &vars) const
+{
+    return lhs_->getValue(state, vars) + rhs_->getValue(state, vars);
+}
+
+PlusPtr pddlboat::makePlus(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
+{
+    return std::make_shared<Plus>(lhs, rhs);
+}
+
+///
+/// Assign Object
+///
+
+AssignObject::AssignObject(const ObjectFunctionPtr &lhs, const Value &rhs) : lhs_(lhs), rhs_(rhs)
+{
+}
+
+void AssignObject::assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const
+{
+    out->assignN(lhs_->getName(), getValueObjects(lhs_->bindings, in, vars), rhs_.getObject(in, vars));
+}
+
+Expression::Type AssignObject::type() const
+{
+    return Expression::ASSIGN;
+}
+
+void AssignObject::getVariables(VariableSet &vars) const
+{
+    lhs_->getVariables(vars);
+    rhs_.getVariables(vars);
+}
+
+void AssignObject::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                     const Assignment &vars) const
+{
+    lhs_->getUsedPredicates(predicates, state, vars);
+    rhs_.getUsedFunctions(predicates, state, vars);
+}
+
+void AssignObject::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                         const Assignment &vars) const
+{
+    lhs_->getAssignedPredicates(predicates, state, vars);
+}
+
+bool AssignObject::containsVariable(const std::string &variable) const
+{
+    return lhs_->containsVariable(variable) or rhs_.containsVariable(variable);
+}
+
+void AssignObject::renameVariable(const std::string &old, const std::string &name)
+{
+    lhs_->renameVariable(old, name);
+    rhs_.renameVariable(old, name);
+}
+
+std::ostream &AssignObject::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
+{
+    const std::string SPACE = std::string(indent * level, ' ');
+    out << SPACE;
+    out << "(assign ";
+    lhs_->toPDDL(out) << " ";
+    rhs_.toPDDL(out);
+    out << ")";
+
+    return out;
+}
+
+AssignObjectPtr pddlboat::makeAssign(const ObjectFunctionPtr &lhs, const Value &rhs)
+{
+    return std::make_shared<AssignObject>(lhs, rhs);
+}
+
+///
+/// Assign Number
+///
+
+AssignNumber::AssignNumber(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs)
+  : lhs_(lhs), rhs_(rhs)
+{
+}
+
+AssignNumber::AssignNumber(const NumericFunctionPtr &lhs, double rhs) : lhs_(lhs), constant_(rhs)
+{
+}
+
+double AssignNumber::getRHS(const StatePtr &in, const Assignment &vars) const
+{
+    if (rhs_)
+        return rhs_->getValue(in, vars);
+    else
+        return constant_;
+}
+
+double AssignNumber::getLHS(const StatePtr &in, const Assignment &vars) const
+{
+    return in->getValue(lhs_->getName(), getValueObjects(lhs_->bindings, in, vars));
+}
+
+void AssignNumber::assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const
+{
+    out->assignN(lhs_->getName(), getValueObjects(lhs_->bindings, in, vars), getRHS(in, vars));
+}
+
+Expression::Type AssignNumber::type() const
+{
+    return Expression::ASSIGN;
+}
+
+void AssignNumber::getVariables(VariableSet &vars) const
+{
+    lhs_->getVariables(vars);
+    if (rhs_)
+        rhs_->getVariables(vars);
+}
+
+void AssignNumber::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                     const Assignment &vars) const
+{
+    lhs_->getUsedPredicates(predicates, state, vars);
+    if (rhs_)
+        rhs_->getUsedPredicates(predicates, state, vars);
+}
+
+void AssignNumber::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                         const Assignment &vars) const
+{
+    lhs_->getAssignedPredicates(predicates, state, vars);
+}
+
+bool AssignNumber::containsVariable(const std::string &variable) const
+{
+    return lhs_->containsVariable(variable) or (rhs_ and rhs_->containsVariable(variable));
+}
+
+void AssignNumber::renameVariable(const std::string &old, const std::string &name)
+{
+    lhs_->renameVariable(old, name);
+    if (rhs_)
+        rhs_->renameVariable(old, name);
+}
+
+std::ostream &AssignNumber::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
+{
+    const std::string SPACE = std::string(indent * level, ' ');
+    out << SPACE;
+
+    out << "(";
+    switch (type())
+    {
+        case Expression::ASSIGN:
+            out << "assign";
+            break;
+        case Expression::SCALE_UP:
+            out << "scale-up";
+            break;
+        case Expression::SCALE_DOWN:
+            out << "scale-down";
+            break;
+        case Expression::INCREASE:
+            out << "increase";
+            break;
+        case Expression::DECREASE:
+            out << "decrease";
+            break;
+        default:
+            throw std::runtime_error("Invalid type for assign expression!");
+    };
+
+    out << " ";
+    lhs_->toPDDL(out) << " ";
+    if (rhs_)
+        rhs_->toPDDL(out);
+    else
+    {
+        double intpart;
+        if (std::modf(constant_, &intpart) == 0.0)
+            out << log::format("%1$d", (int)constant_);
+        else
+            out << log::format("%1$f", constant_);
+    }
+    out << ")";
+
+    return out;
+}
+
+AssignNumberPtr pddlboat::makeAssign(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs)
+{
+    return std::make_shared<AssignNumber>(lhs, rhs);
+}
+
+AssignNumberPtr pddlboat::makeAssign(const NumericFunctionPtr &lhs, double rhs)
+{
+    return std::make_shared<AssignNumber>(lhs, rhs);
+}
+
+///
+/// Scale Up
+///
+
+ScaleUp::ScaleUp(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs) : AssignNumber(lhs, rhs)
+{
+}
+
+ScaleUp::ScaleUp(const NumericFunctionPtr &lhs, double rhs) : AssignNumber(lhs, rhs)
+{
+}
+
+Expression::Type ScaleUp::type() const
+{
+    return Expression::SCALE_UP;
+}
+
+double ScaleUp::getRHS(const StatePtr &in, const Assignment &vars) const
+{
+    return getLHS(in, vars) * AssignNumber::getRHS(in, vars);
+}
+
+ScaleUpPtr pddlboat::makeScaleUp(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs)
+{
+    return std::make_shared<ScaleUp>(lhs, rhs);
+}
+
+ScaleUpPtr pddlboat::makeScaleUp(const NumericFunctionPtr &lhs, double rhs)
+{
+    return std::make_shared<ScaleUp>(lhs, rhs);
+}
+
+///
+/// Scale Down
+///
+
+ScaleDown::ScaleDown(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs) : AssignNumber(lhs, rhs)
+{
+}
+
+ScaleDown::ScaleDown(const NumericFunctionPtr &lhs, double rhs) : AssignNumber(lhs, rhs)
+{
+}
+
+Expression::Type ScaleDown::type() const
+{
+    return Expression::SCALE_DOWN;
+}
+
+double ScaleDown::getRHS(const StatePtr &in, const Assignment &vars) const
+{
+    return getLHS(in, vars) / AssignNumber::getRHS(in, vars);
+}
+
+ScaleDownPtr pddlboat::makeScaleDown(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs)
+{
+    return std::make_shared<ScaleDown>(lhs, rhs);
+}
+
+ScaleDownPtr pddlboat::makeScaleDown(const NumericFunctionPtr &lhs, double rhs)
+{
+    return std::make_shared<ScaleDown>(lhs, rhs);
+}
+
+///
+/// Increase
+///
+
+Increase::Increase(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs) : AssignNumber(lhs, rhs)
+{
+}
+
+Increase::Increase(const NumericFunctionPtr &lhs, double rhs) : AssignNumber(lhs, rhs)
+{
+}
+
+Expression::Type Increase::type() const
+{
+    return Expression::INCREASE;
+}
+
+double Increase::getRHS(const StatePtr &in, const Assignment &vars) const
+{
+    return getLHS(in, vars) + AssignNumber::getRHS(in, vars);
+}
+
+IncreasePtr pddlboat::makeIncrease(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs)
+{
+    return std::make_shared<Increase>(lhs, rhs);
+}
+
+IncreasePtr pddlboat::makeIncrease(const NumericFunctionPtr &lhs, double rhs)
+{
+    return std::make_shared<Increase>(lhs, rhs);
+}
+
+///
+/// Decrease
+///
+
+Decrease::Decrease(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs) : AssignNumber(lhs, rhs)
+{
+}
+Decrease::Decrease(const NumericFunctionPtr &lhs, double rhs) : AssignNumber(lhs, rhs)
+{
+}
+
+Expression::Type Decrease::type() const
+{
+    return Expression::DECREASE;
+}
+
+double Decrease::getRHS(const StatePtr &in, const Assignment &vars) const
+{
+    return getLHS(in, vars) - AssignNumber::getRHS(in, vars);
+}
+
+DecreasePtr pddlboat::makeDecrease(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs)
+{
+    return std::make_shared<Decrease>(lhs, rhs);
+}
+
+DecreasePtr pddlboat::makeDecrease(const NumericFunctionPtr &lhs, double rhs)
+{
+    return std::make_shared<Decrease>(lhs, rhs);
 }

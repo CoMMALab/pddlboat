@@ -4,6 +4,7 @@
 #define PDDLBOAT_SOLVER_PLANNER_
 
 #include <pddlboat/macros.h>
+#include <pddlboat/parser/keywords.h>
 #include <pddlboat/solver/domain.h>
 #include <string>
 // #include <iostream>
@@ -177,6 +178,16 @@ namespace pddlboat
          *  \return True on success, false on failure.
          */
         virtual bool solve(Plan &plan) = 0;
+
+        /** \brief Returns the set of supported domain requirements the planner can solve.
+         *  \return The set of supported requirements.
+         */
+        virtual Requirements::Keyword getSupportedRequirements() const = 0;
+
+        /** \brief Checks if this planner supports the problem domain.
+         *  \throws std::runtime_error if the planner does not support the planner.
+         */
+        void checkRequirements() const;
 
     protected:
         const ProblemPtr problem_;  ///< Problem to solve.

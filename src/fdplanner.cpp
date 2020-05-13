@@ -26,6 +26,7 @@ FastDownwardPlanner::FastDownwardPlanner(const ProblemPtr &problem, const Search
   , solver_command(generateSolverCommand())
   , translator_command(generateTranslatorCommand())
 {
+    checkRequirements();
     // Fast Downward uses an intermediate format that needs to be generated
     update();
 }
@@ -43,6 +44,14 @@ FastDownwardPlanner::~FastDownwardPlanner()
         for (const auto &match : *matches)
             io::deleteFile(match);
     }
+}
+
+Requirements::Keyword FastDownwardPlanner::getSupportedRequirements() const
+{
+    auto reqs = Requirements::ADL | Requirements::ACTION_COSTS;
+    if (search != ASTAR)
+        reqs = reqs | Requirements::DERIVED_PREDICATES;
+    return reqs;
 }
 
 std::string FastDownwardPlanner::generateSolverCommand() const
