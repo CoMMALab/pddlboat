@@ -25,16 +25,30 @@ namespace pddlboat
     class Z3Planner : public Planner
     {
     public:
+        /** \brief Planner options.
+         */
+        struct Options
+        {
+            struct
+            {
+                Time max{20};  ///< Maximum planning horizon.
+                Time min{0};   ///< Minimum planning horizon for incremental solving.
+            } horizon;         ///< Planning horizons.
+
+            bool parallel{false};      ///< Solve in parallel is supported by Z3.
+            bool diagnostics{false};   ///< Print diagnostics.
+            bool dump_clauses{false};  ///< Dump generated Z3 clauses.
+            bool incremental{true};    ///< Solve the problem incrementally.
+            bool simultaneous{true};   ///< Allow simultaneous actions.
+
+            Options() = default;
+        };
+
         /** \brief Constructor.
          *  \param[in] problem Problem to solve.
-         *  \param[in] max_horizon Maximum planning horizon.
-         *  \param[in] min_horizon Minimum planning horizon.
-         *  \param[in] parallel Use Z3's built in parallel solver.
-         *  \param[in] diagnostics If true, print diagnostics.
-         *  \param[in] dump_clauses If true, print all clauses in plan.
+         *  \param[in] options Solver options.
          */
-        Z3Planner(const ProblemPtr problem, Time max_horizon, Time min_horizon = 0, bool parallel = false,
-                  bool diagnostics = false, bool dump_clauses = false);
+        Z3Planner(const ProblemPtr problem, const Options &options);
 
         /** \brief Returns the supported domain requirements.
          *  \return The supported requirements.
@@ -47,20 +61,19 @@ namespace pddlboat
          */
         bool solve(Plan &plan) override;
 
-        /** \brief Print out solved model.
+        /** \brief Print out the current solver model.
          *  \param[in,out] Output stream.
          *  \param[in] only_true Only print true assignments.
          *  \return The output stream.
          */
         std::ostream &printModel(std::ostream &out, bool only_true = true) const;
 
-        /** \brief Print out unsat core of model that failed to solve.
-         *  \param[in,out] Output stream.
-         *  \return The output stream.
-         */
-        std::ostream &printUnsatCore(std::ostream &out) const;
-
     private:
+        /** \brief Add a step to the plan.
+         *  \param[in] step Timestep to add.
+         */
+        void addStep(Time step, bool incremental = true);
+
         /** \brief From a solved Z3 instance, create a plan.
          *  \param[out] plan Plan to fill in.
          */
@@ -117,11 +130,11 @@ namespace pddlboat
          */
         void addMutualExclusionCardinality(Time step);
 
-        /** \brief Helper function to add linear action implication chain.
+        /** \brief Generate all mutual exclusion constraints for the plan using a linear implication chain,
+         * but only on conflicting predicates.
          *  \param[in] step Step to generate mutual exclusions for.
-         *  \param[in] forward Direction of chain.
          */
-        void addMutualExclusionLinearHelper(Time step, bool forward);
+        void addMutualExclusionLinearSimultaneous(Time step);
 
         /** \brief Generate all mutual exclusion constraints for the plan using a linear implication chain.
          *  \param[in] step Step to generate mutual exclusions for.
@@ -141,10 +154,7 @@ namespace pddlboat
          */
         void addStartState();
 
-        const Time max_horizon_;   ///< Planning horizon.
-        const Time min_horizon_;   ///< Planning horizon.
-        const bool diagnostics_;   ///< If true, print diagnostics.
-        const bool dump_clauses_;  ///< If true, print constituent clauses.
+        Options options_;
 
         z3::context *ctx_{nullptr};    ///< Z3 Solver Context.
         z3::solver *solver_{nullptr};  ///< Z3 Solver.
@@ -190,9 +200,6 @@ namespace pddlboat
         Diagnostics start_propositions_;
         Diagnostics goal_expression_;
 
-        std::map<std::string, std::vector<std::string>> predicate_effects_;  ///< Mapping of predicates to
-                                                                             ///< actions which effect them.
-
         /** \brief A grounded action.
          */
         struct GroundedAction
@@ -203,6 +210,13 @@ namespace pddlboat
 
             GroundedAction(const ActionPtr &action, const Assignment &assignment, const std::string &string);
         };
+
+        /** \brief Helper function to add linear action implication chain.
+         *  \param[in] step Step to generate mutual exclusions for.
+         *  \param[in] forward Direction of chain.
+         */
+        void addMutualExclusionLinearHelper(const std::vector<GroundedAction> &actions, Time step,
+                                            const std::string &prefix, bool forward);
 
         /** \brief A grounded predicate.
          */
@@ -233,6 +247,10 @@ namespace pddlboat
                                                        ///< step).
         std::vector<GroundedPredicate> ground_pred_;   ///< All grounded unaffected predicates (without time
                                                        ///< step)
+
+        std::map<std::string, std::vector<GroundedAction>> predicate_effects_;  ///< Mapping of predicates to
+                                                                                ///< actions which effect
+                                                                                ///< them.
     };
 
 }  // namespace pddlboat

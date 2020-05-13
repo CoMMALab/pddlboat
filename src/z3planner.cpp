@@ -30,17 +30,11 @@ Z3Planner::GroundedPredicate::GroundedPredicate(const PredicateDefinitionPtr &pr
 {
 }
 
-Z3Planner::Z3Planner(const ProblemPtr problem, Time max_horizon, Time min_horizon, bool parallel,
-                     bool diagnostics, bool dump_clauses)
-  : Planner(problem)
-  , max_horizon_(max_horizon)
-  , min_horizon_(min_horizon)
-  , diagnostics_(diagnostics)
-  , dump_clauses_(dump_clauses)
+Z3Planner::Z3Planner(const ProblemPtr problem, const Options &options) : Planner(problem), options_(options)
 {
     checkRequirements();
 
-    if (parallel)
+    if (options_.parallel)
         z3::set_param("parallel.enable", true);
 
     // Generate the groundings for this problem.
@@ -50,6 +44,33 @@ Z3Planner::Z3Planner(const ProblemPtr problem, Time max_horizon, Time min_horizo
 Requirements::Keyword Z3Planner::getSupportedRequirements() const
 {
     return Requirements::ADL | Requirements::DERIVED_PREDICATES;
+}
+
+void Z3Planner::addStep(Time step, bool incremental)
+{
+    // at each step, must add:
+
+    // (1) Actions imply their preconditions are true and effects are true
+    addActionImplications(step);
+
+    // (2) Predicates do not change unless an action changes them
+    addFrameAxioms(step);
+
+    // (3) Only one action at a time
+    if (options_.simultaneous)
+        addMutualExclusionLinearSimultaneous(step);
+    else
+        addMutualExclusionLinear(step);
+
+    // (4) Derived predicates take on their value
+    addDerivedPredicates(step + 1);
+
+    // solve and push assertions if solving incrementally
+    if (incremental)
+        solver_->check();
+
+    // push another frame onto the Z3 solver
+    solver_->push();
 }
 
 bool Z3Planner::solve(Plan &plan)
@@ -66,50 +87,38 @@ bool Z3Planner::solve(Plan &plan)
 
     solver_ = new z3::solver(*ctx_);
 
+    // setup initial problem state
     addStartState();
     addDerivedPredicates(0);
     solver_->push();
 
-    for (Time step = 0; step < min_horizon_; ++step)
-    {
-        addActionImplications(step);
-        addFrameAxioms(step);
-        addMutualExclusionLinear(step);
-        addDerivedPredicates(step + 1);
+    // add all predicates up to the minimum horizon to consider
+    for (Time step = 0; step < options_.horizon.min; ++step)
+        addStep(step, false);
 
-        solver_->push();
-    }
-
+    // incrementally solve up to maximum horizon
     bool sat = false;
-    for (Time step = min_horizon_; step < max_horizon_ and not sat; ++step)
+    for (Time step = options_.horizon.min; step < options_.horizon.max and not sat; ++step)
     {
         boost::timer::cpu_timer tl;
 
-        addActionImplications(step);
-        addFrameAxioms(step);
-        addMutualExclusionLinear(step);
-        addDerivedPredicates(step + 1);
-
-        // Solve now to create assertions that won't be popped.
-        solver_->check();
-        solver_->push();
-
+        addStep(step, true);
         addGoalExpression(step + 1);
 
         auto result = solver_->check();
 
         tl.stop();
-        if (diagnostics_)
+        if (options_.diagnostics)
             std::cout << "Solving Step " << step << " Z3 Instance took: " << io::getTiming(tl) << std::endl;
 
         sat = result == z3::sat;
 
-        // Pop goal expression from solver.
+        // pop goal expression from solver and continue on if not satisfied
         if (not sat)
             solver_->pop();
     }
 
-    if (diagnostics_)
+    if (options_.diagnostics)
     {
         t.stop();
 
@@ -160,8 +169,8 @@ std::ostream &Z3Planner::printModel(std::ostream &out, bool only_true) const
 
     auto m = solver_->get_model();
 
-    std::vector<std::vector<std::pair<ast::z3Action, bool>>> actions(max_horizon_ + 1);
-    std::vector<std::vector<std::pair<ast::z3Predicate, bool>>> predicates(max_horizon_ + 1);
+    std::vector<std::vector<std::pair<ast::z3Action, bool>>> actions(options_.horizon.max + 1);
+    std::vector<std::vector<std::pair<ast::z3Predicate, bool>>> predicates(options_.horizon.max + 1);
 
     for (std::size_t i = 0; i < m.num_consts(); i++)
     {
@@ -189,7 +198,7 @@ std::ostream &Z3Planner::printModel(std::ostream &out, bool only_true) const
         }
     }
 
-    for (std::size_t i = 0; i <= max_horizon_; ++i)
+    for (std::size_t i = 0; i <= options_.horizon.max; ++i)
     {
         std::sort(actions[i].begin(), actions[i].end(),
                   [](const auto &a, const auto &b) { return a.first.name < b.first.name; });
@@ -229,20 +238,6 @@ std::ostream &Z3Planner::printModel(std::ostream &out, bool only_true) const
         if (isa or isp)
             out << std::endl;
     }
-
-    return out;
-}
-
-std::ostream &Z3Planner::printUnsatCore(std::ostream &out) const
-{
-    if (not solver_)
-        return out;
-
-    auto core = solver_->unsat_core();
-    out << "Unsat Core:" << std::endl;
-    for (std::size_t i = 0; i < core.size(); ++i)
-        out << core[i] << std::endl;
-    out << "End Unsat Core" << std::endl;
 
     return out;
 }
@@ -421,9 +416,9 @@ void Z3Planner::generateGroundings()
             {
                 auto it = predicate_effects_.find(predicate);
                 if (it == predicate_effects_.end())
-                    it = predicate_effects_.emplace(predicate, std::vector<std::string>{}).first;
+                    it = predicate_effects_.emplace(predicate, std::vector<GroundedAction>{}).first;
 
-                it->second.emplace_back(name_actionptr.second->toID(assignment));
+                it->second.emplace_back(ground_actions_.back());
             }
         }
     }
@@ -458,7 +453,7 @@ void Z3Planner::generateGroundings()
 
 void Z3Planner::addActionImplications(Time step)
 {
-    if (dump_clauses_)
+    if (options_.dump_clauses)
         std::cout << ";; Adding Action Implications @ " << step << ":" << std::endl;
 
     action_implications_.start();
@@ -476,12 +471,12 @@ void Z3Planner::addActionImplications(Time step)
         solver_->add(clause);
 
         action_implications_.inc();
-        if (dump_clauses_)
+        if (options_.dump_clauses)
             std::cout << clause << std::endl;
     }
 
     action_implications_.stop();
-    if (diagnostics_)
+    if (options_.diagnostics)
     {
         std::cout << "Building Z3 Action Implications @ " << step
                   << " took: " << io::getTiming(action_implications_.onestep) << std::endl;
@@ -490,7 +485,7 @@ void Z3Planner::addActionImplications(Time step)
 
 void Z3Planner::addDerivedPredicates(Time step)
 {
-    if (dump_clauses_)
+    if (options_.dump_clauses)
         std::cout << ";; Adding Derived Predicates @ " << step << ":" << std::endl;
 
     derived_predicates_.start();
@@ -504,12 +499,12 @@ void Z3Planner::addDerivedPredicates(Time step)
         solver_->add(clause);
 
         derived_predicates_.inc();
-        if (dump_clauses_)
+        if (options_.dump_clauses)
             std::cout << clause << std::endl;
     }
 
     derived_predicates_.stop();
-    if (diagnostics_)
+    if (options_.diagnostics)
     {
         std::cout << "Building Z3 Derived Predicates @ " << step
                   << " took: " << io::getTiming(derived_predicates_.onestep) << std::endl;
@@ -518,7 +513,7 @@ void Z3Planner::addDerivedPredicates(Time step)
 
 void Z3Planner::addFrameAxioms(Time step)
 {
-    if (dump_clauses_)
+    if (options_.dump_clauses)
         std::cout << ";; Adding Frame Axioms @ " << step << ":" << std::endl;
 
     frame_axioms_.start();
@@ -531,16 +526,16 @@ void Z3Planner::addFrameAxioms(Time step)
         z3::expr curr_prop = toBool(addTimeToString(predicate, step));
         z3::expr next_prop = toBool(addTimeToString(predicate, step + 1));
 
-        z3::expr actionex = toBool(addTimeToString(actions[0], step));
+        z3::expr actionex = toBool(addTimeToString(actions[0].string, step));
         for (std::size_t i = 1; i < actions.size(); ++i)
-            actionex = actionex or toBool(addTimeToString(actions[i], step));
+            actionex = actionex or toBool(addTimeToString(actions[i].string, step));
 
         z3::expr clause = imply(curr_prop != next_prop, actionex);
 
         solver_->add(clause);
 
         frame_axioms_.inc();
-        if (dump_clauses_)
+        if (options_.dump_clauses)
             std::cout << clause << std::endl;
     }
 
@@ -554,12 +549,12 @@ void Z3Planner::addFrameAxioms(Time step)
         solver_->add(clause);
 
         frame_axioms_.inc();
-        if (dump_clauses_)
+        if (options_.dump_clauses)
             std::cout << clause << std::endl;
     }
 
     frame_axioms_.stop();
-    if (diagnostics_)
+    if (options_.diagnostics)
     {
         std::cout << "Building Z3 Frame Axioms @ " << step
                   << " took: " << io::getTiming(frame_axioms_.onestep) << std::endl;
@@ -568,7 +563,7 @@ void Z3Planner::addFrameAxioms(Time step)
 
 void Z3Planner::addMutualExclusionCardinality(Time step)
 {
-    if (dump_clauses_)
+    if (options_.dump_clauses)
         std::cout << ";; Adding Mutual Exclusion Constraints @ " << step << ":" << std::endl;
 
     mutual_exclusions_.start();
@@ -583,63 +578,85 @@ void Z3Planner::addMutualExclusionCardinality(Time step)
     solver_->add(clause == 1);
 
     mutual_exclusions_.inc();
-    if (dump_clauses_)
+    if (options_.dump_clauses)
         std::cout << clause << std::endl;
 
     mutual_exclusions_.stop();
-    if (diagnostics_)
+    if (options_.diagnostics)
     {
         std::cout << "Building Z3 Mutual Exclusion Constraints @ " << step
                   << " took: " << io::getTiming(mutual_exclusions_.onestep) << std::endl;
     }
 }
 
-void Z3Planner::addMutualExclusionLinearHelper(Time step, bool forward)
+void Z3Planner::addMutualExclusionLinearHelper(const std::vector<GroundedAction> &actions, Time step,
+                                               const std::string &prefix, bool forward)
 {
-    const std::string prefix = std::string(forward ? "F" : "B") + ":";
+    const std::string pp = prefix + std::string(forward ? "F" : "B") + ":";
 
-    for (unsigned int i = 0; i < ground_actions_.size(); ++i)
+    for (unsigned int i = 0; i < actions.size(); ++i)
     {
-        std::size_t index = (forward) ? i : ground_actions_.size() - i - 1;
-        const GroundedAction &action = ground_actions_[index];
+        std::size_t index = (forward) ? i : actions.size() - i - 1;
+        const GroundedAction &action = actions[index];
 
-        z3::expr intermediate = toBool(addTimeToString(prefix + action.string, step));
+        z3::expr intermediate = toBool(addTimeToString(pp + action.string, step));
         z3::expr op = toBool(addTimeToString(action.string, step));
 
         z3::expr clause = ctx_->bool_val(true);
 
-        if (i != ground_actions_.size() - 1)
+        if (i != actions.size() - 1)
             clause = clause and imply(op, intermediate);
 
         if (i)
         {
-            std::size_t pindex = (forward) ? i - 1 : ground_actions_.size() - i;
-            const GroundedAction &prior = ground_actions_[pindex];
+            std::size_t pindex = (forward) ? i - 1 : actions.size() - i;
+            const GroundedAction &prior = actions[pindex];
 
-            z3::expr prev = toBool(addTimeToString(prefix + prior.string, step));
+            z3::expr prev = toBool(addTimeToString(pp + prior.string, step));
             clause = clause and imply(prev, intermediate) and imply(prev, not op);
         }
 
         solver_->add(clause);
 
         mutual_exclusions_.inc();
-        if (dump_clauses_)
+        if (options_.dump_clauses)
             std::cout << clause << std::endl;
+    }
+}
+
+void Z3Planner::addMutualExclusionLinearSimultaneous(Time step)
+{
+    if (options_.dump_clauses)
+        std::cout << ";; Adding Mutual Exclusion Constraints @ " << step << ":" << std::endl;
+
+    mutual_exclusions_.start();
+
+    for (const auto &[predicate, actions] : predicate_effects_)
+    {
+        addMutualExclusionLinearHelper(actions, step, predicate, true);
+        addMutualExclusionLinearHelper(actions, step, predicate, false);
+    }
+
+    mutual_exclusions_.stop();
+    if (options_.diagnostics)
+    {
+        std::cout << "Building Z3 Mutual Exclusion Constraints @ " << step
+                  << " took: " << io::getTiming(mutual_exclusions_.onestep) << std::endl;
     }
 }
 
 void Z3Planner::addMutualExclusionLinear(Time step)
 {
-    if (dump_clauses_)
+    if (options_.dump_clauses)
         std::cout << ";; Adding Mutual Exclusion Constraints @ " << step << ":" << std::endl;
 
     mutual_exclusions_.start();
 
-    addMutualExclusionLinearHelper(step, true);
-    addMutualExclusionLinearHelper(step, false);
+    addMutualExclusionLinearHelper(ground_actions_, step, "", true);
+    addMutualExclusionLinearHelper(ground_actions_, step, "", false);
 
     mutual_exclusions_.stop();
-    if (diagnostics_)
+    if (options_.diagnostics)
     {
         std::cout << "Building Z3 Mutual Exclusion Constraints @ " << step
                   << " took: " << io::getTiming(mutual_exclusions_.onestep) << std::endl;
@@ -648,7 +665,7 @@ void Z3Planner::addMutualExclusionLinear(Time step)
 
 void Z3Planner::addMutualExclusion(Time step)
 {
-    if (dump_clauses_)
+    if (options_.dump_clauses)
         std::cout << ";; Adding Mutual Exclusion Constraints @ " << step << ":" << std::endl;
 
     mutual_exclusions_.start();
@@ -668,13 +685,13 @@ void Z3Planner::addMutualExclusion(Time step)
             solver_->add(clause);
 
             mutual_exclusions_.inc();
-            if (dump_clauses_)
+            if (options_.dump_clauses)
                 std::cout << clause << std::endl;
         }
     }
 
     mutual_exclusions_.stop();
-    if (diagnostics_)
+    if (options_.diagnostics)
     {
         std::cout << "Building Z3 Mutual Exclusion Constraints @ " << step
                   << " took: " << io::getTiming(mutual_exclusions_.onestep) << std::endl;
@@ -683,7 +700,7 @@ void Z3Planner::addMutualExclusion(Time step)
 
 void Z3Planner::addGoalExpression(Time step)
 {
-    if (dump_clauses_)
+    if (options_.dump_clauses)
         std::cout << ";; Adding Goal Expression @ " << step << ":" << std::endl;
 
     goal_expression_.start();
@@ -693,11 +710,11 @@ void Z3Planner::addGoalExpression(Time step)
     z3::expr clause = exprAtTime(problem_->goal, empty_assgn, step);
     solver_->add(clause);
 
-    if (dump_clauses_)
+    if (options_.dump_clauses)
         std::cout << clause << std::endl;
 
     goal_expression_.stop();
-    if (diagnostics_)
+    if (options_.diagnostics)
     {
         std::cout << "Building Z3 Goal Expression @ " << step
                   << " took: " << io::getTiming(goal_expression_.onestep) << std::endl;
@@ -706,7 +723,7 @@ void Z3Planner::addGoalExpression(Time step)
 
 void Z3Planner::addStartState()
 {
-    if (dump_clauses_)
+    if (options_.dump_clauses)
         std::cout << ";; Adding Start State @ 0:" << std::endl;
 
     start_propositions_.start();
@@ -733,13 +750,13 @@ void Z3Planner::addStartState()
             solver_->add(clause);
 
             start_propositions_.inc();
-            if (dump_clauses_)
+            if (options_.dump_clauses)
                 std::cout << clause << std::endl;
         }
     }
 
     start_propositions_.stop();
-    if (diagnostics_)
+    if (options_.diagnostics)
     {
         std::cout << "Building Z3 Start State @ 0"
                   << " took: " << io::getTiming(start_propositions_.onestep) << std::endl;
