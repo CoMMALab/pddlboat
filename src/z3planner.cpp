@@ -67,14 +67,15 @@ bool Z3Planner::solve(Plan &plan)
     solver_ = new z3::solver(*ctx_);
 
     addStartState();
+    addDerivedPredicates(0);
     solver_->push();
 
     for (Time step = 0; step < min_horizon_; ++step)
     {
         addActionImplications(step);
         addFrameAxioms(step);
-        addDerivedPredicates(step);
         addMutualExclusionLinear(step);
+        addDerivedPredicates(step + 1);
 
         solver_->push();
     }
@@ -86,8 +87,8 @@ bool Z3Planner::solve(Plan &plan)
 
         addActionImplications(step);
         addFrameAxioms(step);
-        addDerivedPredicates(step);
         addMutualExclusionLinear(step);
+        addDerivedPredicates(step + 1);
 
         // Solve now to create assertions that won't be popped.
         solver_->check();
@@ -166,7 +167,7 @@ std::ostream &Z3Planner::printModel(std::ostream &out, bool only_true) const
     {
         z3::expr f = m.get_const_interp(m.get_const_decl(i));
         const std::string name = m.get_const_decl(i).name().str();
-        // out << name << ": " << (isTrue(f) ? "true" : "false") << std::endl;
+
         ast::z3Action action;
         if (parseZ3Action(name, action))
         {
@@ -206,7 +207,9 @@ std::ostream &Z3Planner::printModel(std::ostream &out, bool only_true) const
             out << "Actions: " << std::endl;
             for (const auto &action : actions[i])
             {
-                out << "    ";
+                out << "  ";
+                if (action.second)
+                    out << "  ";
                 action.first.toPDDL(out) << ": " << (action.second ? "true" : "false") << std::endl;
             }
         }
@@ -216,7 +219,9 @@ std::ostream &Z3Planner::printModel(std::ostream &out, bool only_true) const
             out << "Predicates: " << std::endl;
             for (const auto &predicate : predicates[i])
             {
-                out << "    ";
+                out << "  ";
+                if (predicate.second)
+                    out << "  ";
                 predicate.first.toPDDL(out) << ": " << (predicate.second ? "true" : "false") << std::endl;
             }
         }
@@ -224,6 +229,20 @@ std::ostream &Z3Planner::printModel(std::ostream &out, bool only_true) const
         if (isa or isp)
             out << std::endl;
     }
+
+    return out;
+}
+
+std::ostream &Z3Planner::printUnsatCore(std::ostream &out) const
+{
+    if (not solver_)
+        return out;
+
+    auto core = solver_->unsat_core();
+    out << "Unsat Core:" << std::endl;
+    for (std::size_t i = 0; i < core.size(); ++i)
+        out << core[i] << std::endl;
+    out << "End Unsat Core" << std::endl;
 
     return out;
 }
@@ -478,10 +497,14 @@ void Z3Planner::addDerivedPredicates(Time step)
 
     for (const auto &derived : ground_derived_)
     {
+        z3::expr ax1 = toBool(addTimeToString("AX:" + derived.string, step));
+        z3::expr ax2 = toBool(addTimeToString("BX:" + derived.string, step));
+
         z3::expr pred = toBool(addTimeToString(derived.string, step));
         z3::expr expr = exprAtTime(derived.derived->expression, derived.assignment, step);
 
         z3::expr clause = pred == expr;
+        // z3::expr clause = not(pred != expr);
         solver_->add(clause);
 
         derived_predicates_.inc();

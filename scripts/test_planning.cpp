@@ -94,7 +94,7 @@ int main(int argc, char **argv)
         ;
 
     unsigned int min_horizon, max_horizon;
-    bool parallel, diagnostics, dump_clauses, dump_model;
+    bool parallel, diagnostics, dump_clauses, dump_model, dump_core;
     po::options_description z3opt("z3 Planner Options");
     z3opt.add_options()                                                             //
         ("max_horizon,z", po::value<unsigned int>(&max_horizon)->default_value(6),  //
@@ -109,6 +109,8 @@ int main(int argc, char **argv)
          "Print all constituent clauses in plan")                                   //
         ("dump_model", po::bool_switch(&dump_model),                                //
          "Print the checked Z3 model")                                              //
+        ("dump_core", po::bool_switch(&dump_core),                                  //
+         "Print the unsatatisfiable core if the plan failed to solve")              //
         ;
     desc.add(z3opt);
 
@@ -275,7 +277,11 @@ int main(int argc, char **argv)
         }
     }
     else
+    {
         std::cerr << "Planning failed!" << std::endl;
+        if (plannertype == Z3 and dump_core)
+            std::dynamic_pointer_cast<pd::Z3Planner>(planner)->printUnsatCore(std::cout);
+    }
 
     if (plannertype == Z3 and dump_model)
         std::dynamic_pointer_cast<pd::Z3Planner>(planner)->printModel(std::cout);

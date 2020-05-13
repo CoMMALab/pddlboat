@@ -54,6 +54,12 @@ namespace pddlboat
          */
         std::ostream &printModel(std::ostream &out, bool only_true = true) const;
 
+        /** \brief Print out unsat core of model that failed to solve.
+         *  \param[in,out] Output stream.
+         *  \return The output stream.
+         */
+        std::ostream &printUnsatCore(std::ostream &out) const;
+
     private:
         /** \brief From a solved Z3 instance, create a plan.
          *  \param[out] plan Plan to fill in.
@@ -203,8 +209,8 @@ namespace pddlboat
         struct GroundedPredicate
         {
             PredicateDefinitionPtr predicate;  ///< Derived predicate
-            Assignment assignment;           ///< The grounding.
-            std::string string;              ///< String representation of this assigned action.
+            Assignment assignment;             ///< The grounding.
+            std::string string;                ///< String representation of this assigned action.
 
             GroundedPredicate(const PredicateDefinitionPtr &action, const Assignment &assignment,
                               const std::string &string);

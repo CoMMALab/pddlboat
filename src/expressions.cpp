@@ -398,7 +398,7 @@ bool Or::evaluate(const StatePtr &state, const Assignment &vars) const
 
 Expression::Type Or::type() const
 {
-    return Expression::AND;
+    return Expression::OR;
 }
 
 std::ostream &Or::toPDDL(std::ostream &out, unsigned int indent, unsigned int level) const
