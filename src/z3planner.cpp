@@ -34,7 +34,8 @@ Z3Planner::PredAction::PredAction(const GroundedActionPtr &action, bool relies, 
 {
 }
 
-Z3Planner::Z3Planner(const ProblemPtr problem, const Options &options) : Planner(problem), options_(options)
+Z3Planner::Z3Planner(const ProblemPtr problem, const Options &options)
+  : Planner(problem), options_(options), ctx_(new z3::context), solver_(new z3::solver(*ctx_))
 {
     checkRequirements();
 
@@ -45,6 +46,18 @@ Z3Planner::Z3Planner(const ProblemPtr problem, const Options &options) : Planner
     generateGroundings();
 }
 
+Z3Planner::~Z3Planner()
+{
+    delete solver_;
+    delete ctx_;
+}
+
+std::ostream &Z3Planner::printSMT2(std::ostream &out) const
+{
+    out << solver_->to_smt2();
+    return out;
+}
+
 Requirements::Keyword Z3Planner::getSupportedRequirements() const
 {
     return Requirements::ADL | Requirements::DERIVED_PREDICATES;
@@ -52,8 +65,7 @@ Requirements::Keyword Z3Planner::getSupportedRequirements() const
 
 void Z3Planner::addStep(Time step, bool incremental)
 {
-    // at each step, must add:
-
+    // At each step, must add:
     // (1) Actions imply their preconditions are true and effects are true
     addActionImplications(step);
 
@@ -70,27 +82,17 @@ void Z3Planner::addStep(Time step, bool incremental)
     // (4) Derived predicates take on their value
     addDerivedPredicates(step + 1);
 
-    // solve and push assertions if solving incrementally
+    // Solve and push assertions if solving incrementally
     if (incremental)
         solver_->check();
 
-    // push another frame onto the Z3 solver
+    // Push another frame onto the Z3 solver
     solver_->push();
 }
 
 bool Z3Planner::solve(Plan &plan)
 {
     boost::timer::cpu_timer t;
-
-    if (ctx_)
-        delete ctx_;
-
-    ctx_ = new z3::context;
-
-    if (solver_)
-        delete solver_;
-
-    solver_ = new z3::solver(*ctx_);
 
     // setup initial problem state
     addStartState();
@@ -123,10 +125,9 @@ bool Z3Planner::solve(Plan &plan)
             solver_->pop();
     }
 
+    t.stop();
     if (options_.diagnostics)
     {
-        t.stop();
-
         // Action Implications
         std::cout << log::format("Z3 has %1% action implication clauses per step (%2% total)",
                                  action_implications_.count, action_implications_.total)
@@ -159,10 +160,7 @@ bool Z3Planner::solve(Plan &plan)
     }
 
     if (sat)
-    {
-        buildPlan(plan);
-        return true;
-    }
+        return buildPlan(plan);
 
     return false;
 }
@@ -247,7 +245,7 @@ std::ostream &Z3Planner::printModel(std::ostream &out, bool only_true) const
     return out;
 }
 
-void Z3Planner::buildPlan(Plan &plan) const
+bool Z3Planner::buildPlan(Plan &plan) const
 {
     auto m = solver_->get_model();
 
@@ -275,7 +273,19 @@ void Z3Planner::buildPlan(Plan &plan) const
 
     // Add each step to return plan.
     for (const auto &action : actions)
-        plan.addStep(action.name, action.args);
+    {
+        try
+        {
+            plan.addStep(action.name, action.args);
+        }
+        catch (std::exception &e)
+        {
+            std::cerr << e.what() << std::endl;
+            return false;
+        }
+    }
+
+    return true;
 }
 
 z3::expr Z3Planner::toBool(const std::string &string) const

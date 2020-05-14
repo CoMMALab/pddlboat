@@ -94,7 +94,7 @@ int main(int argc, char **argv)
         ;
 
     pd::Z3Planner::Options options;
-    bool dump_model;
+    bool dump_model, dump_smt;
     po::options_description z3opt("z3 Planner Options");
     z3opt.add_options()                                                                     //
         ("max_horizon,z", po::value<std::size_t>(&options.horizon.max)->default_value(20),  //
@@ -111,6 +111,8 @@ int main(int argc, char **argv)
          "Simultaneous action execution in Z3 encoding")                                    //
         ("dump_model", po::bool_switch(&dump_model),                                        //
          "Print the checked Z3 model")                                                      //
+        ("dump_smt", po::bool_switch(&dump_smt),                                            //
+         "Print the model as a smt2 file")                                                  //
         ;
     desc.add(z3opt);
 
@@ -280,6 +282,8 @@ int main(int argc, char **argv)
 
     if (plannertype == Z3 and dump_model)
         std::dynamic_pointer_cast<pd::Z3Planner>(planner)->printModel(std::cout);
+    if (plannertype == Z3 and dump_smt)
+        std::dynamic_pointer_cast<pd::Z3Planner>(planner)->printSMT2(std::cout);
 
     return r;
 }

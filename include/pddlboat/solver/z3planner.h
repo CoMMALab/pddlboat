@@ -50,6 +50,10 @@ namespace pddlboat
          */
         Z3Planner(const ProblemPtr problem, const Options &options);
 
+        /** \brief Destructor.
+         */
+        ~Z3Planner();
+
         /** \brief Returns the supported domain requirements.
          *  \return The supported requirements.
          */
@@ -68,6 +72,12 @@ namespace pddlboat
          */
         std::ostream &printModel(std::ostream &out, bool only_true = true) const;
 
+        /** \brief Print out the current solver model as a smt2 file.
+         *  \param[in,out] Output stream.
+         *  \return The output stream.
+         */
+        std::ostream &printSMT2(std::ostream &out) const;
+
     private:
         /** \brief Add a step to the plan.
          *  \param[in] step Timestep to add.
@@ -77,7 +87,7 @@ namespace pddlboat
         /** \brief From a solved Z3 instance, create a plan.
          *  \param[out] plan Plan to fill in.
          */
-        void buildPlan(Plan &plan) const;
+        bool buildPlan(Plan &plan) const;
 
         /** \brief Create a Z3 boolean from a string ID.
          *  \param[in] string String to convert.
