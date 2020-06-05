@@ -37,6 +37,7 @@ namespace pddlboat
                                const Assignment &vars) const override;
         void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
                                    const Assignment &vars) const override;
+        void getEffects(Effect &effect, const StatePtr &state, const Assignment &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
         void renameVariable(const std::string &old, const std::string &name) override;
@@ -132,6 +133,7 @@ namespace pddlboat
                                const Assignment &vars) const override;
         void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
                                    const Assignment &vars) const override;
+        void getEffects(Effect &effect, const StatePtr &state, const Assignment &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
         void renameVariable(const std::string &old, const std::string &name) override;
@@ -201,6 +203,7 @@ namespace pddlboat
                                const Assignment &vars) const override;
         void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
                                    const Assignment &vars) const override;
+        void getEffects(Effect &effect, const StatePtr &state, const Assignment &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;
         void renameVariable(const std::string &old, const std::string &name) override;
@@ -274,6 +277,7 @@ namespace pddlboat
         void assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const override;
         void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
                                    const Assignment &vars) const override;
+        void getEffects(Effect &effect, const StatePtr &state, const Assignment &vars) const override;
         Expression::Type type() const override;
         std::ostream &toPDDL(std::ostream &out, unsigned int indent = 2,
                              unsigned int level = 0) const override;
@@ -297,6 +301,11 @@ namespace pddlboat
         bool evaluate(const StatePtr &state, const Assignment &vars) const override;
         Expression::Type type() const override;
         Expression::Type getTypes() const override;
+        void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                               const Assignment &vars) const override;
+        void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                   const Assignment &vars) const override;
+        void getEffects(Effect &effect, const StatePtr &state, const Assignment &vars) const override;
         void getVariables(VariableSet &vars) const override;
         bool containsVariable(const std::string &variable) const override;
         bool containsPredicate(const std::string &predicate) const override;

@@ -199,3 +199,8 @@ void Planner::checkRequirements() const
     if (not problem_->domain->supportsRequirements(getSupportedRequirements()))
         throw std::runtime_error("Planner does not support domain requirements!");
 }
+
+void Planner::blockPlan(const Plan &plan)
+{
+    throw std::runtime_error("Planner does not support plan blocking!");
+}

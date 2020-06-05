@@ -17,7 +17,7 @@ namespace pd = pddlboat;
 enum Planner
 {
     Z3,
-    FD
+    FD,
 };
 
 std::istream &operator>>(std::istream &in, Planner &unit)
@@ -101,10 +101,10 @@ int main(int argc, char **argv)
          "Maximum planning horizon to use")                                                 //
         ("min_horizon,l", po::value<std::size_t>(&options.horizon.min)->default_value(0),   //
          "Minimum planning horizon to use")                                                 //
-        ("parallel,x", po::bool_switch(&options.parallel),                                  //
-         "Use Z3's cube-and-conquer parallelism")                                           //
         ("diagnostics,w", po::bool_switch(&options.diagnostics),                            //
          "Print debugging statistics")                                                      //
+        ("parallel", po::bool_switch(&options.parallel),                                    //
+         "Parallel solving through Z3 (if supported)")                                      //
         ("dump_clauses,v", po::bool_switch(&options.dump_clauses),                          //
          "Print all constituent clauses in plan")                                           //
         ("simultaneous", po::bool_switch(&options.simultaneous),                            //

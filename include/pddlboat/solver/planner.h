@@ -179,6 +179,11 @@ namespace pddlboat
          */
         virtual bool solve(Plan &plan) = 0;
 
+        /** \brief Block a plan from being used.
+         *  \param[in] plan Plan to block.
+         */
+        virtual void blockPlan(const Plan &plan);
+
         /** \brief Returns the set of supported domain requirements the planner can solve.
          *  \return The set of supported requirements.
          */

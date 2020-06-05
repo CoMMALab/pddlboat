@@ -1,5 +1,5 @@
 (define (problem sussman)
-  (:domain trashdom)
+  (:domain blocksworld)
   (:objects block-a block-b block-c block-x - block
             loc-0 loc-1 loc-2 - location
             )

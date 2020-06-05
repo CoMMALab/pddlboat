@@ -2,15 +2,15 @@
 #define PDDLBOAT_EXPRESSION_
 
 #include <pddlboat/macros.h>
+#include <pddlboat/solver/variables.h>
 
 namespace pddlboat
 {
     PDDLBOAT_CLASS_FORWARD(Assignment)
-    PDDLBOAT_CLASS_FORWARD(Variable)
-    PDDLBOAT_CLASS_FORWARD(VariableSet)
     PDDLBOAT_CLASS_FORWARD(Domain)
     PDDLBOAT_CLASS_FORWARD(Problem)
     PDDLBOAT_CLASS_FORWARD(State)
+    PDDLBOAT_CLASS_FORWARD(Predicate)
     PDDLBOAT_CLASS_FORWARD(ObjectFunction)
 
     ///
@@ -57,6 +57,18 @@ namespace pddlboat
             DECREASE = 1 << 25,
         };
 
+        class Effect
+        {
+        public:
+            std::set<std::string> add;
+            std::set<std::string> remove;
+            std::set<std::string> assigned;
+            void absorb(const Effect &other);
+            void flip();
+
+            std::ostream &toPDDL(std::ostream &out, std::size_t indent = 0) const;
+        };
+
         virtual bool evaluate(const StatePtr &state, const Assignment &vars) const;
         virtual void assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const;
         virtual Type type() const;
@@ -66,6 +78,7 @@ namespace pddlboat
                                        const Assignment &vars) const;
         virtual void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
                                            const Assignment &vars) const;
+        virtual void getEffects(Effect &effect, const StatePtr &state, const Assignment &vars) const;
         virtual bool containsVariable(const std::string &variable) const;
         virtual bool containsPredicate(const std::string &predicate) const;
         virtual void renameVariable(const std::string &old, const std::string &name);

@@ -8,7 +8,7 @@
           tray - abstract-object
           block - abstract-object)
   (:constants no-object - abstract-object
-              trash - abstract-location)
+              trash - fixed-location)
   (:predicates (finalized ?obj - block)
                (gone ?obj - block)
                (pushed))
@@ -30,8 +30,7 @@
            :effect (and (= (position ?obj)
                            ?loc-1)))
   (:action stack ; stack one object on another
-           :parameters (?obj - block
-                             ?loc-1 - block)
+           :parameters (?obj - block ?loc-1 - block)
            :precondition (and (moveable ?obj)
                               (not (pushed))
                               (not (gone ?loc-1))

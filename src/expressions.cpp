@@ -151,6 +151,51 @@ std::ostream &Value::toString(std::ostream &out) const
 /// Expression
 ///
 
+void Expression::Effect::flip()
+{
+    auto temp = remove;
+    remove = add;
+    add = temp;
+}
+
+void Expression::Effect::absorb(const Effect &other)
+{
+    add.insert(other.add.begin(), other.add.end());
+    remove.insert(other.remove.begin(), other.remove.end());
+    assigned.insert(other.assigned.begin(), other.assigned.end());
+}
+
+std::ostream &Expression::Effect::toPDDL(std::ostream &out, std::size_t indent) const
+{
+    const std::string SPACE = std::string(indent, ' ');
+
+    if (not add.empty())
+    {
+        out << SPACE << "+";
+        for (const auto &predicate : add)
+            out << " " << predicate;
+        out << std::endl;
+    }
+
+    if (not remove.empty())
+    {
+        out << SPACE << "-";
+        for (const auto &predicate : remove)
+            out << " " << predicate;
+        out << std::endl;
+    }
+
+    if (not assigned.empty())
+    {
+        out << SPACE << "=";
+        for (const auto &fluent : assigned)
+            out << " " << fluent;
+        out << std::endl;
+    }
+
+    return out;
+}
+
 Expression::Type Expression::type() const
 {
     return EXPRESSION;
@@ -182,6 +227,10 @@ void Expression::getUsedPredicates(std::set<std::string> &predicates, const Stat
 
 void Expression::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
                                        const Assignment &vars) const
+{
+}
+
+void Expression::getEffects(Effect &effect, const StatePtr &state, const Assignment &vars) const
 {
 }
 
@@ -283,6 +332,12 @@ void VariadicExpression::getAssignedPredicates(std::set<std::string> &predicates
 {
     for (const auto &e : terms_)
         e->getAssignedPredicates(predicates, state, vars);
+}
+
+void VariadicExpression::getEffects(Effect &effect, const StatePtr &state, const Assignment &vars) const
+{
+    for (const auto &e : terms_)
+        e->getEffects(effect, state, vars);
 }
 
 bool VariadicExpression::containsVariable(const std::string &variable) const
@@ -491,6 +546,14 @@ void Not::getAssignedPredicates(std::set<std::string> &predicates, const StatePt
     term_->getAssignedPredicates(predicates, state, vars);
 }
 
+void Not::getEffects(Effect &effect, const StatePtr &state, const Assignment &vars) const
+{
+    Effect temp;
+    term_->getEffects(temp, state, vars);
+    temp.flip();
+    effect.absorb(temp);
+}
+
 bool Not::containsVariable(const std::string &variable) const
 {
     return term_->containsVariable(variable);
@@ -683,6 +746,11 @@ void When::getAssignedPredicates(std::set<std::string> &predicates, const StateP
                                  const Assignment &vars) const
 {
     right_->getAssignedPredicates(predicates, state, vars);
+}
+
+void When::getEffects(Effect &effect, const StatePtr &state, const Assignment &vars) const
+{
+    right_->getEffects(effect, state, vars);
 }
 
 bool When::containsVariable(const std::string &variable) const
@@ -909,6 +977,11 @@ void Forall::getAssignedPredicates(std::set<std::string> &predicates, const Stat
     }
 }
 
+void Forall::getEffects(Effect &effect, const StatePtr &state, const Assignment &vars) const
+{
+    formula_->getEffects(effect, state, vars);
+}
+
 Expression::Type Forall::type() const
 {
     return Expression::FORALL;
@@ -968,6 +1041,28 @@ Expression::Type Equals::type() const
 Expression::Type Equals::getTypes() const
 {
     return type();
+}
+
+void Equals::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                   const Assignment &vars) const
+{
+    if (term1_.function)
+        term1_.function->getUsedPredicates(predicates, state, vars);
+    if (term2_.function)
+        term2_.function->getUsedPredicates(predicates, state, vars);
+}
+
+void Equals::getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
+                                   const Assignment &vars) const
+{
+    if (term1_.function)
+        term1_.function->getAssignedPredicates(predicates, state, vars);
+}
+
+void Equals::getEffects(Effect &effect, const StatePtr &state, const Assignment &vars) const
+{
+    if (term1_.function)
+        term1_.function->getEffects(effect, state, vars);
 }
 
 void Equals::getVariables(VariableSet &vars) const

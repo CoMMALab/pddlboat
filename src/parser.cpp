@@ -98,14 +98,14 @@ namespace parser
     struct typedlist_name_class;
     const x3::rule<typedlist_name_class, ast::TypedList> typedlist_name = "typedlist_name";
     const auto typedlist_name_def =  //
-        namelist >> -("- " >> name)   //
+        namelist >> -("- " >> name)  //
         ;
     PARSE(typedlist_name);
 
     struct typedlist_variable_class;
     const x3::rule<typedlist_variable_class, ast::TypedList> typedlist_variable = "typedlist_variable";
     const auto typedlist_variable_def =  //
-        variablelist >> -("- " >> name)   //
+        variablelist >> -("- " >> name)  //
         ;
     PARSE(typedlist_variable);
 
@@ -181,7 +181,7 @@ namespace parser
     struct atomic_formula_list_class;
     const x3::rule<atomic_formula_list_class, ast::AtomicFormulaList> atomic_formula_list =  //
         "atomic_formula_list";
-    const auto atomic_formula_list_def =   //
+    const auto atomic_formula_list_def =    //
         +atomic_formula >> -("- " >> name)  //
         ;
     PARSE(atomic_formula_list);
@@ -306,14 +306,14 @@ namespace parser
 
     struct initial_set_class;
     const x3::rule<initial_set_class, ast::Initial> initial_set = "initial_set";
-    const auto initial_set_def =                               //
+    const auto initial_set_def =                                                 //
         "(=" >> atomic_formula_name >> x3::attr(true) >> (name | number) >> ')'  //
         ;
     PARSE(initial_set);
 
     struct initial_pred_class;
     const x3::rule<initial_pred_class, ast::Initial> initial_pred = "initial_pred";
-    const auto initial_pred_def =            //
+    const auto initial_pred_def =                               //
         atomic_formula_name >> x3::attr(false) >> x3::attr("")  //
         ;
     PARSE(initial_pred);
@@ -389,8 +389,8 @@ namespace parser
 
     struct z3action_class;
     const x3::rule<z3action_class, ast::z3Action> z3action = "z3action";
-    const auto z3action_def =                                                                            //
-        x3::lit("ACTION:") >> name >> x3::lit(":ARGS:") >> -(name % ',') >> x3::lit(":TIME:") >> number  //
+    const auto z3action_def =                                                                               //
+        x3::lit("ACTION:") >> name >> x3::lit(":ARGS:") >> -(name % ',') >> -(x3::lit(":TIME:") >> number)  //
         ;
     PARSE(z3action);
 

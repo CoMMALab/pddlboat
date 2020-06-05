@@ -11,15 +11,14 @@
 
 #include <pddlboat/utility.h>
 #include <pddlboat/parser/keywords.h>
+#include <pddlboat/solver/variables.h>
 #include <pddlboat/solver/expression.h>
 
-#define PDDLBOAT_OBJECT_CLASS "object"
 #define PDDLBOAT_NUMERIC_CLASS "number"
 
 namespace pddlboat
 {
     /** \cond IGNORE */
-    PDDLBOAT_CLASS_FORWARD(Object)
     PDDLBOAT_CLASS_FORWARD(PredicateDefinition)
     PDDLBOAT_CLASS_FORWARD(Predicate)
     PDDLBOAT_CLASS_FORWARD(DerivedPredicateDefinition)
@@ -120,164 +119,6 @@ namespace pddlboat
         \brief A const shared pointer wrapper for pddlboat::Action. */
 
     ///
-    /// Objects
-    ///
-
-    /** \brief An object in the problem. Has a name and type.
-     */
-    class Object
-    {
-    public:
-        /** \brief Constructor.
-         *  \param[in] name Name of object.
-         *  \param[in] type Type of object.
-         */
-        Object(const std::string &name, const std::string &type);
-
-        std::string name;                         ///< Name
-        std::string type{PDDLBOAT_OBJECT_CLASS};  ///< Type
-    };
-
-    /** \brief Factory function to create a new object.
-     *  \param[in] name Name of object.
-     *  \param[in] type Type of object.
-     */
-    ObjectPtr makeObj(const std::string &name, const std::string &type = PDDLBOAT_OBJECT_CLASS);
-
-    ///
-    /// Variables
-    ///
-
-    /** \brief A variable in a formula. Has a name and type.
-     */
-    class Variable
-    {
-    public:
-        /** \brief Constructor.
-         *  \param[in] both A pair consisting of the name and type of the variable.
-         */
-        Variable(const std::pair<std::string, std::string> &both);
-
-        /** \brief Constructor.
-         *  \param[in] name Name of the variable.
-         *  \param[in] type Type of the variable.
-         */
-        Variable(const std::string &name, const std::string &type = PDDLBOAT_OBJECT_CLASS);
-
-        std::string name;                         ///< Name
-        std::string type{PDDLBOAT_OBJECT_CLASS};  ///< Type
-
-        /** \brief Less than operator for sorted storage classes.
-         *  \param[in] other Other variable to compare to.
-         *  \return Returns true if this is less than other, lexically by name.
-         */
-        bool operator<(const Variable &other) const;
-
-        /** \brief Equality operator.
-         *  \param[in] other Other variable to compare to.
-         *  \return True if both name and type are the same, false otherwise.
-         */
-        bool operator==(const Variable &other) const;
-
-        /** \brief Inquality operator.
-         *  \param[in] other Other variable to compare to.
-         *  \return True if either name and type are different, false otherwise.
-         */
-        bool operator!=(const Variable &other) const;
-    };
-
-    /** \brief A list of variables.
-     *  Generally used to store argument lists to expressions, actions, or predicates.
-     */
-    using VariableList = std::vector<Variable>;
-
-    /** \brief A set of variables. Does not have order.
-     *  Generally used to check if the arguments for expressions match.
-     */
-    class VariableSet
-    {
-    public:
-        std::set<Variable> variables;  ///< Variable set.
-
-        /** \brief Constructor.
-         */
-        VariableSet();
-
-        /** \brief Constructor.
-         *  \param[in] variables A list of variables.
-         */
-        VariableSet(const VariableList &variables);
-
-        /** \brief Conversion to a list.
-         */
-        operator VariableList() const;
-
-        /** \brief Merges another set of variables with this set.
-         *  \param[in] other Other set to merge.
-         */
-        void merge(const VariableSet &other);
-
-        /** \brief Removes the contents of \a other from this variable set.
-         *  \param[in] other Variable set to remove.
-         */
-        void remove(const VariableSet &other);
-
-        /** \brief Removes the contents of \a other from this variable set.
-         *  \param[in] other Variable list to remove.
-         */
-        void remove(const VariableList &other);
-
-        /** \brief Adds a variable to the variable set.
-         *  \param[in] var Variable to add.
-         *  \throw std::invalid_argument if you try to add a variable that already exists AND that variable
-         * has a different type.
-         */
-        void addVariable(const Variable &var);
-
-        /** \brief Removes a variable from this variable set.
-         *  \param[in] var Variable to remove.
-         *  \return True if was actually removed, false if it did not exist.
-         */
-        bool removeVariable(const Variable &var);
-
-        /** \brief Get the names of all the variables in the variable set.
-         *  \return The names of all the variables in the set.
-         */
-        std::set<std::string> getNames() const;
-
-        /** \brief Search the set of variables for a variable with a specific name.
-         *  \param[in] name Name to search for.
-         *  \return The found variable.
-         *  \throw std::invalid_argument if the variable does not exist.
-         */
-        const Variable &getVariable(const std::string &name) const;
-
-        /** \brief Serialize this set to PDDL.
-         *  \param[in,out] out Output stream to use.
-         *  \return The output stream.
-         */
-        std::ostream &toPDDL(std::ostream &out = std::cout) const;
-
-        /** \brief Equality operator.
-         *  \param[in] other Set to compare against.
-         *  \return True if the sets are equal.
-         */
-        bool operator==(const VariableSet &other) const;
-
-        /** \brief Inequality operator.
-         *  \param[in] other Set to compare against.
-         *  \return True if the sets are unequal.
-         */
-        bool operator!=(const VariableSet &other) const;
-
-        /** \brief Checks containment of another set.
-         *  \param[in] other Set to compare against.
-         *  \return True if other is contained in this set.
-         */
-        bool contains(const VariableSet &other) const;
-    };
-
-    ///
     /// Assignment
     ///
 
@@ -287,8 +128,9 @@ namespace pddlboat
     class Assignment
     {
     public:
-        const Problem *problem;                       ///< The problem this assignment is from.
-        std::map<std::string, ObjectPtr> varToObj{};  ///< Mapping of variable name to objects.
+        const Problem *problem;                          ///< The problem this assignment is from.
+        std::map<std::string, ObjectPtr> varToObj{};     ///< Mapping of variable name to objects.
+        std::map<std::string, std::string> varToType{};  ///< Mapping of unassigned variable name to type.
 
         /** \brief Constructor. Creates an empty assignment.
          *  \param[in] problem Problem to create assignment for.
@@ -322,6 +164,14 @@ namespace pddlboat
          */
         void assign(const std::string &var, const std::string &obj);
 
+        /** \brief Assign a variable \a var to a type \a type.
+         *  \param[in] var Variable to assign.
+         *  \param[in] type Name
+         *  \param[in] type Type
+         */
+        void type(const std::string &var, const std::string &type);
+        std::string typed(const std::string &var) const;
+
         /** \brief Unassign a variable in this assignment.
          *  \param[in] var Variable to unassign.
          */
@@ -333,6 +183,10 @@ namespace pddlboat
          *  \throw std::invalid_argument if variable \a var is not assigned.
          */
         const ObjectPtr &assigned(const std::string &var) const;
+
+        /** \brief Returns true if object is assigned.
+         */
+        bool isAssigned(const std::string &var) const;
 
         /** \brief Get the set of all names of variables assigned.
          *  \return The set of all variables assigned.
@@ -484,6 +338,11 @@ namespace pddlboat
          */
         void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr & /*state*/,
                                    const Assignment &vars) const override;
+
+        /** \brief Get the effects of this predicate (add).
+         *  \param[in] effect The effect set.
+         */
+        void getEffects(Effect &effect, const StatePtr &state, const Assignment &vars) const override;
 
         /** \brief Returns true if this expression contains the variable name.
          *  \param[in] variable The variable name to search for.
@@ -828,6 +687,8 @@ namespace pddlboat
         ObjectFunctionPtr bind(const std::vector<std::string> &bound, const ProblemPtr &problem = nullptr,
                                const DomainPtr &domain = nullptr) const;
         ObjectFunctionPtr bindValues(const std::vector<Value> &values) const;
+
+        std::string toID(const Assignment &vars) const;
     };
 
     /** \brief Helper function to create an object function definition.
@@ -869,6 +730,8 @@ namespace pddlboat
                                const Assignment &vars) const override;
         void getAssignedPredicates(std::set<std::string> &predicates, const StatePtr &state,
                                    const Assignment &vars) const override;
+
+        void getEffects(Effect &effect, const StatePtr &state, const Assignment &vars) const override;
 
         std::string toID(const StatePtr &state, const Assignment &vars) const;
         std::ostream &toPDDL(std::ostream &out, unsigned int indent = 0, unsigned int level = 0) const;
@@ -1039,6 +902,13 @@ namespace pddlboat
          *  \return True if type is of type other or is derived from other.
          */
         bool isTypeOf(const std::string &type, const std::string &other) const;
+
+        /** \brief Finds common abstract type between two types
+         *  \param[in] a First type.
+         *  \param[in] b Second type.
+         *  \return The closest common type between the two types.
+         */
+        std::string findCommonType(const std::string &a, const std::string &b) const;
 
         /** \} */
 

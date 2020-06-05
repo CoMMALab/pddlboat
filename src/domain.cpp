@@ -219,6 +219,30 @@ void Assignment::unassign(const std::string &var)
         varToObj.erase(it);
 }
 
+void Assignment::type(const std::string &var, const std::string &type)
+{
+    auto [it, r] = varToType.emplace(var, type);
+    if (not r)
+        it->second = type;
+}
+
+std::string Assignment::typed(const std::string &var) const
+{
+    auto it = varToType.find(var);
+    if (it == varToType.end())
+        throw std::invalid_argument(log::format("Variable %1% not assigned!", var));
+
+    return it->second;
+}
+
+bool Assignment::isAssigned(const std::string &var) const
+{
+    auto it = varToObj.find(var);
+    if (it == varToObj.end())
+        return false;
+    return true;
+}
+
 const ObjectPtr &Assignment::assigned(const std::string &var) const
 {
     auto it = varToObj.find(var);
@@ -274,13 +298,15 @@ PredicatePtr PredicateDefinition::bindValues(const std::vector<Value> &values) c
     if (variables.size() != values.size())
         throw std::invalid_argument("Cannot bind variables, size mismatch!");
 
-    // for (std::size_t i = 0; i < values.size(); ++i)
-    //     if (values[i].type != variables[i].type)
-    //         throw std::invalid_argument(log::format("Cannot bind parameters in %1%, type mismatch %2% -
-    //         %3%!",
-    //                                                 name, values[i].type, variables[i].type));
+    auto copy = values;
+    for (std::size_t i = 0; i < values.size(); ++i)
+        copy[i].type = variables[i].type;
+    // if (values[i].type != variables[i].type)
+    //     throw std::invalid_argument(log::format("Cannot bind parameters in %1%, type mismatch %2% -
+    //     %3%!",
+    //                                             name, values[i].type, variables[i].type));
 
-    return std::make_shared<Predicate>(this, values);
+    return std::make_shared<Predicate>(this, copy);
 }
 
 bool PredicateDefinition::isValidAssignment(const Problem *problem,
@@ -391,6 +417,11 @@ void Predicate::getAssignedPredicates(std::set<std::string> &predicates, const S
                                       const Assignment &vars) const
 {
     predicates.emplace(toID(state, vars));
+}
+
+void Predicate::getEffects(Effect &effect, const StatePtr &state, const Assignment &vars) const
+{
+    effect.add.emplace(toID(state, vars));
 }
 
 VariableList Predicate::arguments() const
@@ -920,6 +951,22 @@ ObjectFunctionPtr ObjectFunctionDefinition::bindValues(const std::vector<Value> 
     return std::make_shared<ObjectFunction>(this, values);
 }
 
+std::string ObjectFunctionDefinition::toID(const Assignment &vars) const
+{
+    std::stringstream ss;
+    ss << "FUNC:" << name;
+
+    ss << ":ARGS:";
+    for (unsigned int i = 0; i < parameters.size(); ++i)
+    {
+        ss << vars.assigned(parameters[i].name)->name;
+        if (i < parameters.size() - 1)
+            ss << ",";
+    }
+
+    return ss.str();
+}
+
 ObjectFunctionDefinitionPtr pddlboat::makeObjectFunction(const std::string &name, const std::string &type,
                                                          const VariableList &variables)
 {
@@ -984,6 +1031,11 @@ void ObjectFunction::getAssignedPredicates(std::set<std::string> &predicates, co
                                            const Assignment &vars) const
 {
     predicates.emplace(toID(state, vars));
+}
+
+void ObjectFunction::getEffects(Effect &effect, const StatePtr &state, const Assignment &vars) const
+{
+    effect.assigned.emplace(toID(state, vars));
 }
 
 std::string ObjectFunction::toID(const StatePtr &state, const Assignment &vars) const
@@ -1112,6 +1164,14 @@ std::string Domain::getParent(const std::string &type) const
     return it->second;
 }
 
+std::vector<std::string> Domain::getTypes() const
+{
+    std::vector<std::string> ret;
+    for (const auto &pair : types)
+        ret.emplace_back(pair.first);
+    return ret;
+}
+
 bool Domain::isType(const std::string &type) const
 {
     return type == PDDLBOAT_OBJECT_CLASS  //
@@ -1134,6 +1194,28 @@ bool Domain::isTypeOf(const std::string &type, const std::string &other) const
     }
 
     return r;
+}
+
+std::string Domain::findCommonType(const std::string &a, const std::string &b) const
+{
+    std::string temp;
+    std::vector<std::string> atypes = {a};
+    std::vector<std::string> btypes = {b};
+
+    while (atypes.back() != PDDLBOAT_OBJECT_CLASS)
+        atypes.emplace_back(getParent(atypes.back()));
+
+    while (btypes.back() != PDDLBOAT_OBJECT_CLASS)
+        btypes.emplace_back(getParent(btypes.back()));
+
+    for (const auto &other : btypes)
+    {
+        auto it = std::find(atypes.begin(), atypes.end(), other);
+        if (it != atypes.end())
+            return *it;
+    }
+
+    return PDDLBOAT_OBJECT_CLASS;
 }
 
 void Domain::addPredicate(const PredicateDefinitionPtr &predicate)
