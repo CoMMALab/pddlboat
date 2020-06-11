@@ -7,7 +7,6 @@
 #include <pddlboat/parser/keywords.h>
 #include <pddlboat/solver/domain.h>
 #include <string>
-// #include <iostream>
 #include <sstream>
 
 namespace pddlboat
@@ -179,10 +178,22 @@ namespace pddlboat
          */
         virtual bool solve(Plan &plan) = 0;
 
-        /** \brief Block a plan from being used.
-         *  \param[in] plan Plan to block.
+        /** \brief Reset the internal planning problem.
          */
-        virtual void blockPlan(const Plan &plan);
+        virtual void reset();
+
+        /** \brief Block the action at a step of a plan give the state in the plan.
+         *  \param[in] plan Plan to block the step from.
+         *  \param[in] index Index of step to block.
+         */
+        void blockPlanStep(const Plan &plan, std::size_t index);
+
+        /** \brief Block a plan from being used.
+         *  \param[in] action Action to prevent.
+         *  \param[in] assignment Grounding of action.
+         *  \param[in] state The state the action cannot be applied in.
+         */
+        virtual void blockStateAction(const ActionPtr &action, const Assignment &assignment, const StatePtr &state);
 
         /** \brief Returns the set of supported domain requirements the planner can solve.
          *  \return The set of supported requirements.

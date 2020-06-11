@@ -285,5 +285,5 @@ int main(int argc, char **argv)
     if (plannertype == Z3 and dump_smt)
         std::dynamic_pointer_cast<pd::Z3Planner>(planner)->printSMT2(std::cout);
 
-    return r;
+    return 0;
 }

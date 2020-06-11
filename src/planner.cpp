@@ -194,13 +194,24 @@ Planner::Planner(const ProblemPtr &problem) : problem_(problem)
 {
 }
 
+void Planner::reset()
+{
+}
+
 void Planner::checkRequirements() const
 {
     if (not problem_->domain->supportsRequirements(getSupportedRequirements()))
         throw std::runtime_error("Planner does not support domain requirements!");
 }
 
-void Planner::blockPlan(const Plan &plan)
+void Planner::blockPlanStep(const Plan &plan, std::size_t index)
 {
-    throw std::runtime_error("Planner does not support plan blocking!");
+    const auto &steps = plan.getSteps();
+    StatePtr prior = (index == 0) ? problem_->start : steps[index - 1].state;
+    blockStateAction(steps[index].action, steps[index].assignment, prior);
+}
+
+void Planner::blockStateAction(const ActionPtr &action, const Assignment &assignment, const StatePtr &state)
+{
+    throw std::runtime_error("Not implemented!");
 }

@@ -148,6 +148,14 @@ namespace pddlboat
          */
         ~Z3Planner();
 
+        /** \brief Reset the planner.
+         */
+        void reset() override;
+
+        /** \brief Clear internal data structures.
+         */
+        void clear();
+
         /** \brief Returns the supported domain requirements.
          *  \return The supported requirements.
          */
@@ -158,6 +166,14 @@ namespace pddlboat
          *  \return True on success, false on failure.
          */
         bool solve(Plan &plan) override;
+
+        /** \brief Block a state/action pair from being in the plan.
+         *  \param[in] action Action to block.
+         *  \param[in] assignment Grounding of action.
+         *  \param[in] state State that action cannot occur on.
+         */
+        void blockStateAction(const ActionPtr &action, const Assignment &assignment,
+                              const StatePtr &state) override;
 
         /** \brief Print out the current solver model.
          *  \param[in,out] Output stream.
@@ -246,6 +262,10 @@ namespace pddlboat
          */
         void addGoalExpression(Time step);
 
+        /** \brief Generate all constraints at a step.
+         */
+        void addConstraints(Time step);
+
         /** \brief Generate start state requirements at first step.
          */
         void addStartState();
@@ -260,6 +280,7 @@ namespace pddlboat
         Diagnostics mutual_exclusions_;
         Diagnostics start_propositions_;
         Diagnostics early_termination_;
+        Diagnostics constraint_clauses_;
         Diagnostics goal_expression_;
 
         // groundings
@@ -270,13 +291,20 @@ namespace pddlboat
         std::map<std::string, GroundedPredicate> predicate_map_;
         std::map<std::string, GroundedFluent> fluent_map_;
 
+        /** \brief Add a state/action pair constraint at a time step.
+         */
+        void addConstraint(const ActionPtr &action, const Assignment &assignment, const StatePtr &state, Time step);
+
+        std::vector<std::tuple<ActionPtr, Assignment, StatePtr>> constraints_;  ///< State/action constraints
+
         std::vector<PredAction> ground_actions_;  ///< All grounded actions.
         std::map<std::string, std::vector<PredAction>> action_effects_;
 
         /// Z3 Stuff
 
-        z3::context *ctx_;    ///< Z3 Solver Context.
-        z3::solver *solver_;  ///< Z3 Solver.
+        z3::context *ctx_;      ///< Z3 Solver Context.
+        z3::solver *solver_;    ///< Z3 Solver.
+        Time current_step_{0};  ///< Current step the solve is on.
 
         PDDLBOAT_CLASS_FORWARD(Z3Function)
         PDDLBOAT_CLASS_FORWARD(Z3DataType)
@@ -358,6 +386,8 @@ namespace pddlboat
         z3::expr toZ3Fluent(const GroundedFluent &grounding, Time step) const;
 
         z3::expr toZ3Time(Time time) const;
+
+        z3::expr getState(const StatePtr &state, Time step) const;
 
         std::map<std::string, Z3DataTypePtr> z3_types_;
         std::map<std::string, Z3FunctionPtr> z3_actions_;
