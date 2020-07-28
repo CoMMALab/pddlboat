@@ -1169,6 +1169,19 @@ std::vector<std::string> Domain::getTypes() const
     std::vector<std::string> ret;
     for (const auto &pair : types)
         ret.emplace_back(pair.first);
+
+    std::sort(ret.begin(), ret.end(), [&](const auto &a, const auto &b) {
+        if (isTypeOf(a, b))
+            return false;
+        if (isTypeOf(b, a))
+            return true;
+
+        if (getParent(a) == getParent(b))
+            return a < b;
+
+        return getParent(a) > getParent(b);
+    });
+
     return ret;
 }
 
@@ -1391,7 +1404,7 @@ void Domain::addRequirementsFromExpression(const ExpressionPtr &expression)
                    or isIn(Expression::MULTIPLY, type)    //
                    or isIn(Expression::PLUS, type)        //
                    or isIn(Expression::ASSIGN, type)      //
-                   or isIn(Expression::SCALE_UP, type)    //
+                   or isIn(Expression::SCALE_UP, type)    /
                    or isIn(Expression::SCALE_DOWN, type)  //
                    or isIn(Expression::DECREASE, type);
     if (isIn(Expression::NUMERIC_FUNCTION, type) and numeric)
@@ -1412,23 +1425,7 @@ std::ostream &Domain::toPDDL(std::ostream &out) const
     if (not types.empty())
     {
         out << SPACE << "(:types" << std::endl;
-        std::vector<std::string> names;
-        for (const auto &type : types)
-            names.emplace_back(type.first);
-
-        std::sort(names.begin(), names.end(), [&](const auto &a, const auto &b) {
-            if (isTypeOf(a, b))
-                return false;
-            if (isTypeOf(b, a))
-                return true;
-
-            if (getParent(a) == getParent(b))
-                return a < b;
-
-            return getParent(a) > getParent(b);
-        });
-
-        for (const auto &name : names)
+        for (const auto &name : getTypes())
         {
             out << SPACE << SPACE << name;
 

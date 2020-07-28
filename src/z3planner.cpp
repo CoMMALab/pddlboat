@@ -347,6 +347,7 @@ z3::expr Z3Planner::toZ3Predicate(const PredicatePtr &predicate, const Assignmen
     const auto &function = getZ3Predicate(predicate->name());
     auto args = getZ3Values(predicate->bindings, assignment, step);
     args.push_back(toZ3Time(step));
+    castZ3TypeArgs(args, *function);
 
     return (*function)(args);
 }
