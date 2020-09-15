@@ -1404,7 +1404,7 @@ void Domain::addRequirementsFromExpression(const ExpressionPtr &expression)
                    or isIn(Expression::MULTIPLY, type)    //
                    or isIn(Expression::PLUS, type)        //
                    or isIn(Expression::ASSIGN, type)      //
-                   or isIn(Expression::SCALE_UP, type)    /
+                   or isIn(Expression::SCALE_UP, type)    //
                    or isIn(Expression::SCALE_DOWN, type)  //
                    or isIn(Expression::DECREASE, type);
     if (isIn(Expression::NUMERIC_FUNCTION, type) and numeric)
