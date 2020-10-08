@@ -64,6 +64,13 @@ namespace pddlboat
             }
         };
 
+        /**
+         * For use with simultaneous actions. A plan of makespan N will makespan_step_times_.size()==N
+         * Each vector makespan_step_times_[i] gives the indices of all steps in this plan to perform
+         * at timestep i.
+         */
+        std::vector<std::vector<size_t>> makespan_step_times_;
+
         /** \brief Constructor.
          *  \param[in] problem The problem this plan is for.
          */

@@ -633,12 +633,10 @@ bool Z3Planner::buildPlan(Plan &plan, Time max) const
     auto model = solver_->get_model();
     // std::cout << model << std::endl;
 
-    std::cout<<"We got a model with "<<max<<" time steps"<<std::endl;
-
+    plan.makespan_step_times_.resize(max);
     for (std::size_t i = 0; i < max; ++i)
     {
-
-        std::cout<<"Adding step at time: "<<i<<std::endl;
+        plan.makespan_step_times_[i].resize(0);
 
         for (const auto &[name, action] : problem_->domain->actions)
         {
@@ -655,7 +653,7 @@ bool Z3Planner::buildPlan(Plan &plan, Time max) const
                     try
                     {
                         plan.addStep(name, args);
-                        std::cout<<"Action name"<<name<<std::endl;
+                        plan.makespan_step_times_[i].emplace_back(plan.getNumSteps());
                     }
                     catch (std::exception &e)
                     {
