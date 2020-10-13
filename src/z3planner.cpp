@@ -637,6 +637,7 @@ bool Z3Planner::buildPlan(Plan &plan, Time max) const
     for (std::size_t i = 0; i < max; ++i)
     {
         plan.makespan_step_times_[i].resize(0);
+        std::cout<<"Timestep "<<i<<std::endl;
 
         for (const auto &[name, action] : problem_->domain->actions)
         {
@@ -653,6 +654,7 @@ bool Z3Planner::buildPlan(Plan &plan, Time max) const
                     try
                     {
                         plan.addStep(name, args);
+                        std::cout<<name<<std::endl;
                         plan.makespan_step_times_[i].emplace_back(plan.getNumSteps());
                     }
                     catch (std::exception &e)
@@ -1375,6 +1377,8 @@ void Z3Planner::addConstraints(Time step)
 {
     for (const auto &[action, assignment, state] : constraints_)
         addConstraint(action, assignment, state, step);
+    for (const auto &[action1, assignment1, action2, assignment2, state] : constraints_simultaneous_)
+        addConstraintSimultaneous(action1, assignment1, action2, assignment2, state, step);
 }
 
 void Z3Planner::addConstraint(const ActionPtr &action, const Assignment &assignment, const StatePtr &state,
@@ -1403,12 +1407,53 @@ void Z3Planner::addConstraint(const ActionPtr &action, const Assignment &assignm
     }
 }
 
+void Z3Planner::addConstraintSimultaneous(const ActionPtr &action1, const Assignment &assignment1, const ActionPtr &action2, const Assignment &assignment2, const StatePtr &state,
+                              Time step)
+{
+    if (options_.dump_clauses)
+        std::cout << ";; Adding Constraint Simultaneous @ :" << step << std::endl;
+
+    constraint_clauses_.start();
+
+    z3::expr aexpr1 = toZ3Action(action1, assignment1, step);
+    z3::expr aexpr2 = toZ3Action(action2, assignment2, step);
+
+    z3::expr sexpr = getState(state, step);
+    z3::expr clause = imply(sexpr, not (aexpr1 and aexpr2));
+
+    solver_->add(clause);
+
+    constraint_clauses_.inc();
+    if (options_.dump_clauses)
+        std::cout << clause << std::endl;
+
+    constraint_clauses_.stop();
+    if (options_.diagnostics)
+    {
+        std::cout << "Building Z3 Constraint @ " << step
+                  << " took: " << io::getTiming(constraint_clauses_.onestep) << std::endl;
+    }
+}
+
 void Z3Planner::blockStateAction(const ActionPtr &action, const Assignment &assignment, const StatePtr &state)
 {
     constraints_.emplace_back(action, assignment, state);
 
     for (Time step = 0; step <= current_step_; ++step)
         addConstraint(action, assignment, state, step);
+
+    solver_->check();
+    solver_->push();
+}
+
+void Z3Planner::blockStateActionSimultaneous(const ActionPtr &action1, const Assignment &assignment1, const ActionPtr &action2, const Assignment &assignment2,
+                                             const StatePtr &state)
+{
+    //Not sure if we need this with our pipeline
+    constraints_simultaneous_.emplace_back(action1, assignment1, action2, assignment2, state);
+
+    for (Time step = 0; step <= current_step_; ++step)
+        addConstraintSimultaneous(action1, assignment1, action2, assignment2, state, step);
 
     solver_->check();
     solver_->push();

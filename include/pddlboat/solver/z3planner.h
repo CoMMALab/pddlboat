@@ -175,6 +175,9 @@ namespace pddlboat
         void blockStateAction(const ActionPtr &action, const Assignment &assignment,
                               const StatePtr &state) override;
 
+        void blockStateActionSimultaneous(const ActionPtr &action1, const Assignment &assignment1, const ActionPtr &action2, const Assignment &assignment2,
+                              const StatePtr &state);
+
         /** \brief Print out the current solver model.
          *  \param[in,out] Output stream.
          *  \param[in] only_true Only print true assignments.
@@ -295,7 +298,12 @@ namespace pddlboat
          */
         void addConstraint(const ActionPtr &action, const Assignment &assignment, const StatePtr &state, Time step);
 
+        void addConstraintSimultaneous(const ActionPtr &action1, const Assignment &assignment1, const ActionPtr &action2, const Assignment &assignment2, const StatePtr &state, Time step);
+
+
         std::vector<std::tuple<ActionPtr, Assignment, StatePtr>> constraints_;  ///< State/action constraints
+        std::vector<std::tuple<ActionPtr, Assignment, ActionPtr, Assignment, StatePtr>> constraints_simultaneous_;  ///< State/action constraints
+
 
         std::vector<PredAction> ground_actions_;  ///< All grounded actions.
         std::map<std::string, std::vector<PredAction>> action_effects_;
