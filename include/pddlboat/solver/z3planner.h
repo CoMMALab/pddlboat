@@ -308,6 +308,9 @@ namespace pddlboat
         std::vector<PredAction> ground_actions_;  ///< All grounded actions.
         std::map<std::string, std::vector<PredAction>> action_effects_;
 
+
+        size_t push_count_{0}; // The number of push() calls since the last pop.
+
         /// Z3 Stuff
 
         z3::context *ctx_;      ///< Z3 Solver Context.

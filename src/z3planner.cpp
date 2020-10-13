@@ -461,6 +461,7 @@ Z3Planner::Z3Planner(const ProblemPtr problem, const Options &options) : Planner
 
 void Z3Planner::reset()
 {
+    push_count_=0;
     ctx_ = new z3::context;
     solver_ = new z3::solver(*ctx_);
 
@@ -471,6 +472,7 @@ void Z3Planner::reset()
     addStartState();
     addDerivedPredicates(0);
     solver_->push();
+//    push_count_++; //We don't want to undo these ones
 
     // add all predicates up to the minimum horizon to consider
     for (Time step = 0; step < options_.horizon.min; ++step)
@@ -527,11 +529,12 @@ void Z3Planner::addStep(Time step, bool incremental)
     // (4) Early termination check
     addEarlyTermination(step);
 
-    // (5) Add existing planning constraints
-    addConstraints(step);
-
-    // (6) Derived predicates take on their value
+    // (5) Derived predicates take on their value
     addDerivedPredicates(step + 1);
+
+    //We need to do this last so popping constraints works correctly?
+    // (6) Add existing planning constraints
+    addConstraints(step);
 
     // Solve and push assertions if solving incrementally
     if (incremental)
@@ -539,6 +542,7 @@ void Z3Planner::addStep(Time step, bool incremental)
 
     // Push another frame onto the Z3 solver
     solver_->push();
+//    push_count_++; //We don't want to undo these ones.
 }
 
 bool Z3Planner::solve(Plan &plan)
@@ -573,8 +577,14 @@ bool Z3Planner::solve(Plan &plan)
         sat = result == z3::sat;
 
         // pop goal expression from solver and continue on if not satisfied
-        if (not sat)
-            solver_->pop();
+        // We also need to remove the actions we blocked?
+        // We don't clear constraints_, so they are added again at the next step
+        // If constraints carry over, this may pop too much
+        if (not sat) {
+//            solver_->pop(push_count_);
+            solver_->pop(); //We pop to the last addStep()
+            push_count_ = 0;
+        }
     }
 
     t.stop();
@@ -1443,7 +1453,8 @@ void Z3Planner::blockStateAction(const ActionPtr &action, const Assignment &assi
         addConstraint(action, assignment, state, step);
 
     solver_->check();
-    solver_->push();
+//    solver_->push();
+//    push_count_++;
 }
 
 void Z3Planner::blockStateActionSimultaneous(const ActionPtr &action1, const Assignment &assignment1, const ActionPtr &action2, const Assignment &assignment2,
@@ -1456,5 +1467,6 @@ void Z3Planner::blockStateActionSimultaneous(const ActionPtr &action1, const Ass
         addConstraintSimultaneous(action1, assignment1, action2, assignment2, state, step);
 
     solver_->check();
-    solver_->push();
+//    solver_->push();
+//    push_count_++;
 }
