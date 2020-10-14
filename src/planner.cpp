@@ -41,7 +41,7 @@ Plan::Plan(const ProblemPtr &problem) : problem_(problem)
 {
 }
 
-Plan::Plan(const Plan &plan) : steps_(plan.steps_), problem_(plan.problem_)
+Plan::Plan(const Plan &plan) : steps_(plan.steps_), problem_(plan.problem_), makespan_step_times_(plan.makespan_step_times_)
 {
 }
 

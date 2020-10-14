@@ -198,15 +198,15 @@ int main(int argc, char **argv)
     // Create the planner
     //
 
-    pd::PlannerPtr planner;
+    std::shared_ptr<pd::Z3Planner> planner;
     switch (plannertype)
     {
         case Z3:
             planner = std::make_shared<pd::Z3Planner>(problem, options);
             break;
-        case FD:
-            planner = std::make_shared<pd::FastDownwardPlanner>(problem, search);
-            break;
+        // case FD:
+        //     planner = std::make_shared<pd::FastDownwardPlanner>(problem, search);
+        //     break;
         default:
             std::cerr << "Unknown planner type. Exiting." << std::endl;
             return 1;
@@ -286,11 +286,14 @@ int main(int argc, char **argv)
 
             // Block action
             auto steps = plan->getSteps();
-            if(solve_attempts <= 5) {
+            if(solve_attempts <= 10) {
 //                std::cout<<"Printing before we block action"<<std::endl;
 //                std::cout<<std::dynamic_pointer_cast<pd::Z3Planner>(planner)->solver_->assertions()<<std::endl;
 
-                planner->blockStateAction(steps[0].action, steps[0].assignment, problem->start);
+                if (plan->makespan_step_times_[0].size() == 1)
+                    planner->blockStateAction(steps[0].action, steps[0].assignment, problem->start);
+                else if (plan->makespan_step_times_[0].size() == 2)
+                    planner->blockStateActionSimultaneous(steps[0].action, steps[0].assignment, steps[1].action, steps[1].assignment, problem->start);
 
 //                std::cout<<"Printing after we block action"<<std::endl;
 //                std::cout<<std::dynamic_pointer_cast<pd::Z3Planner>(planner)->solver_->assertions()<<std::endl;
