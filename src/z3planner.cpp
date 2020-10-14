@@ -471,8 +471,9 @@ void Z3Planner::reset()
     // setup initial problem state
     addStartState();
     addDerivedPredicates(0);
+
+    solver_->check();
     solver_->push();
-//    push_count_++; //We don't want to undo these ones
 
     // add all predicates up to the minimum horizon to consider
     for (Time step = 0; step < options_.horizon.min; ++step)
@@ -537,12 +538,12 @@ void Z3Planner::addStep(Time step, bool incremental)
     addConstraints(step);
 
     // Solve and push assertions if solving incrementally
-    if (incremental)
-        solver_->check();
-
-    // Push another frame onto the Z3 solver
-    solver_->push();
-//    push_count_++; //We don't want to undo these ones.
+//    if (incremental) {
+//        solver_->check();
+//        // Push another frame onto the Z3 solver
+//        solver_->push();
+//        // push_count_++; //We don't want to undo these ones.
+//    }
 }
 
 bool Z3Planner::solve(Plan &plan)
@@ -565,6 +566,9 @@ bool Z3Planner::solve(Plan &plan)
         boost::timer::cpu_timer tl;
 
         addStep(current_step_, true);
+        solver_->check();
+        solver_->push();
+//        std::cout<<"Adding goal expression for: "<<current_step_<<std::endl;
         addGoalExpression(current_step_ + 1);
 
         auto result = solver_->check();
@@ -1291,10 +1295,16 @@ void Z3Planner::addGoalExpression(Time step)
 
     goal_expression_.start();
 
+    // Add marker clause
+    std::string s = "GoalMarker"+std::to_string(step);
+    z3::expr marker_clause = ctx_->bool_const(s.c_str());
+    solver_->add(marker_clause);
+
     // Add the goal
     Assignment empty_assgn(&*problem_);
     z3::expr clause = getExpression(problem_->goal, empty_assgn, step);
     solver_->add(clause);
+
 
     if (options_.dump_clauses)
         std::cout << clause << std::endl;
@@ -1447,19 +1457,21 @@ void Z3Planner::addConstraintSimultaneous(const ActionPtr &action1, const Assign
 
 void Z3Planner::blockStateAction(const ActionPtr &action, const Assignment &assignment, const StatePtr &state)
 {
+    solver_->pop();
     constraints_.emplace_back(action, assignment, state);
 
     for (Time step = 0; step <= current_step_; ++step)
         addConstraint(action, assignment, state, step);
 
     solver_->check();
-//    solver_->push();
-//    push_count_++;
+    solver_->push();
+    addGoalExpression(current_step_);
 }
 
 void Z3Planner::blockStateActionSimultaneous(const ActionPtr &action1, const Assignment &assignment1, const ActionPtr &action2, const Assignment &assignment2,
                                              const StatePtr &state)
 {
+    solver_->pop();
     //Not sure if we need this with our pipeline
     constraints_simultaneous_.emplace_back(action1, assignment1, action2, assignment2, state);
 
@@ -1467,6 +1479,6 @@ void Z3Planner::blockStateActionSimultaneous(const ActionPtr &action1, const Ass
         addConstraintSimultaneous(action1, assignment1, action2, assignment2, state, step);
 
     solver_->check();
-//    solver_->push();
-//    push_count_++;
+    solver_->push();
+    addGoalExpression(current_step_);
 }

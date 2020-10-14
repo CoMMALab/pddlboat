@@ -312,9 +312,10 @@ namespace pddlboat
         size_t push_count_{0}; // The number of push() calls since the last pop.
 
         /// Z3 Stuff
-
+    public:
         z3::context *ctx_;      ///< Z3 Solver Context.
         z3::solver *solver_;    ///< Z3 Solver.
+    private:
         Time current_step_{0};  ///< Current step the solve is on.
 
         PDDLBOAT_CLASS_FORWARD(Z3Function)

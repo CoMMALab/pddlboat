@@ -84,6 +84,9 @@ add_executable(pddlboat_parsing scripts/test_parsing.cpp)
 add_executable(pddlboat_smt scripts/test_smt.cpp)
 add_executable(pddlboat_planning scripts/test_planning.cpp)
 
+add_executable(pddlboat_blocking scripts/test_blocking.cpp)
+target_link_libraries(pddlboat_blocking pddlboat ${LIBRARIES})
+
 target_link_libraries(pddlboat_building pddlboat ${LIBRARIES})
 target_link_libraries(pddlboat_parsing pddlboat ${LIBRARIES})
 target_link_libraries(pddlboat_smt pddlboat ${LIBRARIES})
