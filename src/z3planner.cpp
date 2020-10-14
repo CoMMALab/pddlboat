@@ -556,8 +556,17 @@ bool Z3Planner::solve(Plan &plan)
     // already have begun solving, incremental time
     if (current_step_ != 0)
     {
+        //The goal may be removed by new constraints:
+        solver_->check();
+        solver_->push();
+//        std::cout<<"Adding goal expression for: "<<current_step_<<std::endl;
+        addGoalExpression(current_step_);
+
         auto result = solver_->check();
         sat = result == z3::sat;
+        if(not sat) {
+            solver_->pop();//remove goal
+        }
     }
 
     // Time step = options_.horizon.min;
@@ -1475,21 +1484,21 @@ void Z3Planner::addConstraintSimultaneous(const ActionPtr &action1, const Assign
 
 void Z3Planner::blockStateAction(const ActionPtr &action, const Assignment &assignment, const StatePtr &state)
 {
-    solver_->pop();
+    solver_->pop();//remove goal as we will re-add it
     constraints_.emplace_back(action, assignment, state);
 
     for (Time step = 0; step <= current_step_; ++step)
         addConstraint(action, assignment, state, step);
 
     solver_->check();
-    solver_->push();
-    addGoalExpression(current_step_+1);
+    solver_->push();//make this stay on the stack
+//    addGoalExpression(current_step_); // We call outside the loop, so current_step_ is already updated
 }
 
 void Z3Planner::blockStateActionSimultaneous(const ActionPtr &action1, const Assignment &assignment1, const ActionPtr &action2, const Assignment &assignment2,
                                              const StatePtr &state)
 {
-    solver_->pop();
+    solver_->pop();//remove goal as we will re-add it
     //Not sure if we need this with our pipeline
     constraints_simultaneous_.emplace_back(action1, assignment1, action2, assignment2, state);
 
@@ -1497,6 +1506,6 @@ void Z3Planner::blockStateActionSimultaneous(const ActionPtr &action1, const Ass
         addConstraintSimultaneous(action1, assignment1, action2, assignment2, state, step);
 
     solver_->check();
-    solver_->push();
-    addGoalExpression(current_step_+1);
+    solver_->push();//make this stay on the stack
+//    addGoalExpression(current_step_); // We call outside the loop, so current_step_ is already updated
 }
