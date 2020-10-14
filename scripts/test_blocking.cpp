@@ -301,6 +301,8 @@ int main(int argc, char **argv)
         else
         {
             std::cerr << "Planning failed!" << std::endl;
+            std::cout << "Planning failed!" << std::endl;
+            std::cout<<std::dynamic_pointer_cast<pd::Z3Planner>(planner)->solver_->assertions()<<std::endl;
             break;
         }
     }

@@ -584,10 +584,13 @@ bool Z3Planner::solve(Plan &plan)
         // We also need to remove the actions we blocked?
         // We don't clear constraints_, so they are added again at the next step
         // If constraints carry over, this may pop too much
-        if (not sat) {
+        // Don't pop on the last iteration since we may want to print the clauses
+        if (not sat and current_step_ < options_.horizon.max-1) {
 //            solver_->pop(push_count_);
             solver_->pop(); //We pop to the last addStep()
             push_count_ = 0;
+        } else if(not (current_step_ < options_.horizon.max-1)){
+            std::cout<<"We aren't changing the stack for the final step"<<std::endl;
         }
     }
 
@@ -1409,11 +1412,19 @@ void Z3Planner::addConstraint(const ActionPtr &action, const Assignment &assignm
 
     constraint_clauses_.start();
 
+
+
     z3::expr aexpr = toZ3Action(action, assignment, step);
     z3::expr sexpr = getState(state, step);
     z3::expr clause = imply(sexpr, not aexpr);
 
     solver_->add(clause);
+
+
+    // Add marker clause
+    std::string s = "ConstraintMarker"+std::to_string(step);
+    z3::expr marker_clause = ctx_->bool_const(s.c_str());
+    solver_->add(marker_clause);
 
     constraint_clauses_.inc();
     if (options_.dump_clauses)
@@ -1435,6 +1446,8 @@ void Z3Planner::addConstraintSimultaneous(const ActionPtr &action1, const Assign
 
     constraint_clauses_.start();
 
+
+
     z3::expr aexpr1 = toZ3Action(action1, assignment1, step);
     z3::expr aexpr2 = toZ3Action(action2, assignment2, step);
 
@@ -1442,6 +1455,11 @@ void Z3Planner::addConstraintSimultaneous(const ActionPtr &action1, const Assign
     z3::expr clause = imply(sexpr, not (aexpr1 and aexpr2));
 
     solver_->add(clause);
+
+    // Add marker clause
+    std::string s = "ConstraintMarker"+std::to_string(step);
+    z3::expr marker_clause = ctx_->bool_const(s.c_str());
+    solver_->add(marker_clause);
 
     constraint_clauses_.inc();
     if (options_.dump_clauses)
@@ -1465,7 +1483,7 @@ void Z3Planner::blockStateAction(const ActionPtr &action, const Assignment &assi
 
     solver_->check();
     solver_->push();
-    addGoalExpression(current_step_);
+    addGoalExpression(current_step_+1);
 }
 
 void Z3Planner::blockStateActionSimultaneous(const ActionPtr &action1, const Assignment &assignment1, const ActionPtr &action2, const Assignment &assignment2,
@@ -1480,5 +1498,5 @@ void Z3Planner::blockStateActionSimultaneous(const ActionPtr &action1, const Ass
 
     solver_->check();
     solver_->push();
-    addGoalExpression(current_step_);
+    addGoalExpression(current_step_+1);
 }
