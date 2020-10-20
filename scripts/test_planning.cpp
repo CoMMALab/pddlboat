@@ -113,7 +113,9 @@ int main(int argc, char **argv)
          "Print the checked Z3 model")                                                      //
         ("dump_smt", po::bool_switch(&dump_smt),                                            //
          "Print the model as a smt2 file")                                                  //
-        ;
+        ("z3timeout", po::value<unsigned int>(&options.z3timeout)->default_value(0),        //
+         "Planning timeout in ms (currently only for z3).")                                       //
+             ;
     desc.add(z3opt);
 
     pd::FastDownwardPlanner::Search search;
@@ -221,7 +223,12 @@ int main(int argc, char **argv)
 
     {
         boost::timer::cpu_timer t;
-        r = planner->solve(*plan);
+        if(options.z3timeout > 0) {
+            r = planner->solve(*plan, options.z3timeout);
+        } else {
+            r = planner->solve(*plan);
+        }
+
 
         if (timeout)
         {

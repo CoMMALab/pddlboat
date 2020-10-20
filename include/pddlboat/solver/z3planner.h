@@ -134,6 +134,7 @@ namespace pddlboat
             bool dump_clauses{false};  ///< Dump generated Z3 clauses.
             bool incremental{true};    ///< Solve the problem incrementally.
             bool simultaneous{true};   ///< Allow simultaneous actions.
+            unsigned int z3timeout{0}; ///< Maximum time to run each z3 planning attempt (ms)
 
             Options() = default;
         };
@@ -166,6 +167,12 @@ namespace pddlboat
          *  \return True on success, false on failure.
          */
         bool solve(Plan &plan) override;
+
+        /** \brief Solve the planning problem.
+         *  \param[out] plan Found plan.
+         *  \return True on success, false on failure.
+         */
+        bool solve(Plan &plan, unsigned int timeout) override;
 
         /** \brief Block a state/action pair from being in the plan.
          *  \param[in] action Action to block.

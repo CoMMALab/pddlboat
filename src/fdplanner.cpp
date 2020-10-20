@@ -204,7 +204,11 @@ void FastDownwardPlanner::update(bool domain, bool problem) const
     }
 }
 
-bool FastDownwardPlanner::solve(Plan &plan)
+bool FastDownwardPlanner::solve(Plan &plan) {
+    return solve(plan);
+}
+
+bool FastDownwardPlanner::solve(Plan &plan, unsigned int timeout)
 {
     auto pr = io::runCommand(solver_command);
     if (not pr)

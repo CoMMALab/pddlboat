@@ -6,19 +6,16 @@
 #include <pddlboat/utility.h>
 #include <pddlboat/solver/planner.h>
 
-namespace pddlboat
-{
+namespace pddlboat {
     /** \brief A planner that uses the fast downward planning system, http://www.fast-downward.org/
      * Calls fast downward using a few prebaked search methods. Calls the fast downward executable
      * from the fast downward submodule.
      */
-    class FastDownwardPlanner : public Planner
-    {
+    class FastDownwardPlanner : public Planner {
     public:
         /** \brief Predefined search routines for fast downward planning.
          */
-        enum Search
-        {
+        enum Search {
             ASTAR,       ///< A*, does not support :derived-predicates
             LAZYGREEDY,  ///< Lazy greedy best-first search with preferred operators and queue alternation
             FDAT,        ///< Fast Downward Autotune 2
@@ -52,6 +49,12 @@ namespace pddlboat
          *  \return True on success, false on failure.
          */
         bool solve(Plan &plan) override;
+
+        /** \brief Solve the planning problem.
+        *  \param[out] plan Found plan.
+        *  \return True on success, false on failure.
+        */
+        bool solve(Plan &plan, unsigned int timeout) override;
 
     private:
         /** \brief Generate the command for calling fast downward.

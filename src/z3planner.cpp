@@ -546,8 +546,17 @@ void Z3Planner::addStep(Time step, bool incremental)
 //    }
 }
 
-bool Z3Planner::solve(Plan &plan)
+bool Z3Planner::solve(Plan &plan) {
+    return solve(plan, 0);
+}
+
+
+bool Z3Planner::solve(Plan &plan, unsigned int timeout)
 {
+
+    if(timeout > 0) {
+        solver_->set("timeout", timeout);
+    }
     boost::timer::cpu_timer t;
 
     // incrementally solve up to maximum horizon

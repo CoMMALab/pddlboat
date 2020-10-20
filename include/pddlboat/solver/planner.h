@@ -9,8 +9,7 @@
 #include <string>
 #include <sstream>
 
-namespace pddlboat
-{
+namespace pddlboat {
     /** \cond IGNORE */
     PDDLBOAT_CLASS_FORWARD(Plan)
     /** \endcond */
@@ -23,13 +22,11 @@ namespace pddlboat
 
     /** \brief A class that stores the step of a plan to solve a problem.
      */
-    class Plan
-    {
+    class Plan {
     public:
         /** \brief A step within a plan.
          */
-        struct Step
-        {
+        struct Step {
             ActionPtr action;       ///< Action taken in this step.
             Assignment assignment;  ///< Assignment to this action for this step.
             StatePtr state;         ///< State of the world after this action.
@@ -50,8 +47,7 @@ namespace pddlboat
             /**
              * To allow us to build sets of Steps.
              */
-            bool operator<(const Step &step_obj) const
-            {
+            bool operator<(const Step &step_obj) const {
                 std::ostringstream myObjectStream;
                 toString(myObjectStream);
                 std::string mySerializedObject = myObjectStream.str();
@@ -171,8 +167,7 @@ namespace pddlboat
 
     /** \brief An abstract planner that can solve planning problems.
      */
-    class Planner
-    {
+    class Planner {
     public:
         /** \brief Constructor.
          *  \param[in] problem Problem to solve.
@@ -184,6 +179,12 @@ namespace pddlboat
          *  \return True on success, false on failure.
          */
         virtual bool solve(Plan &plan) = 0;
+
+        /** \brief Solve the planning problem.
+        *  \param[out] plan Found plan.
+        *  \return True on success, false on failure.
+        */
+        virtual bool solve(Plan &plan, unsigned int timeout) = 0;
 
         /** \brief Reset the internal planning problem.
          */
