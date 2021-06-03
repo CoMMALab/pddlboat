@@ -32,6 +32,10 @@ namespace pddlboat
     PDDLBOAT_CLASS_FORWARD(Problem)
     PDDLBOAT_CLASS_FORWARD(State)
     PDDLBOAT_CLASS_FORWARD(Action)
+    PDDLBOAT_CLASS_FORWARD(GroundedAction)
+    PDDLBOAT_CLASS_FORWARD(GroundedPredicate)
+    PDDLBOAT_CLASS_FORWARD(GroundedObjectFunction)
+    PDDLBOAT_CLASS_FORWARD(GroundedDerivedPredicate)
     /** \endcond */
 
     /** \class pddlboat::ObjectPtr
@@ -117,6 +121,30 @@ namespace pddlboat
 
     /** \class pddlboat::ActionConstPtr
         \brief A const shared pointer wrapper for pddlboat::Action. */
+
+    /** \class pddlboat::GroundedActionPtr
+        \brief A shared pointer wrapper for pddlboat::GroundedAction. */
+
+    /** \class pddlboat::GroundedActionConstPtr
+        \brief A const shared pointer wrapper for pddlboat::GroundedAction. */
+
+    /** \class pddlboat::GroundedPredicatePtr
+        \brief A shared pointer wrapper for pddlboat::GroundedPredicate. */
+
+    /** \class pddlboat::GroundedPredicateConstPtr
+        \brief A const shared pointer wrapper for pddlboat::GroundedPredicate. */
+
+    /** \class pddlboat::GroundedObjectFunctionPtr
+        \brief A shared pointer wrapper for pddlboat::GroundedObjectFunction. */
+
+    /** \class pddlboat::GroundedObjectFunctionConstPtr
+        \brief A const shared pointer wrapper for pddlboat::GroundedObjectFunction. */
+
+    /** \class pddlboat::GroundedDerivedPredicatePtr
+        \brief A shared pointer wrapper for pddlboat::GroundedDerivedPredicate. */
+
+    /** \class pddlboat::GroundedDerivedPredicateConstPtr
+        \brief A const shared pointer wrapper for pddlboat::GroundedDerivedPredicate. */
 
     ///
     /// Assignment
@@ -598,6 +626,7 @@ namespace pddlboat
          *  \return The output stream.
          */
         std::ostream &toPDDL(std::ostream &out = std::cout) const;
+        std::string toID(const Assignment &vars) const;
 
     protected:
         /** \brief Constructor.
@@ -687,8 +716,6 @@ namespace pddlboat
         ObjectFunctionPtr bind(const std::vector<std::string> &bound, const ProblemPtr &problem = nullptr,
                                const DomainPtr &domain = nullptr) const;
         ObjectFunctionPtr bindValues(const std::vector<Value> &values) const;
-
-        std::string toID(const Assignment &vars) const;
     };
 
     /** \brief Helper function to create an object function definition.
@@ -1076,13 +1103,23 @@ namespace pddlboat
         ExpressionPtr goal;              ///< Goal to reach.
 
         bool minimize{true};            ///< Minimize objective, maximize otherwise.
-        ExpressionPtr metric{nullptr};  ///< Expression to maximize.
+        ExpressionPtr metric{nullptr};  ///< Expression to use as objective function.
 
         /** \brief Constructor.
          *  \param[in] name Name of the planning problem.
          *  \param[in] domain The domain of this problem.
          */
         Problem(const std::string &name, const DomainPtr &domain);
+
+        /** \brief Copy Constructor.
+         *  \param[in] problem Problem to copy.
+         */
+        Problem(const Problem &problem);
+
+        /** \brief Copy Constructor.
+         *  \param[in] problem Problem to copy.
+         */
+        Problem(const ProblemPtr &problem);
 
         /* \name Objects
            \{ */
@@ -1162,6 +1199,27 @@ namespace pddlboat
          */
         StatePtr clone() const;
 
+        /** \brief Clone this a `clean` copy of this state, without any negatives.
+         *  \return A clone of this state.
+         */
+        StatePtr cleanClone() const;
+
+        /** \brief Compute the hash of this state.
+         *  \return Hash of this state. */
+        std::size_t hash() const;
+
+        /** \brief Compares two states.
+         *  \param[in] other The state to compare to.
+         *  \return True if the states are equal, false otherwise.
+         */
+        bool isEqual(const StatePtr &other) const;
+
+        /** \brief Compares two states.
+         *  \param[in] other The state to compare to.
+         *  \return True if the states are equal, false otherwise.
+         */
+        bool isEqual(const State &other) const;
+
         /* \name Assignment Manipulations
            \{ */
 
@@ -1184,6 +1242,11 @@ namespace pddlboat
          * are only set if they do not already exist inside this state.
          */
         void fold(const State &other);
+
+        /** \brief `Cleans` this state by removing all explicit negative assignments. Reduces state to minimum
+         * data.
+         */
+        void clean();
 
         /** \brief Assign the truth value of a 0-ary predicate.
          *  \param[in] predicate Name of predicate to assign.
@@ -1298,6 +1361,138 @@ namespace pddlboat
 
     private:
         const Problem *problem_;  ///< The problem this state is for.
+    };
+
+    std::size_t hash_value(const State &state);
+
+    /** \brief A grounded action.
+     */
+    class GroundedAction
+    {
+    public:
+        const ActionPtr action;       ///< Action.
+        const Assignment assignment;  ///< The action's grounding.
+        const std::string string;     ///< String representation of this assigned action.
+
+        /** \brief Constructor.
+         *  \param[in] action Action definition to ground.
+         *  \param[in] assignment The assignment to ground the action.
+         */
+        GroundedAction(const ActionPtr &action, const Assignment &assignment);
+
+        /** \brief Equivalence operator.
+         *  \param[in] other Other grounded action to compare against.
+         *  \return True if they are equivalent.
+         */
+        bool operator==(const GroundedAction &other) const;
+    };
+
+    /** \brief A grounded predicate.
+     */
+    class GroundedPredicate
+    {
+    public:
+        const PredicateDefinitionPtr predicate;  ///< Derived predicate
+        const Assignment assignment;             ///< The grounding.
+        const std::string string;                ///< String representation of this assigned action.
+
+        /** \brief Constructor.
+         *  \param[in] predicate Predicate definition to ground.
+         *  \param[in] assignment The assignment to ground the predicate.
+         */
+        GroundedPredicate(const PredicateDefinitionPtr &predicate, const Assignment &assignment);
+    };
+
+    /** \brief A grounded fluent.
+     */
+    class GroundedFunction
+    {
+    public:
+        const FunctionDefinitionPtr fluent;  ///< Function.
+        const Assignment assignment;         ///< The grounding.
+        const std::string string;            ///< String representation of this assigned action.
+
+        /** \brief Constructor.
+         *  \param[in] fluent Fluent definition to ground.
+         *  \param[in] assignment The assignment to ground the fluent.
+         */
+        GroundedFunction(const FunctionDefinitionPtr &fluent, const Assignment &assignment);
+    };
+
+    /** \brief A grounded fluent.
+     */
+    class GroundedObjectFunction
+    {
+    public:
+        const ObjectFunctionDefinitionPtr fluent;  ///< Object function.
+        const Assignment assignment;               ///< The grounding.
+        const std::string string;                  ///< String representation of this assigned action.
+
+        /** \brief Constructor.
+         *  \param[in] fluent Fluent definition to ground.
+         *  \param[in] assignment The assignment to ground the fluent.
+         */
+        GroundedObjectFunction(const ObjectFunctionDefinitionPtr &fluent, const Assignment &assignment);
+    };
+
+    /** \brief A grounded fluent.
+     */
+    class GroundedNumericFunction
+    {
+    public:
+        const NumericFunctionDefinitionPtr fluent;  ///< Numeric function.
+        const Assignment assignment;                ///< The grounding.
+        const std::string string;                   ///< String representation of this assigned action.
+
+        /** \brief Constructor.
+         *  \param[in] fluent Fluent definition to ground.
+         *  \param[in] assignment The assignment to ground the fluent.
+         */
+        GroundedNumericFunction(const NumericFunctionDefinitionPtr &fluent, const Assignment &assignment);
+    };
+
+    /** \brief A grounded derived predicate.
+     */
+    class GroundedDerivedPredicate
+    {
+    public:
+        const DerivedPredicateDefinitionPtr derived;  ///< Derived predicate
+        const Assignment assignment;                  ///< The grounding.
+        const std::string string;                     ///< String representation of this assigned action.
+
+        /** \brief Constructor.
+         *  \param[in] derived Derived predicate definition to ground.
+         *  \param[in] assignment The assignment to ground the derived predicate.
+         */
+        GroundedDerivedPredicate(const DerivedPredicateDefinitionPtr &derived, const Assignment &assignment);
+    };
+
+    /** \brief Unordered map type that is keyed on symbolic states.
+     *  \tparam T Type of value to store in the map.
+     */
+    template <typename T>
+    using _StateMapImpl = std::unordered_map<StatePtr,                                      //
+                                             T,                                             //
+                                             std::function<std::size_t(const StatePtr &)>,  //
+                                             std::function<bool(const StatePtr &, const StatePtr &)>>;
+
+    /** \brief Unordered map that is keyed on states. Uses symbolic state hash function. Note: it is necessary
+     * to to `clean()` states before they are used as keys in the map. `clean()` removes negated entries in
+     * the state, which otherwise are included in the hash function.
+     *  \tparam T Type of value to store in the map.
+     */
+    template <typename T>
+    class StateMap : public _StateMapImpl<T>
+    {
+    public:
+        /** \brief Constructor. Sets up hash and equality functions.
+         */
+        StateMap()
+          : _StateMapImpl<T>(0,                                                //
+                             [](const StatePtr &key) { return key->hash(); },  //
+                             [](const StatePtr &a, const StatePtr &b) { return a->isEqual(b); })
+        {
+        }
     };
 }  // namespace pddlboat
 

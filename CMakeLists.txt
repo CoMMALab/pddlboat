@@ -52,12 +52,13 @@ endif (CATKIN_DEVEL_PREFIX)
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 list(APPEND LIBRARIES ${Boost_LIBRARIES})
 
-find_package(Z3 REQUIRED)
-include_directories(${Z3_INCLUDE_DIR})
-list(APPEND LIBRARIES ${Z3_LIBRARY})
-
 add_subdirectory(submodules)
-add_definitions(-DPDDLBOAT_FASTDOWNWARD_LOCATION="${CMAKE_CURRENT_BINARY_DIR}/submodules/fd/src/bin")
+add_definitions(-DPDDLBOAT_FASTDOWNWARD_LOCATION="${CMAKE_CURRENT_BINARY_DIR}/submodules/downward/src/bin")
+
+file(WRITE ${CMAKE_BINARY_DIR}/submodules/z3/Z3Targets.cmake "")
+find_package(Z3 PATHS ${Z3_BINARY_DIR} NO_DEFAULT_PATH)
+include_directories(BEFORE SYSTEM ${Z3_CXX_INCLUDE_DIRS})
+list(APPEND LIBRARIES libz3)
 
 list(APPEND SOURCES
     src/translator.cpp
@@ -71,11 +72,14 @@ list(APPEND SOURCES
     src/dependency.cpp
     src/fdplanner.cpp
     src/z3planner.cpp
+    src/astarplanner.cpp
     )
 
 add_definitions(-DPDDLBOAT_RESOURCE_DIRECTORY="${CMAKE_CURRENT_LIST_DIR}/resources")
 
 add_library(pddlboat ${SOURCES})
+add_dependencies(pddlboat libz3)
+
 set_target_properties(pddlboat PROPERTIES VERSION 0.0.1)
 target_link_libraries(pddlboat ${LIBRARIES})
 
@@ -83,14 +87,13 @@ add_executable(pddlboat_building scripts/test_building.cpp)
 add_executable(pddlboat_parsing scripts/test_parsing.cpp)
 add_executable(pddlboat_smt scripts/test_smt.cpp)
 add_executable(pddlboat_planning scripts/test_planning.cpp)
-
 add_executable(pddlboat_blocking scripts/test_blocking.cpp)
-target_link_libraries(pddlboat_blocking pddlboat ${LIBRARIES})
 
 target_link_libraries(pddlboat_building pddlboat ${LIBRARIES})
 target_link_libraries(pddlboat_parsing pddlboat ${LIBRARIES})
 target_link_libraries(pddlboat_smt pddlboat ${LIBRARIES})
 target_link_libraries(pddlboat_planning pddlboat ${LIBRARIES})
+target_link_libraries(pddlboat_blocking pddlboat ${LIBRARIES})
 
 feature_summary(DESCRIPTION INCLUDE_QUIET_PACKAGES WHAT ALL)
 
@@ -101,4 +104,11 @@ install(TARGETS pddlboat
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
 install(DIRECTORY include/${PROJECT_NAME}/ DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
+install(DIRECTORY resources DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
+
+install(DIRECTORY submodules/z3/
+  DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}
+  FILES_MATCHING PATTERN "*.h" PATTERN "*.cmake"
+  )
+
 endif (CATKIN_DEVEL_PREFIX)

@@ -2,10 +2,9 @@
 <package format="2">
   <name>pddlboat</name>
   <version>0.0.1</version>
-  <description>Something Something PDDL</description>
+  <description>PDDL parsing, manipulation, and planning</description>
   <maintainer email="zak@rice.edu">Zachary Kingston</maintainer>
   <author email="zak@rice.edu">Zachary Kingston</author>
-  <author email="bryce.steven.willey@gmail.com">Bryce Willey</author>
 
   <license>BSD</license>
 

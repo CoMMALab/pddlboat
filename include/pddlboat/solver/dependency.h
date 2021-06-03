@@ -73,6 +73,7 @@ namespace pddlboat
 
         using ActionNodeList = std::vector<ActionNodePtr>;
 
+        PlanDependencyGraph(const Plan &plan);
         PlanDependencyGraph(const PlanPtr &plan);
         PlanDependencyGraph(const PlanDependencyGraph &graph);
 
@@ -80,9 +81,6 @@ namespace pddlboat
 
         ActionNodePtr getPlanStep(std::size_t index) const;
         ActionNodeList getNodes() const;
-
-        void insertStep(const ActionPtr &action, const Assignment &assignment, std::size_t index);
-        void removeStep(std::size_t index);
 
         bool removeNode(const ActionNodePtr &node);
         void computeNodeStates();

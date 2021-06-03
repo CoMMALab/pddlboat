@@ -2,6 +2,7 @@
 
 #include <sstream>
 #include <boost/algorithm/string.hpp>
+#include <boost/functional/hash.hpp>
 
 #include <pddlboat/utility.h>
 #include <pddlboat/solver/domain.h>
@@ -89,14 +90,7 @@ void VariableSet::addVariable(const Variable &var)
 {
     auto it = std::find_if(variables.begin(), variables.end(),
                            [&var](const Variable &other) { return var.name == other.name; });
-    if (it != variables.end())
-    {
-        // if (it->type != PDDLBOAT_OBJECT_CLASS and var.type != it->type)
-        //     throw std::invalid_argument(
-        //         log::format("Variable %1% has inconsistent types! %2% / %3%", var.name, var.type,
-        //         it->type));
-    }
-    else
+    if (it == variables.end())
         variables.emplace(var);
 }
 
@@ -124,7 +118,7 @@ std::set<std::string> VariableSet::getNames() const
 
 const Variable &VariableSet::getVariable(const std::string &name) const
 {
-    auto it = variables.find(boost::algorithm::to_lower_copy(name));
+    auto it = variables.find(name);
     if (it != variables.end())
         return *it;
 
@@ -787,6 +781,22 @@ std::ostream &FunctionDefinition::toPDDL(std::ostream &out) const
     return out;
 }
 
+std::string FunctionDefinition::toID(const Assignment &vars) const
+{
+    std::stringstream ss;
+    ss << "FUNC:" << name;
+
+    ss << ":ARGS:";
+    for (unsigned int i = 0; i < parameters.size(); ++i)
+    {
+        ss << vars.assigned(parameters[i].name)->name;
+        if (i < parameters.size() - 1)
+            ss << ",";
+    }
+
+    return ss.str();
+}
+
 // Numeric
 
 NumericFunctionDefinition::NumericFunctionDefinition(const std::string &name, const VariableList &parameters)
@@ -951,22 +961,6 @@ ObjectFunctionPtr ObjectFunctionDefinition::bindValues(const std::vector<Value> 
     return std::make_shared<ObjectFunction>(this, values);
 }
 
-std::string ObjectFunctionDefinition::toID(const Assignment &vars) const
-{
-    std::stringstream ss;
-    ss << "FUNC:" << name;
-
-    ss << ":ARGS:";
-    for (unsigned int i = 0; i < parameters.size(); ++i)
-    {
-        ss << vars.assigned(parameters[i].name)->name;
-        if (i < parameters.size() - 1)
-            ss << ",";
-    }
-
-    return ss.str();
-}
-
 ObjectFunctionDefinitionPtr pddlboat::makeObjectFunction(const std::string &name, const std::string &type,
                                                          const VariableList &variables)
 {
@@ -1099,10 +1093,8 @@ const ObjectPtr Domain::getConstant(const std::string &name) const
     if (constants.empty())
         return nullptr;
 
-    const std::string lower = boost::algorithm::to_lower_copy(name);
-
     auto it = std::find_if(constants.begin(), constants.end(),
-                           [&lower](const ObjectPtr &other) { return lower == other->name; });
+                           [&name](const ObjectPtr &other) { return name == other->name; });
 
     if (it != constants.end())
         return *it;
@@ -1141,15 +1133,12 @@ void Domain::addType(const std::string &type, const std::string &parent)
 {
     addRequirement(Requirements::TYPING);
 
-    const std::string typel = boost::algorithm::to_lower_copy(type);
-    const std::string parentl = boost::algorithm::to_lower_copy(parent);
+    if (not isType(parent))
+        throw std::runtime_error(log::format("Invalid parent type %1%!", parent));
 
-    if (not isType(parentl))
-        throw std::runtime_error(log::format("Invalid parent type %1%!", parentl));
-
-    auto [it, r] = types.emplace(typel, parentl);
+    auto [it, r] = types.emplace(type, parent);
     if (not r)
-        it->second = parentl;
+        it->second = parent;
 }
 
 std::string Domain::getParent(const std::string &type) const
@@ -1188,18 +1177,15 @@ std::vector<std::string> Domain::getTypes() const
 bool Domain::isType(const std::string &type) const
 {
     return type == PDDLBOAT_OBJECT_CLASS  //
-           or types.find(boost::algorithm::to_lower_copy(type)) != types.end();
+           or types.find(type) != types.end();
 }
 
 bool Domain::isTypeOf(const std::string &type, const std::string &other) const
 {
     bool r = false;
 
-    const std::string typel = boost::algorithm::to_lower_copy(type);
-    const std::string otherl = boost::algorithm::to_lower_copy(other);
-
-    auto view = std::cref(typel);
-    while (not((r = view.get() == otherl)  //
+    auto view = std::cref(type);
+    while (not((r = view.get() == other)  //
                or view.get() == PDDLBOAT_OBJECT_CLASS))
     {
         auto it = types.find(view);
@@ -1262,38 +1248,30 @@ void Domain::addDerivedPredicate(const DerivedPredicateDefinitionPtr &predicate)
 
 bool Domain::isPredicate(const std::string &name) const
 {
-    const std::string namel = boost::algorithm::to_lower_copy(name);
-
-    auto it = predicates.find(namel);
+    auto it = predicates.find(name);
     return it != predicates.end();
 }
 
 const PredicateDefinitionPtr Domain::getPredicate(const std::string &name) const
 {
-    const std::string namel = boost::algorithm::to_lower_copy(name);
-
-    auto it = predicates.find(namel);
+    auto it = predicates.find(name);
     if (it == predicates.end())
-        throw std::invalid_argument(log::format("Predicate %1% does not exist!", namel));
+        throw std::invalid_argument(log::format("Predicate %1% does not exist!", name));
 
     return it->second;
 }
 
 bool Domain::isDerivedPredicate(const std::string &name) const
 {
-    const std::string namel = boost::algorithm::to_lower_copy(name);
-
-    auto it = derived.find(namel);
+    auto it = derived.find(name);
     return it != derived.end();
 }
 
 const DerivedPredicateDefinitionPtr Domain::getDerivedPredicate(const std::string &name) const
 {
-    const std::string namel = boost::algorithm::to_lower_copy(name);
-
-    auto it = derived.find(namel);
+    auto it = derived.find(name);
     if (it == derived.end())
-        throw std::invalid_argument(log::format("Derived predicate %1% does not exist!", namel));
+        throw std::invalid_argument(log::format("Derived predicate %1% does not exist!", name));
 
     return it->second;
 }
@@ -1317,9 +1295,7 @@ void Domain::removeFunction(const std::string &name)
 
 bool Domain::isFunction(const std::string &name) const
 {
-    const std::string namel = boost::algorithm::to_lower_copy(name);
-
-    auto it = functions.find(namel);
+    auto it = functions.find(name);
     return it != functions.end();
 }
 
@@ -1335,11 +1311,9 @@ bool Domain::isNumericFunction(const std::string &name) const
 
 FunctionDefinitionPtr Domain::getFunction(const std::string &name) const
 {
-    const std::string namel = boost::algorithm::to_lower_copy(name);
-
-    auto it = functions.find(namel);
+    auto it = functions.find(name);
     if (it == functions.end())
-        throw std::invalid_argument(log::format("Function %1% does not exist!", namel));
+        throw std::invalid_argument(log::format("Function %1% does not exist!", name));
 
     return it->second;
 }
@@ -1366,11 +1340,9 @@ void Domain::addAction(const ActionPtr &action)
 
 const ActionPtr Domain::getAction(const std::string &name) const
 {
-    const std::string namel = boost::algorithm::to_lower_copy(name);
-
-    auto it = actions.find(namel);
+    auto it = actions.find(name);
     if (it == actions.end())
-        throw std::invalid_argument(log::format("Action %1% does not exist!", namel));
+        throw std::invalid_argument(log::format("Action %1% does not exist!", name));
 
     return it->second;
 }
@@ -1513,18 +1485,36 @@ std::ostream &Domain::toPDDL(std::ostream &out) const
 Problem::Problem(const std::string &name, const DomainPtr &domain)
   : name(boost::algorithm::to_lower_copy(name)), domain(domain), start(makeState())
 {
+    if (domain->isFunction("total-cost"))
+    {
+        minimize = true;
+        metric = domain->getNumericFunction("total-cost")->bind();
+    }
+}
+
+Problem::Problem(const Problem &problem)
+  : name(problem.name)
+  , domain(problem.domain)
+  , objects(problem.objects)
+  , start(problem.start)
+  , goal(problem.goal)
+  , minimize(problem.minimize)
+  , metric(problem.metric)
+{
+}
+
+Problem::Problem(const ProblemPtr &problem) : Problem(*problem)
+{
 }
 
 const ObjectPtr Problem::getObject(const std::string &name) const
 {
-    const std::string &namel = boost::algorithm::to_lower_copy(name);
-
-    const auto &constant = domain->getConstant(namel);
+    const auto &constant = domain->getConstant(name);
     if (constant)
         return constant;
 
     auto it = std::find_if(objects.begin(), objects.end(),
-                           [&namel](const ObjectPtr &other) { return namel == other->name; });
+                           [&name](const ObjectPtr &other) { return name == other->name; });
 
     if (it != objects.end())
         return *it;
@@ -1682,6 +1672,14 @@ StatePtr State::clone() const
     return state;
 }
 
+StatePtr State::cleanClone() const
+{
+    auto state = clone();
+    state->clean();
+
+    return state;
+}
+
 const Problem *State::getProblem() const
 {
     return problem_;
@@ -1729,6 +1727,54 @@ void State::fold(const State &other)
     }
 }
 
+void State::clean()
+{
+    std::vector<Key> keys;
+    for (const auto &[key, value] : assignments)
+        if (not value)
+            keys.emplace_back(key);
+
+    for (const auto &key : keys)
+        assignments.erase(key);
+}
+
+std::size_t State::hash() const
+{
+    std::size_t seed = 0;
+    // for (const auto &[key, value] : assignments)
+    // {
+    //     if (value)
+    //     {
+    //         boost::hash_combine(seed, key.first);
+    //         for (const auto &object : key.second)
+    //             boost::hash_combine(seed, object);
+
+    //         boost::hash_combine(seed, value);
+    //     }
+    // }
+
+    // // TODO: Implement a dirty tag so we don't compute this everytime
+    std::size_t assignments_hash = boost::hash_range(assignments.begin(), assignments.end());
+    std::size_t numeric_hash = boost::hash_range(numeric.begin(), numeric.end());
+    std::size_t values_hash = boost::hash_range(values.begin(), values.end());
+
+    boost::hash_combine(seed, assignments_hash);
+    boost::hash_combine(seed, numeric_hash);
+    boost::hash_combine(seed, values_hash);
+
+    return seed;
+}
+
+bool State::isEqual(const StatePtr &other) const
+{
+    return isEqual(*other);
+}
+
+bool State::isEqual(const State &other) const
+{
+    return assignments == other.assignments and numeric == other.numeric and values == other.values;
+}
+
 bool State::isTrue(const std::string &predicate, const std::vector<std::string> &objects) const
 {
     auto it = assignments.find(std::make_pair(predicate, objects));
@@ -1760,7 +1806,6 @@ void State::assign1(const std::string &predicate, const std::string &object, boo
     if (pred->arity() != 1)
         throw std::invalid_argument(log::format("Predicate %1% is not 1-ary!", predicate));
 
-    // const auto &var = *pred->variables.getNames().begin();
     assignN(predicate, {object}, value);
 }
 
@@ -1769,16 +1814,9 @@ void State::assignN(const std::string &predicate, const std::vector<std::string>
 {
     const auto &pred = problem_->domain->getPredicate(predicate);
 
-    std::vector<std::string> objectsl;
-    for (const auto &obj : objects)
-        objectsl.emplace_back(boost::algorithm::to_lower_copy(obj));
-
-    if (not pred->isValidAssignment(problem_, objectsl))
-        throw std::invalid_argument(log::format("Invalid assignment to predicate %1%!", pred->name));
-
     auto [it, r] =
         assignments.emplace(std::piecewise_construct,  //
-                            std::forward_as_tuple(pred->name, objectsl), std::forward_as_tuple(value));
+                            std::forward_as_tuple(pred->name, objects), std::forward_as_tuple(value));
     if (not r)
         it->second = value;
 }
@@ -1834,15 +1872,8 @@ void State::assignN(const std::string &function, const std::vector<std::string> 
 {
     const auto &func = problem_->domain->getFunction(function);
 
-    std::vector<std::string> objectsl;
-    for (const auto &obj : objects)
-        objectsl.emplace_back(boost::algorithm::to_lower_copy(obj));
-
-    if (not func->isValidAssignment(problem_, objectsl))
-        throw std::invalid_argument(log::format("Invalid assignment to function %1%!", func->name));
-
     auto [it, r] = numeric.emplace(std::piecewise_construct,  //
-                                   std::forward_as_tuple(func->name, objectsl), std::forward_as_tuple(value));
+                                   std::forward_as_tuple(func->name, objects), std::forward_as_tuple(value));
     if (not r)
         it->second = value;
 }
@@ -1866,15 +1897,8 @@ void State::assignN(const std::string &function, const std::vector<std::string> 
 {
     const auto &func = problem_->domain->getFunction(function);
 
-    std::vector<std::string> objectsl;
-    for (const auto &obj : objects)
-        objectsl.emplace_back(boost::algorithm::to_lower_copy(obj));
-
-    if (not func->isValidAssignment(problem_, objectsl))
-        throw std::invalid_argument(log::format("Invalid assignment to function %1%!", func->name));
-
     auto [it, r] = values.emplace(std::piecewise_construct,  //
-                                  std::forward_as_tuple(func->name, objectsl), std::forward_as_tuple(value));
+                                  std::forward_as_tuple(func->name, objects), std::forward_as_tuple(value));
     if (not r)
         it->second = value;
 }
@@ -1999,4 +2023,46 @@ ActionPtr pddlboat::makeAction(const std::string &name, const VariableList &para
 ActionPtr pddlboat::makeNoOpAction(const std::string &name)
 {
     return makeAction(name, {{}}, makeAnd({}), makeAnd({}));
+}
+
+//
+// Groundings
+//
+
+GroundedAction::GroundedAction(const ActionPtr &action, const Assignment &assignment)
+  : action(action), assignment(assignment), string(action->toID(assignment))
+{
+}
+
+bool GroundedAction::operator==(const GroundedAction &other) const
+{
+    return string == other.string;
+}
+
+GroundedPredicate::GroundedPredicate(const PredicateDefinitionPtr &predicate, const Assignment &assignment)
+  : predicate(predicate), assignment(assignment), string(predicate->toID(assignment))
+{
+}
+
+GroundedFunction::GroundedFunction(const FunctionDefinitionPtr &fluent, const Assignment &assignment)
+    : fluent(fluent), assignment(assignment), string(fluent->toID(assignment))
+{
+}
+
+GroundedObjectFunction::GroundedObjectFunction(const ObjectFunctionDefinitionPtr &fluent,
+                                               const Assignment &assignment)
+  : fluent(fluent), assignment(assignment), string(fluent->toID(assignment))
+{
+}
+
+GroundedNumericFunction::GroundedNumericFunction(const NumericFunctionDefinitionPtr &fluent,
+                                                 const Assignment &assignment)
+  : fluent(fluent), assignment(assignment), string(fluent->toID(assignment))
+{
+}
+
+GroundedDerivedPredicate::GroundedDerivedPredicate(const DerivedPredicateDefinitionPtr &derived,
+                                                   const Assignment &assignment)
+  : derived(derived), assignment(assignment), string(derived->toID(assignment))
+{
 }

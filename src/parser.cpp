@@ -152,6 +152,13 @@ namespace parser
         ;
     PARSE(types);
 
+    struct types_bare_class;
+    const x3::rule<types_bare_class, std::vector<ast::TypedList>> types_bare = "types_bare";
+    const auto types_bare_def =            //
+        '(' >> *typedlist_variable >> ')'  //
+        ;
+    PARSE(types_bare);
+
     ///
     /// Constants
     ///
@@ -226,7 +233,6 @@ namespace parser
         ;
     PARSE(boolean_operator)
 
-    // const auto expression_def = boolean_operator | bound_predicate  //
     const auto expression_def = boolean_operator | name_expression | bound_predicate  //
         ;
     PARSE(expression)
@@ -406,19 +412,43 @@ namespace parser
     PARSE(z3predicate);
 }  // namespace parser
 
+//
+// Exposed parser functions
+//
+
+typedef std::string::const_iterator iterator_type;
+using boost::spirit::x3::error_handler_tag;
+using boost::spirit::x3::with;
+using error_handler_type = boost::spirit::x3::error_handler<iterator_type>;
+
 bool pddlboat::parseFile(const std::string &file, ast::Domain &domain)
 {
-    typedef std::string::const_iterator iterator_type;
+    const std::string string = io::loadFileToString(file);
+    return parseString(string, domain);
+}
 
-    const std::string text = io::loadFileToString(file);
-    // std::cout << text << std::endl;
+bool pddlboat::parseFile(const std::string &file, ast::Problem &problem)
+{
+    const std::string string = io::loadFileToString(file);
+    return parseString(string, problem);
+}
 
-    iterator_type iter = text.begin();
-    const iterator_type end = text.end();
+bool pddlboat::parseFile(const std::string &file, ast::Plan &plan)
+{
+    const std::string string = io::loadFileToString(file);
+    return parseString(string, plan);
+}
 
-    using boost::spirit::x3::error_handler_tag;
-    using boost::spirit::x3::with;
-    using error_handler_type = boost::spirit::x3::error_handler<iterator_type>;
+bool pddlboat::parseFile(const std::string &file, ast::Expression &expression)
+{
+    const std::string string = io::loadFileToString(file);
+    return parseString(string, expression);
+}
+
+bool pddlboat::parseString(const std::string &string, ast::Domain &domain)
+{
+    iterator_type iter = string.begin();
+    const iterator_type end = string.end();
     error_handler_type error_handler(iter, end, std::cerr);
 
     domain = ast::Domain();  // Reset Domain
@@ -427,19 +457,10 @@ bool pddlboat::parseFile(const std::string &file, ast::Domain &domain)
     return r && iter == end;
 }
 
-bool pddlboat::parseFile(const std::string &file, ast::Problem &problem)
+bool pddlboat::parseString(const std::string &string, ast::Problem &problem)
 {
-    typedef std::string::const_iterator iterator_type;
-
-    const std::string text = io::loadFileToString(file);
-    // std::cout << text << std::endl;
-
-    iterator_type iter = text.begin();
-    const iterator_type end = text.end();
-
-    using boost::spirit::x3::error_handler_tag;
-    using boost::spirit::x3::with;
-    using error_handler_type = boost::spirit::x3::error_handler<iterator_type>;
+    iterator_type iter = string.begin();
+    const iterator_type end = string.end();
     error_handler_type error_handler(iter, end, std::cerr);
 
     problem = ast::Problem();  // Reset Problem
@@ -448,19 +469,10 @@ bool pddlboat::parseFile(const std::string &file, ast::Problem &problem)
     return r && iter == end;
 }
 
-bool pddlboat::parseFile(const std::string &file, ast::Plan &plan)
+bool pddlboat::parseString(const std::string &string, ast::Plan &plan)
 {
-    typedef std::string::const_iterator iterator_type;
-
-    const std::string text = io::loadFileToString(file);
-    // std::cout << text << std::endl;
-
-    iterator_type iter = text.begin();
-    const iterator_type end = text.end();
-
-    using boost::spirit::x3::error_handler_tag;
-    using boost::spirit::x3::with;
-    using error_handler_type = boost::spirit::x3::error_handler<iterator_type>;
+    iterator_type iter = string.begin();
+    const iterator_type end = string.end();
     error_handler_type error_handler(iter, end, std::cerr);
 
     plan = ast::Plan();  // Reset Plan
@@ -469,10 +481,31 @@ bool pddlboat::parseFile(const std::string &file, ast::Plan &plan)
     return r && iter == end;
 }
 
+bool pddlboat::parseString(const std::string &string, ast::Expression &expression)
+{
+    iterator_type iter = string.begin();
+    const iterator_type end = string.end();
+    error_handler_type error_handler(iter, end, std::cerr);
+
+    expression = ast::Expression();  // Reset Problem
+    bool r = x3::phrase_parse(iter, end, with<error_handler_tag>(std::ref(error_handler))[parser::expression],
+                              parser::skipper, expression);
+    return r && iter == end;
+}
+
+bool pddlboat::parseString(const std::string &string, std::vector<ast::TypedList> &parsed)
+{
+    iterator_type iter = string.begin();
+    const iterator_type end = string.end();
+    error_handler_type error_handler(iter, end, std::cerr);
+
+    bool r = x3::phrase_parse(iter, end, with<error_handler_tag>(std::ref(error_handler))[parser::types_bare],
+                              parser::skipper, parsed);
+    return r && iter == end;
+}
+
 bool pddlboat::parseZ3Action(const std::string &string, ast::z3Action &action)
 {
-    typedef std::string::const_iterator iterator_type;
-
     iterator_type iter = string.begin();
     const iterator_type end = string.end();
 
@@ -483,33 +516,10 @@ bool pddlboat::parseZ3Action(const std::string &string, ast::z3Action &action)
 
 bool pddlboat::parseZ3Predicate(const std::string &string, ast::z3Predicate &predicate)
 {
-    typedef std::string::const_iterator iterator_type;
-
     iterator_type iter = string.begin();
     const iterator_type end = string.end();
 
     predicate = ast::z3Predicate();
     bool r = x3::phrase_parse(iter, end, parser::z3predicate, parser::skipper, predicate);
-    return r && iter == end;
-}
-
-bool pddlboat::parseFile(const std::string &file, ast::Expression &expression)
-{
-    typedef std::string::const_iterator iterator_type;
-
-    const std::string text = io::loadFileToString(file);
-    // std::cout << text << std::endl;
-
-    iterator_type iter = text.begin();
-    const iterator_type end = text.end();
-
-    using boost::spirit::x3::error_handler_tag;
-    using boost::spirit::x3::with;
-    using error_handler_type = boost::spirit::x3::error_handler<iterator_type>;
-    error_handler_type error_handler(iter, end, std::cerr);
-
-    expression = ast::Expression();  // Reset Problem
-    bool r = x3::phrase_parse(iter, end, with<error_handler_tag>(std::ref(error_handler))[parser::expression],
-                              parser::skipper, expression);
     return r && iter == end;
 }

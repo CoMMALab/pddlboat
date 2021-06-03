@@ -3,11 +3,8 @@
 #include <pddlboat/utility.h>
 
 #include <boost/regex.hpp>
-
 #include <boost/lexical_cast.hpp>
-
 #include <boost/chrono/chrono.hpp>
-
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
@@ -222,4 +219,11 @@ std::string io::getTiming(const boost::timer::cpu_timer &timer)
 
     return log::format("Wall: %1%s, User: %2%s, System: %3%s",  //
                        wall.count(), user.count(), syst.count());
+}
+
+unsigned int io::getElapsedMilliseconds(const boost::timer::cpu_timer &timer)
+{
+    return boost::chrono::duration_cast<boost::chrono::milliseconds>(  //
+               boost::chrono::nanoseconds(timer.elapsed().wall))
+        .count();
 }

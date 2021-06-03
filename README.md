@@ -62,17 +62,21 @@ Also, note that `pddlboat::*` classes typically have a `toPDDL()` function to ou
 
 ### Planners
 
-There are two planners provided in _PDDLboat_, which implement a simple abstract interface: `plan()`, which returns a `pddlboat::Plan` given a `pddlboat::Problem`.
-The two planners are one based on Z3 and one based on Fast Downward.
+There are three planners provided in _PDDLboat_, which implement a simple abstract interface: `plan()`, which returns a `pddlboat::Plan` given a `pddlboat::Problem`.
+The planners are:
+- A Z3-based SAT plan approach.
+- An implementation that uses Fast Downward.
+- A simple implementation of A*/Dijkstra for search.
+
 Both of these implement different options, but the defaults generally work well.
-Some notes about each:
+Some notes about each planner:
 - Z3 requires providing a minimum and maximum planning horizon, which is the number of steps a plan can take. If a plan is not found, this number should be increased. Moreover, Z3 tries to incrementally solve the problem so the optimal plan (given the minimum number of steps) is found. Z3 can also solve the problem "simultaneously", by enabling actions to be executed in tandem if they do not conflict.
 - Fast Downward has many different kinds of heuristics, a few defaults of which can be selected via the `pddlboat::FastDownwardPlanner::Search` enumerated type. If you want to add your own configurations, check [their website](http://www.fast-downward.org/PlannerUsage) for more configurations. Currently, the following are supported:
   - `pddlboat::FastDownwardPlanner::Search::ASTAR`: A* with landmark cut heuristic.
   - `pddlboat::FastDownwardPlanner::Search::LAZYGREEDY`:  Lazy greedy best-first search with preferred operators and the queue alternation method.
   - `pddlboat::FastDownwardPlanner::Search::FDAT`: Fast Downward Autotune 2.
   - `pddlboat::FastDownwardPlanner::Search::LAMA`: LAMA 2011 configuration from IPC 2011.
-
+  
 An example of planning once a problem has been defined:
 ```cpp
 #include <pddlboat/solver/planner.h>
@@ -84,6 +88,8 @@ pddlboat::FastDownwardPlanner planner(problem, search);
 pddlboat::Plan plan(problem);
 bool r = planner.solve(plan);
 ```
+
+Take a look at the file `helper.h` for an example on how to configure, load, and solve a planning problem.
 
 ### Constructing Block World Example
 
@@ -182,28 +188,26 @@ _PDDLboat_ uses:
 Checkout the `scripts` directory for example programs.
 - `test_building.cpp` shows how to make a blockworld domain with code using _PDDLboat_'s library.
 - `test_parsing.cpp` tests _PDDLboat_'s parsing on a suite of test domains and blockworld problems that are found in the `resources` directory.
-- `test_planning.cpp` is a script that will run either Z3 or Fast Downward planning to solve a parsed domain and problem.
+- `test_planning.cpp` is a script that has fully configurable options for planning to solve a parsed domain and problem.
+- `test_blocking.cpp` solves problems like in `test_planning.cpp`, but also blocks randomly chosen state/action pairs from the output plan, and then replans.
 
 ## Compiling
 
 For Ubuntu-based platforms:
 ```sh
-sudo apt-get install libz3-dev libboost-all-dev
+sudo apt-get install libboost-all-dev
 ```
 
-After cloning the repository, you must get the [Fast Downward](http://www.fast-downward.org/) code as a submodule.
-We have provided a helper script to clone their repo, which is a Mercurial project.
-
-First, install Mercurial:
-```sh
-sudo apt-get install mercurial
+You will need to clone the submodules (Z3 and Fast Downward).
+Either clone this repo with:
+```
+git clone --recursive git@github.com:KavrakiLab/pddlboat.git
 ```
 
-Then, run the script in the `submodules` directory:
-```sh
-cd submodules/
-./getFD.sh
-cd -
+Or initialize after the fact:
+```
+git submodule init
+git submodule update
 ```
 
 If you are building outside of a ROS environment, create a build directory and compile:
@@ -222,4 +226,4 @@ More features in _PDDLboat_ are planned soon.
 On the horizon:
 - Basic uncertainty (e.g., `oneof`, etc.).
 - Durative actions.
-- Incremental constraints.
+- Support for additional planners.

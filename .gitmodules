@@ -1,3 +1,6 @@
-[submodule "universal-pddl-parser"]
-	path = universal-pddl-parser
-	url = git@github.com:aig-upf/universal-pddl-parser.git
+[submodule "submodules/z3"]
+	path = submodules/z3
+	url = git@github.com:Z3Prover/z3.git
+[submodule "submodules/downward"]
+	path = submodules/downward
+	url = git@github.com:aibasel/downward.git

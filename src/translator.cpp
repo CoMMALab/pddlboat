@@ -17,20 +17,6 @@ const static bool debug = false;
 
 namespace
 {
-    std::vector<Variable> getVariables(const std::vector<ast::TypedList> &parsed)
-    {
-        std::vector<Variable> variables;
-
-        for (const auto &list : parsed)
-        {
-            const auto &parent = (list.parent != "") ? list.parent : PDDLBOAT_OBJECT_CLASS;
-            for (const auto &variable : list.types)
-                variables.emplace_back(variable, parent);
-        }
-
-        return variables;
-    }
-
     const Variable *isVariable(const std::string &name, const std::vector<Variable> &variables)
     {
         auto vit = std::find_if(variables.begin(), variables.end(),
@@ -87,6 +73,21 @@ namespace
         throw std::invalid_argument(log::format("Invalid term %1% in predicate!", name));
     }
 }  // namespace
+
+std::vector<Variable> pddlboat::getVariables(const std::vector<ast::TypedList> &parsed)
+{
+    std::vector<Variable> variables;
+
+    for (const auto &list : parsed)
+    {
+        const auto &parent = (list.parent != "") ? list.parent : PDDLBOAT_OBJECT_CLASS;
+        for (const auto &variable : list.types)
+            variables.emplace_back(variable, parent);
+    }
+
+    return variables;
+}
+
 
 pddlboat::ExpressionPtr pddlboat::toExpression(const ast::Expression &expression,
                                                const std::vector<Variable> &variables,

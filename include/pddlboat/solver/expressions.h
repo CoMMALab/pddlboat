@@ -329,6 +329,9 @@ namespace pddlboat
     public:
         BinaryExpression(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs);
 
+        const NumericExpressionPtr &getLHS() const;
+        const NumericExpressionPtr &getRHS() const;
+
         Type getTypes() const override;
         void getVariables(VariableSet &vars) const override;
         void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
@@ -500,8 +503,11 @@ namespace pddlboat
         AssignNumber(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs);
         AssignNumber(const NumericFunctionPtr &lhs, double rhs);
 
-        virtual double getRHS(const StatePtr &in, const Assignment &vars) const;
-        double getLHS(const StatePtr &in, const Assignment &vars) const;
+        double getLHSValue(const StatePtr &in, const Assignment &vars) const;
+        virtual double getRHSValue(const StatePtr &in, const Assignment &vars) const;
+
+        const NumericFunctionPtr &getLHS() const;
+        const NumericExpressionPtr &getRHS() const;
 
         void assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const override;
         Type type() const override;
@@ -536,7 +542,7 @@ namespace pddlboat
         ScaleUp(const NumericFunctionPtr &lhs, double rhs);
 
         Type type() const override;
-        double getRHS(const StatePtr &in, const Assignment &vars) const override;
+        double getRHSValue(const StatePtr &in, const Assignment &vars) const override;
     };
 
     ScaleUpPtr makeScaleUp(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs);
@@ -554,7 +560,7 @@ namespace pddlboat
         ScaleDown(const NumericFunctionPtr &lhs, double rhs);
 
         Type type() const override;
-        double getRHS(const StatePtr &in, const Assignment &vars) const override;
+        double getRHSValue(const StatePtr &in, const Assignment &vars) const override;
     };
 
     ScaleDownPtr makeScaleDown(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs);
@@ -572,7 +578,7 @@ namespace pddlboat
         Increase(const NumericFunctionPtr &lhs, double rhs);
 
         Type type() const override;
-        double getRHS(const StatePtr &in, const Assignment &vars) const override;
+        double getRHSValue(const StatePtr &in, const Assignment &vars) const override;
     };
 
     IncreasePtr makeIncrease(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs);
@@ -590,7 +596,7 @@ namespace pddlboat
         Decrease(const NumericFunctionPtr &lhs, double rhs);
 
         Type type() const override;
-        double getRHS(const StatePtr &in, const Assignment &vars) const override;
+        double getRHSValue(const StatePtr &in, const Assignment &vars) const override;
     };
 
     DecreasePtr makeDecrease(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs);

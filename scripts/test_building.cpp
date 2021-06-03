@@ -13,11 +13,11 @@ int main(int argc, char **argv)
     // Program Options
     bool domainout, problemout;
     po::options_description desc("PDDLBoat - Domain/Planning Building Demo");
-    desc.add_options()                       //
-        ("domain,d", po::bool_switch(&domainout),   //
-         "Print the domain as PDDL")         //
+    desc.add_options()                               //
+        ("domain,d", po::bool_switch(&domainout),    //
+         "Print the domain as PDDL")                 //
         ("problem,p", po::bool_switch(&problemout),  //
-         "Print the problem as PDDL")        //
+         "Print the problem as PDDL")                //
         ;
 
     po::variables_map vm;

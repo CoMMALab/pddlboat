@@ -62,14 +62,14 @@ int main(int argc, char **argv)
 {
     int filenum;
     po::options_description desc("PDDLBoat - Parser Testing Demo");
-    desc.add_options()                                                      //
-        ("help,h", "Produces this help message")                            //
-        ("print,p", po::bool_switch(&print),                                //
-         "Print the AST of the intermediate parsed file.")                  //
-        ("convert,c", po::bool_switch(&convert),                            //
-         "Print the PDDL of the translated parsed file.")                   //
+    desc.add_options()                                             //
+        ("help,h", "Produces this help message")                   //
+        ("print,p", po::bool_switch(&print),                       //
+         "Print the AST of the intermediate parsed file.")         //
+        ("convert,c", po::bool_switch(&convert),                   //
+         "Print the PDDL of the translated parsed file.")          //
         ("number,n", po::value<int>(&filenum)->default_value(-1),  //
-         "If set, does a specific numbered file.")                          //
+         "If set, does a specific numbered file.")                 //
         ;
 
     po::variables_map vm;

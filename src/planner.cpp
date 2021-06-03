@@ -1,6 +1,7 @@
 /* Author: Zachary Kingston */
 
 #include <pddlboat/utility.h>
+#include <pddlboat/solver/dependency.h>
 #include <pddlboat/solver/planner.h>
 
 using namespace pddlboat;
@@ -12,8 +13,8 @@ static const bool debug = false;
 /// Plan::Step
 ///
 
-Plan::Step::Step(const ActionPtr &action, const Assignment &assignment, const StatePtr &state)
-  : action(action), assignment(assignment), state(state)
+Plan::Step::Step(const ActionPtr &action, const Assignment &assignment)
+  : action(action), assignment(assignment)
 {
 }
 
@@ -22,10 +23,18 @@ std::ostream &Plan::Step::toString(std::ostream &out) const
     out << "(" << action->name;
     for (const auto &parameter : action->parameters)
         out << " " << assignment.assigned(parameter.name)->name;
-
     out << ")";
 
     return out;
+}
+
+bool Plan::Step::operator<(const Step &step_obj) const
+{
+    std::ostringstream ss1, ss2;
+    toString(ss1);
+    step_obj.toString(ss2);
+
+    return ss1.str() < ss2.str();
 }
 
 std::ostream &pddlboat::operator<<(std::ostream &out, const Plan::Step &step)
@@ -41,7 +50,7 @@ Plan::Plan(const ProblemPtr &problem) : problem_(problem)
 {
 }
 
-Plan::Plan(const Plan &plan) : steps_(plan.steps_), problem_(plan.problem_), makespan_step_times_(plan.makespan_step_times_)
+Plan::Plan(const Plan &plan) : steps_(plan.steps_), problem_(plan.problem_)
 {
 }
 
@@ -87,38 +96,12 @@ std::pair<ActionPtr, Assignment> Plan::getAction(const std::string &action_name,
 
 void Plan::addStep(const std::string &action_name, const std::vector<std::string> &objects)
 {
-    const auto &[action, assignment] = getAction(action_name, objects);
-    auto state = propagateAction(action, assignment, steps_.size());
-    if (not state)
-        throw std::invalid_argument(  //
-            log::format("Action %1% failed to apply to previous state!", action_name));
-
-    steps_.emplace_back(action, assignment, state);
+    insertStep(action_name, objects, getMakespan());
 }
 
-StatePtr Plan::propagateAction(const ActionPtr &action, const Assignment &assignment, std::size_t index) const
+void Plan::addStep(const ActionPtr &action, const Assignment &assignment)
 {
-    StatePtr prev;
-    if (steps_.empty() or index == 0)
-        prev = problem_->start;
-    else
-        prev = steps_[index - 1].state;
-
-    StatePtr state = problem_->makeState();
-
-    if (debug)
-    {
-        std::cout << "Attempting to do action " << action->name << " with: ";
-        assignment.toString(std::cout) << std::endl;
-        std::cout << "On State: " << std::endl;
-        prev->toPDDL(std::cout);
-        std::cout << std::endl;
-    }
-
-    if (not action->doAction(state, prev, assignment))
-        return nullptr;
-
-    return state;
+    insertStep(action, assignment, getMakespan());
 }
 
 void Plan::insertStep(const std::string &action_name, const std::vector<std::string> &objects,
@@ -130,38 +113,40 @@ void Plan::insertStep(const std::string &action_name, const std::vector<std::str
 
 void Plan::insertStep(const ActionPtr &action, const Assignment &assignment, std::size_t index)
 {
-    auto state = propagateAction(action, assignment, index);
-    if (not state)
-        throw std::invalid_argument(  //
-            log::format("Action %1% failed to apply to previous state!", action->name));
+    if (index >= getMakespan())
+        steps_.resize(index + 1);
 
-    Step step(action, assignment, state);
-    steps_.insert(steps_.begin() + index, step);
-}
-
-void Plan::removeStep(std::size_t index)
-{
-    steps_.erase(steps_.begin() + index);
+    steps_[index].emplace_back(action, assignment);
 }
 
 bool Plan::validate()
 {
-    for (std::size_t i = 0; i < steps_.size(); ++i)
+    auto previous = problem_->start;
+
+    std::size_t i = 0;
+    for (; i < getNumSteps(); ++i)
     {
-        auto state = propagateAction(steps_[i].action, steps_[i].assignment, i);
-        if (not state)
+        auto &step = getStep(i);
+        step.state = problem_->makeState();
+
+        if (not step.action->doAction(step.state, previous, step.assignment))
             return false;
 
-        steps_[i].state = state;
+        previous = step.state;
     }
 
-    return problem_->goal->evaluate(steps_.back().state, Assignment(problem_));
+    return problem_->goal->evaluate(getStepConst(i - 1).state, Assignment(problem_));
 }
 
-std::ostream &Plan::toString(std::ostream &out) const
+std::ostream &Plan::toString(std::ostream &out, bool steps) const
 {
-    for (const auto &step : steps_)
-        step.toString(out) << std::endl;
+    for (std::size_t i = 0; i < steps_.size(); ++i)
+        for (const auto &step : steps_[i])
+        {
+            if (steps)
+                out << i << " ";
+            step.toString(out) << std::endl;
+        }
 
     return out;
 }
@@ -171,14 +156,60 @@ const ProblemPtr &Plan::getProblem() const
     return problem_;
 }
 
-const std::vector<Plan::Step> &Plan::getSteps() const
+std::vector<Plan::Step> Plan::getSteps() const
 {
-    return steps_;
+    std::vector<Plan::Step> steps;
+    for (std::size_t i = 0; i < getNumSteps(); ++i)
+        steps.emplace_back(getStepConst(i));
+
+    return steps;
+}
+
+Plan::Step &Plan::getStep(std::size_t index)
+{
+    std::size_t total = 0;
+    for (auto &set : steps_)
+        for (auto &step : set)
+        {
+            if (index == total)
+                return step;
+
+            total++;
+        }
+
+    throw std::runtime_error(log::format("Invalid index `%1%` in plan.", index));
+}
+
+const Plan::Step &Plan::getStepConst(std::size_t index) const
+{
+    return const_cast<Plan *>(this)->getStep(index);
 }
 
 std::size_t Plan::getNumSteps() const
 {
+    std::size_t total = 0;
+    for (const auto &set : steps_)
+        total += set.size();
+
+    return total;
+}
+
+std::size_t Plan::getMakespan() const
+{
     return steps_.size();
+}
+
+const std::vector<Plan::Step> &Plan::getStepsAtMakespan(std::size_t makespan_depth) const
+{
+    if (makespan_depth >= getMakespan())
+        throw std::runtime_error(log::format("Makespan depth %1% >= %2%", makespan_depth, getMakespan()));
+
+    return steps_[makespan_depth];
+}
+
+const std::vector<std::vector<Plan::Step>> &Plan::getMakespanSteps() const
+{
+    return steps_;
 }
 
 std::ostream &pddlboat::operator<<(std::ostream &out, const Plan &plan)
@@ -212,6 +243,18 @@ void Planner::blockPlanStep(const Plan &plan, std::size_t index)
 }
 
 void Planner::blockStateAction(const ActionPtr &action, const Assignment &assignment, const StatePtr &state)
+{
+    blockStateActions({{action, assignment}}, state);
+}
+
+void Planner::blockStateActions(const std::vector<std::pair<const ActionPtr &, const Assignment &>> &actions,
+                                const StatePtr &state)
+{
+    throw std::runtime_error("Not implemented!");
+}
+
+void Planner::blockStateActionSimulataneous(
+    const std::vector<std::pair<const ActionPtr &, const Assignment &>> &actions, const StatePtr &state)
 {
     throw std::runtime_error("Not implemented!");
 }

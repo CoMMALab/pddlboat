@@ -204,8 +204,9 @@ void FastDownwardPlanner::update(bool domain, bool problem) const
     }
 }
 
-bool FastDownwardPlanner::solve(Plan &plan) {
-    return solve(plan);
+bool FastDownwardPlanner::solve(Plan &plan)
+{
+    return solve(plan, 0);
 }
 
 bool FastDownwardPlanner::solve(Plan &plan, unsigned int timeout)
@@ -241,5 +242,5 @@ bool FastDownwardPlanner::solve(Plan &plan, unsigned int timeout)
         }
     }
 
-    return true;
+    return plan.validate();
 }

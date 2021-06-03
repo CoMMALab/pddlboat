@@ -1,0 +1,53 @@
+(define (problem map-01)
+  (:domain map)
+  (:objects a - robot
+            l1 - location
+            l2 - location
+            l3 - location
+            l4 - location
+            l5 - location
+            )
+  (:init (at a l1)
+
+         (clear l2)
+         (clear l3)
+         (clear l4)
+         (clear l5)
+
+         (connected l1 l2)
+         (= (distance l1 l2) 3)
+         (connected l2 l1)
+         (= (distance l2 l1) 3)
+
+         (connected l1 l3)
+         (= (distance l1 l3) 2)
+         (connected l3 l1)
+         (= (distance l3 l1) 2)
+
+         (connected l1 l4)
+         (= (distance l1 l4) 1)
+         (connected l4 l1)
+         (= (distance l4 l1) 1)
+
+         (connected l2 l5)
+         (= (distance l2 l5) 3)
+         (connected l5 l2)
+         (= (distance l5 l2) 3)
+
+         (connected l3 l5)
+         (= (distance l3 l5) 2)
+         (connected l5 l3)
+         (= (distance l5 l3) 2)
+
+         (connected l4 l5)
+         (= (distance l4 l5) 1)
+         (connected l5 l4)
+         (= (distance l5 l4) 1)
+
+         (= (total-cost) 0)
+         )
+
+  (:goal (and (at a l5)
+              )
+         )
+  )

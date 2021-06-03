@@ -85,7 +85,7 @@ void Requirements::initialize()
     map.insert(bimap::value_type(":derived-predicates", DERIVED_PREDICATES));                //
     map.insert(bimap::value_type(":preferences", PREFERENCES));                              //
     map.insert(bimap::value_type(":constraints", CONSTRAINTS));                              //
-    map.insert(bimap::value_type(":action-costs", ACTION_COSTS));                              //
+    map.insert(bimap::value_type(":action-costs", ACTION_COSTS));                            //
 }
 
 bool Requirements::isSubset(Keyword subset, Keyword set)

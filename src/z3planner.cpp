@@ -39,30 +39,6 @@ namespace
     }
 }  // namespace
 
-//
-// Groundings
-//
-
-GroundedAction::GroundedAction(const ActionPtr &action, const Assignment &assignment)
-  : action(action), assignment(assignment), string(action->toID(assignment))
-{
-}
-
-GroundedFluent::GroundedFluent(const ObjectFunctionDefinitionPtr &fluent, const Assignment &assignment)
-  : fluent(fluent), assignment(assignment), string(fluent->toID(assignment))
-{
-}
-
-GroundedDerived::GroundedDerived(const DerivedPredicateDefinitionPtr &derived, const Assignment &assignment)
-  : derived(derived), assignment(assignment), string(derived->toID(assignment))
-{
-}
-
-GroundedPredicate::GroundedPredicate(const PredicateDefinitionPtr &predicate, const Assignment &assignment)
-  : predicate(predicate), assignment(assignment), string(predicate->toID(assignment))
-{
-}
-
 PredAction::PredAction(const GroundedActionPtr &action, bool relies, bool effects)
   : action(action), relies(relies), effects(effects)
 {
@@ -97,6 +73,21 @@ void Z3Planner::Z3Function::addBoolArgument()
 {
     args.push_back(nullptr);
     domains.push_back(planner->ctx_->bool_sort());
+}
+
+void Z3Planner::Z3Function::setBoolReturn()
+{
+    range = planner->ctx_->bool_sort();
+}
+
+void Z3Planner::Z3Function::setIntReturn()
+{
+    range = planner->ctx_->int_sort();
+}
+
+void Z3Planner::Z3Function::setRealReturn()
+{
+    range = planner->ctx_->real_sort();
 }
 
 void Z3Planner::Z3Function::setTypeReturn(const Z3DataTypePtr &type)
@@ -190,7 +181,7 @@ Z3Planner::Z3DataTypePtr Z3Planner::makeZ3DataType(const std::string &type) cons
             if (options_.dump_clauses)
                 std::cout << clause << std::endl;
 
-            solver_->add(clause);
+            addClause(clause);
         }
     }
 
@@ -386,7 +377,7 @@ z3::expr Z3Planner::toZ3Predicate(const GroundedPredicate &grounding, Time step)
     return (*function)(args);
 }
 
-z3::expr Z3Planner::toZ3Predicate(const GroundedDerived &grounding, Time step) const
+z3::expr Z3Planner::toZ3Predicate(const GroundedDerivedPredicate &grounding, Time step) const
 {
     const auto &derived = grounding.derived;
 
@@ -408,42 +399,83 @@ z3::expr Z3Planner::toZ3Action(const ActionPtr &action, const Assignment &assign
     return (*function)(args);
 }
 
-z3::expr Z3Planner::toZ3Fluent(const ObjectFunctionPtr &fluent, const Assignment &assignment, Time step) const
+z3::expr Z3Planner::toZ3Fluent(const std::string &fluent, const std::vector<Value> &values,
+                               const Assignment &assignment, Time step) const
 {
-    const auto &function = getZ3Fluent(fluent->getName());
-    auto args = getZ3Values(fluent->bindings, assignment, step);
+    const auto &function = getZ3Fluent(fluent);
+    auto args = getZ3Values(values, assignment, step);
     args.push_back(toZ3Time(step));
     castZ3TypeArgs(args, *function);
 
     return (*function)(args);
+}
+
+z3::expr Z3Planner::toZ3Fluent(const std::string &fluent, const VariableList &variables,
+                               const Assignment &assignment, Time step) const
+{
+    const auto &function = getZ3Fluent(fluent);
+    auto args = getZ3Values(variables, assignment);
+    args.push_back(toZ3Time(step));
+    castZ3TypeArgs(args, *function);
+
+    return (*function)(args);
+}
+
+z3::expr Z3Planner::toZ3Fluent(const ObjectFunctionPtr &fluent, const Assignment &assignment, Time step) const
+{
+    return toZ3Fluent(fluent->getName(), fluent->bindings, assignment, step);
 }
 
 z3::expr Z3Planner::toZ3Fluent(const ObjectFunctionDefinitionPtr &fluent, const Assignment &assignment,
                                Time step) const
 {
-    const auto &function = getZ3Fluent(fluent->name);
-    auto args = getZ3Values(fluent->parameters, assignment);
-    args.push_back(toZ3Time(step));
-    castZ3TypeArgs(args, *function);
-
-    return (*function)(args);
+    return toZ3Fluent(fluent->name, fluent->parameters, assignment, step);
 }
 
-z3::expr Z3Planner::toZ3Fluent(const GroundedFluent &grounding, Time step) const
+z3::expr Z3Planner::toZ3Fluent(const GroundedObjectFunction &grounding, Time step) const
 {
     const auto &fluent = grounding.fluent;
+    return toZ3Fluent(fluent->name, fluent->parameters, grounding.assignment, step);
+}
 
-    const auto &function = getZ3Fluent(fluent->name);
-    auto args = getZ3Values(fluent->parameters, grounding.assignment);
-    args.push_back(toZ3Time(step));
-    castZ3TypeArgs(args, *function);
+z3::expr Z3Planner::toZ3Fluent(const NumericFunctionPtr &fluent, const Assignment &assignment,
+                               Time step) const
+{
+    return toZ3Fluent(fluent->getName(), fluent->bindings, assignment, step);
+}
 
-    return (*function)(args);
+z3::expr Z3Planner::toZ3Fluent(const NumericFunctionDefinitionPtr &fluent, const Assignment &assignment,
+                               Time step) const
+{
+    return toZ3Fluent(fluent->name, fluent->parameters, assignment, step);
+}
+
+z3::expr Z3Planner::toZ3Fluent(const GroundedNumericFunction &grounding, Time step) const
+{
+    const auto &fluent = grounding.fluent;
+    return toZ3Fluent(fluent->name, fluent->parameters, grounding.assignment, step);
+}
+
+z3::expr Z3Planner::toZ3Fluent(const FunctionDefinitionPtr &fluent, const Assignment &assignment,
+                               Time step) const
+{
+    return toZ3Fluent(fluent->name, fluent->parameters, assignment, step);
+}
+
+z3::expr Z3Planner::toZ3Fluent(const GroundedFunction &grounding, Time step) const
+{
+    const auto &fluent = grounding.fluent;
+    return toZ3Fluent(fluent->name, fluent->parameters, grounding.assignment, step);
 }
 
 z3::expr Z3Planner::toZ3Time(Time time) const
 {
     return ctx_->int_val((int)time);
+}
+
+z3::expr Z3Planner::toZ3Number(double value) const
+{
+    return ctx_->int_val((int)value);
 }
 
 //
@@ -461,9 +493,12 @@ Z3Planner::Z3Planner(const ProblemPtr problem, const Options &options) : Planner
 
 void Z3Planner::reset()
 {
-    push_count_=0;
     ctx_ = new z3::context;
-    solver_ = new z3::solver(*ctx_);
+
+    if (options_.optimize and problem_->metric)
+        optimizer_ = new z3::optimize(*ctx_);
+    else
+        solver_ = new z3::solver(*ctx_);
 
     generateFunctions();
     generateGroundings();
@@ -472,8 +507,8 @@ void Z3Planner::reset()
     addStartState();
     addDerivedPredicates(0);
 
-    solver_->check();
-    solver_->push();
+    solverCheck();
+    solverPush();
 
     // add all predicates up to the minimum horizon to consider
     for (Time step = 0; step < options_.horizon.min; ++step)
@@ -490,7 +525,13 @@ void Z3Planner::clear()
     z3_predicates_.clear();
     z3_effect_exclusion_.clear();
     mutex_auxilliary_.reset();
-    delete solver_;
+
+    if (optimizer_)
+        delete optimizer_;
+
+    if (solver_)
+        delete solver_;
+
     delete ctx_;
 }
 
@@ -501,13 +542,15 @@ Z3Planner::~Z3Planner()
 
 std::ostream &Z3Planner::printSMT2(std::ostream &out) const
 {
-    out << solver_->to_smt2();
+    if (solver_)
+        out << solver_->to_smt2();
     return out;
 }
 
 Requirements::Keyword Z3Planner::getSupportedRequirements() const
 {
-    return Requirements::ADL | Requirements::DERIVED_PREDICATES | Requirements::OBJECT_FLUENTS;
+    return Requirements::ADL | Requirements::DERIVED_PREDICATES | Requirements::OBJECT_FLUENTS |
+           Requirements::NUMERIC_FLUENTS;
     // return Requirements::ADL | Requirements::DERIVED_PREDICATES;
 }
 
@@ -533,30 +576,27 @@ void Z3Planner::addStep(Time step, bool incremental)
     // (5) Derived predicates take on their value
     addDerivedPredicates(step + 1);
 
-    //We need to do this last so popping constraints works correctly?
+    // We need to do this last so popping constraints works correctly?
     // (6) Add existing planning constraints
     addConstraints(step);
-
-    // Solve and push assertions if solving incrementally
-//    if (incremental) {
-//        solver_->check();
-//        // Push another frame onto the Z3 solver
-//        solver_->push();
-//        // push_count_++; //We don't want to undo these ones.
-//    }
 }
 
-bool Z3Planner::solve(Plan &plan) {
+bool Z3Planner::solve(Plan &plan)
+{
     return solve(plan, 0);
 }
 
-
 bool Z3Planner::solve(Plan &plan, unsigned int timeout)
 {
+    if (timeout > 0)
+    {
+        if (solver_)
+            solver_->set("timeout", timeout);
 
-    if(timeout > 0) {
-        solver_->set("timeout", timeout);
+        if (optimizer_)
+            std::cerr << "Z3 optimizer does not understand timeout, ignoring!" << std::endl;
     }
+
     boost::timer::cpu_timer t;
 
     // incrementally solve up to maximum horizon
@@ -565,17 +605,16 @@ bool Z3Planner::solve(Plan &plan, unsigned int timeout)
     // already have begun solving, incremental time
     if (current_step_ != 0)
     {
-        //The goal may be removed by new constraints:
-        solver_->check();
-        solver_->push();
-//        std::cout<<"Adding goal expression for: "<<current_step_<<std::endl;
+        // the goal may be removed by new constraints:
+        solverCheck();
+        solverPush();
+
         addGoalExpression(current_step_);
 
-        auto result = solver_->check();
+        auto result = solverCheck();
         sat = result == z3::sat;
-        if(not sat) {
-            solver_->pop();//remove goal
-        }
+        if (not sat)
+            solverPop();  // remove goal
     }
 
     // Time step = options_.horizon.min;
@@ -584,12 +623,12 @@ bool Z3Planner::solve(Plan &plan, unsigned int timeout)
         boost::timer::cpu_timer tl;
 
         addStep(current_step_, true);
-        solver_->check();
-        solver_->push();
-//        std::cout<<"Adding goal expression for: "<<current_step_<<std::endl;
+        solverCheck();
+        solverPush();
+
         addGoalExpression(current_step_ + 1);
 
-        auto result = solver_->check();
+        auto result = solverCheck();
 
         tl.stop();
         if (options_.diagnostics)
@@ -603,12 +642,13 @@ bool Z3Planner::solve(Plan &plan, unsigned int timeout)
         // We don't clear constraints_, so they are added again at the next step
         // If constraints carry over, this may pop too much
         // Don't pop on the last iteration since we may want to print the clauses
-        if (not sat and current_step_ < options_.horizon.max-1) {
-//            solver_->pop(push_count_);
-            solver_->pop(); //We pop to the last addStep()
-            push_count_ = 0;
-        } else if(not (current_step_ < options_.horizon.max-1)){
-            std::cout<<"We aren't changing the stack for the final step"<<std::endl;
+        if (not sat and current_step_ < options_.horizon.max - 1)
+        {
+            solverPop();  // We pop to the last addStep()
+        }
+        else if (not(current_step_ < options_.horizon.max - 1))
+        {
+            // std::cout << "We aren't changing the stack for the final step" << std::endl;
         }
     }
 
@@ -643,7 +683,7 @@ bool Z3Planner::solve(Plan &plan, unsigned int timeout)
                   << std::endl;
 
         std::cout << "Solving Z3 Instance took: " << io::getTiming(t) << std::endl;
-        std::cout << solver_->statistics() << std::endl;
+        std::cout << getSolverStats() << std::endl;
     }
 
     if (sat)
@@ -654,26 +694,17 @@ bool Z3Planner::solve(Plan &plan, unsigned int timeout)
 
 std::ostream &Z3Planner::printModel(std::ostream &out, bool only_true) const
 {
-    if (not solver_)
-        return out;
-
-    auto m = solver_->get_model();
-    out << m << std::endl;
+    auto model = getSolverModel();
+    out << model << std::endl;
 
     return out;
 }
 
 bool Z3Planner::buildPlan(Plan &plan, Time max) const
 {
-    auto model = solver_->get_model();
-    // std::cout << model << std::endl;
-
-    plan.makespan_step_times_.resize(max);
+    auto model = getSolverModel();
     for (std::size_t i = 0; i < max; ++i)
     {
-        plan.makespan_step_times_[i].resize(0);
-        std::cout<<"Timestep "<<i<<std::endl;
-
         for (const auto &[name, action] : problem_->domain->actions)
         {
             const auto &groundings = problem_->getGroundings(action->parameters);
@@ -681,16 +712,13 @@ bool Z3Planner::buildPlan(Plan &plan, Time max) const
             {
                 if (isTrue(model.eval(toZ3Action(action, grounding, i))))
                 {
-                    // std::cout << action->toID(grounding) << std::endl;
                     std::vector<std::string> args;
                     for (const auto &parameter : action->parameters)
                         args.emplace_back(grounding.assigned(parameter.name)->name);
 
                     try
                     {
-                        plan.addStep(name, args);
-                        std::cout<<name<<std::endl;
-                        plan.makespan_step_times_[i].emplace_back(plan.getNumSteps());
+                        plan.insertStep(name, args, i);
                     }
                     catch (std::exception &e)
                     {
@@ -702,7 +730,7 @@ bool Z3Planner::buildPlan(Plan &plan, Time max) const
         }
     }
 
-    return true;
+    return plan.validate();
 }
 
 /**
@@ -712,7 +740,8 @@ bool Z3Planner::buildPlan(Plan &plan, Time max) const
  */
 z3::expr Z3Planner::getExpression(const ExpressionPtr &expr, const Assignment &assignment, Time step) const
 {
-    switch (expr->type())
+    const auto &type = expr->type();
+    switch (type)
     {
         case Expression::Type::PREDICATE:
         {
@@ -805,6 +834,74 @@ z3::expr Z3Planner::getExpression(const ExpressionPtr &expr, const Assignment &a
             const auto &type = problem_->domain->findCommonType(getType(t1e), getType(t2e));
             return castZ3Type(type, t1e) == castZ3Type(type, t2e);
         }
+        case Expression::Type::NUMERIC_FUNCTION:
+        {
+            const auto &numeric_function_expr = std::static_pointer_cast<NumericFunction>(expr);
+            return toZ3Fluent(numeric_function_expr, assignment, step);
+        }
+        case Expression::Type::INCREASE:
+        case Expression::Type::DECREASE:
+        case Expression::Type::SCALE_UP:
+        case Expression::Type::SCALE_DOWN:
+        {
+            const auto &numeric_expr = std::static_pointer_cast<AssignNumber>(expr);
+
+            const auto &lhs = numeric_expr->getLHS();
+            const auto &rhs = numeric_expr->getRHS();
+
+            z3::expr set(*ctx_);
+            z3::expr term = toZ3Fluent(lhs, assignment, step);
+            z3::expr prior = toZ3Fluent(lhs, assignment, step - 1);
+            z3::expr value = getExpression(rhs, assignment, step - 1);
+
+            if (type == Expression::Type::INCREASE)
+                set = term == (prior + value);
+            else if (type == Expression::Type::DECREASE)
+                set = term == (prior - value);
+            else if (type == Expression::Type::SCALE_UP)
+                set = term == (prior * value);
+            else if (type == Expression::Type::SCALE_DOWN)
+                set = term == (prior / value);
+
+            return set;
+        }
+        case Expression::Type::GREATER_THAN:
+        case Expression::Type::LESS_THAN:
+        case Expression::Type::GREATER_OR_EQUAL:
+        case Expression::Type::LESS_OR_EQUAL:
+        case Expression::Type::MINUS:
+        case Expression::Type::DIVIDE:
+        case Expression::Type::MULTIPLY:
+        case Expression::Type::PLUS:
+        {
+            const auto &binary_expr = std::static_pointer_cast<BinaryExpression>(expr);
+
+            const auto &lhs = binary_expr->getLHS();
+            const auto &rhs = binary_expr->getRHS();
+
+            z3::expr set(*ctx_);
+            z3::expr lhse = getExpression(lhs, assignment, step);
+            z3::expr rhse = getExpression(rhs, assignment, step);
+
+            if (type == Expression::Type::GREATER_THAN)
+                set = lhse > rhse;
+            else if (type == Expression::Type::LESS_THAN)
+                set = lhse < rhse;
+            else if (type == Expression::Type::GREATER_OR_EQUAL)
+                set = lhse >= rhse;
+            else if (type == Expression::Type::LESS_OR_EQUAL)
+                set = lhse <= rhse;
+            else if (type == Expression::Type::MINUS)
+                set = lhse - rhse;
+            else if (type == Expression::Type::DIVIDE)
+                set = lhse / rhse;
+            else if (type == Expression::Type::MULTIPLY)
+                set = lhse * rhse;
+            else if (type == Expression::Type::PLUS)
+                set = lhse + rhse;
+
+            return set;
+        }
         default:
             throw std::runtime_error(log::format("We had an error in parsing the pddlboat expression to an "
                                                  "expression for Z3. Unsupported expression %1%",
@@ -881,29 +978,26 @@ void Z3Planner::generateGroundings()
     // get all fluents unassigned
     for (const auto &[name, function] : problem_->domain->functions)
     {
-        auto of = std::dynamic_pointer_cast<ObjectFunctionDefinition>(function);
-        if (not of)
-            continue;
-
-        const auto &assignments = problem_->getGroundings(of->parameters);
+        const auto &assignments = problem_->getGroundings(function->parameters);
         for (const auto &assignment : assignments)
         {
-            const auto &id = of->toID(assignment);
+            const auto &id = function->toID(assignment);
             fluent_map_.emplace(std::piecewise_construct,   //
                                 std::forward_as_tuple(id),  //
-                                std::forward_as_tuple(of, assignment));
+                                std::forward_as_tuple(function, assignment));
 
-            auto it = action_effects_.find(id);
             // check if predicate is never effected
+            bool effected = false;
+            auto it = action_effects_.find(id);
             if (it != action_effects_.end())
             {
-                bool effected = false;
                 for (const auto &action : it->second)
-                    effected |= action.effects;
-
-                if (not effected)
-                    ground_fluent_.emplace_back(of, assignment);
+                    if ((effected |= action.effects))
+                        break;
             }
+
+            if (not effected)
+                ground_fluent_.emplace_back(function, assignment);
         }
     }
 
@@ -959,18 +1053,26 @@ void Z3Planner::generateFunctions()
         auto of = std::dynamic_pointer_cast<ObjectFunctionDefinition>(fluent);
         if (of)
         {
-            auto function = makeZ3Function(name, of->parameters);
+            auto function = makeZ3Function(name, fluent->parameters);
             function->setTypeReturn(getZ3DataType(of->type));
             function->make();
 
             z3_fluents_.emplace(name, function);
-
-            auto mutex = makeZ3Function(name + "-mutex", of->parameters);
-            mutex->addBoolArgument();  // forward / backward?
-            mutex->addIntArgument();   // index
-            mutex->make();             // index
-            z3_effect_exclusion_.emplace(name, mutex);
         }
+        else  // numeric
+        {
+            auto function = makeZ3Function(name, fluent->parameters);
+            function->setIntReturn();
+            function->make();
+
+            z3_fluents_.emplace(name, function);
+        }
+
+        auto mutex = makeZ3Function(name + "-mutex", fluent->parameters);
+        mutex->addBoolArgument();  // forward / backward?
+        mutex->addIntArgument();   // index
+        mutex->make();             // index
+        z3_effect_exclusion_.emplace(name, mutex);
     }
 }
 
@@ -993,7 +1095,7 @@ void Z3Planner::addActionImplications(Time step)
         // action -> preconditions_t0 and effects_t1
         z3::expr clause = imply(act, precond and effects);
 
-        solver_->add(clause);
+        addClause(clause);
 
         action_implications_.inc();
         if (options_.dump_clauses)
@@ -1021,7 +1123,7 @@ void Z3Planner::addDerivedPredicates(Time step)
         z3::expr expr = getExpression(derived.derived->expression, derived.assignment, step);
 
         z3::expr clause = pred == expr;
-        solver_->add(clause);
+        addClause(clause);
 
         derived_predicates_.inc();
         if (options_.dump_clauses)
@@ -1043,49 +1145,62 @@ void Z3Planner::addFrameAxioms(Time step)
 
     frame_axioms_.start();
 
+    if (options_.dump_clauses)
+        std::cout << ";; Action Effects @ " << step << ":" << std::endl;
     // add frame axioms
     // if the prop changed, then an action changed it. it doesn't matter what the value
     // changes to, because the clauses for precoditions and effects will ensure
     // consistency
     for (const auto &[effect, actions] : action_effects_)
     {
+        if (actions.empty())
+            continue;
+
         z3::expr curr(*ctx_);
         z3::expr next(*ctx_);
 
-        const auto &it = predicate_map_.find(effect);
-        if (it != predicate_map_.end())
+        const auto &pit = predicate_map_.find(effect);
+        if (pit != predicate_map_.end())
         {
-            const auto &predicate = it->second;
+            const auto &predicate = pit->second;
             curr = toZ3Predicate(predicate, step);
             next = toZ3Predicate(predicate, step + 1);
         }
         else
         {
-            const auto &it = fluent_map_.find(effect);
-            if (it != fluent_map_.end())
+            const auto &fit = fluent_map_.find(effect);
+            if (fit != fluent_map_.end())
             {
-                const auto &fluent = it->second;
+                const auto &fluent = fit->second;
                 curr = toZ3Fluent(fluent, step);
                 next = toZ3Fluent(fluent, step + 1);
             }
         }
 
+        bool extended = false;
         z3::expr actionex = ctx_->bool_val(false);
         for (std::size_t i = 0; i < actions.size(); ++i)
             if (actions[i].effects)
             {
                 z3::expr actioni = toZ3Action(actions[i].action->action, actions[i].action->assignment, step);
                 actionex = actionex or actioni;
+                extended = true;
             }
+
+        if (not extended)
+            continue;
 
         z3::expr clause = imply(curr != next, actionex);
 
-        solver_->add(clause);
+        addClause(clause);
 
         frame_axioms_.inc();
         if (options_.dump_clauses)
             std::cout << clause << std::endl;
     }
+
+    if (options_.dump_clauses)
+        std::cout << ";; Constant Predicates @ " << step << ":" << std::endl;
 
     for (const auto &predicate : ground_predicate_)
     {
@@ -1095,12 +1210,15 @@ void Z3Planner::addFrameAxioms(Time step)
 
         z3::expr clause = curr == next;
 
-        solver_->add(clause);
+        addClause(clause);
 
         frame_axioms_.inc();
         if (options_.dump_clauses)
             std::cout << clause << std::endl;
     }
+
+    if (options_.dump_clauses)
+        std::cout << ";; Constant Fluents @ " << step << ":" << std::endl;
 
     for (const auto &fluent : ground_fluent_)
     {
@@ -1110,7 +1228,7 @@ void Z3Planner::addFrameAxioms(Time step)
 
         z3::expr clause = curr == next;
 
-        solver_->add(clause);
+        addClause(clause);
 
         frame_axioms_.inc();
         if (options_.dump_clauses)
@@ -1196,7 +1314,7 @@ void Z3Planner::addMutualExclusionLinearHelper(const std::vector<PredAction> &ac
         if (pred.effects)
             clause = clause and imply(op, current);
 
-        solver_->add(clause);
+        addClause(clause);
 
         mutual_exclusions_.inc();
         if (options_.dump_clauses)
@@ -1262,7 +1380,7 @@ void Z3Planner::addMutualExclusion(Time step)
             z3::expr other_e = toZ3Action(other_action.action, other_action.assignment, step);
             z3::expr clause = (not e) or (not other_e);
 
-            solver_->add(clause);
+            addClause(clause);
 
             mutual_exclusions_.inc();
             if (options_.dump_clauses)
@@ -1296,7 +1414,7 @@ void Z3Planner::addEarlyTermination(Time step)
     // Add the goal
     Assignment empty_assgn(&*problem_);
     z3::expr clause = z3::ite(getExpression(problem_->goal, empty_assgn, step), not actions, actions);
-    solver_->add(clause);
+    addClause(clause);
 
     if (options_.dump_clauses)
         std::cout << clause << std::endl;
@@ -1316,19 +1434,30 @@ void Z3Planner::addGoalExpression(Time step)
 
     goal_expression_.start();
 
-    // Add marker clause
-    std::string s = "GoalMarker"+std::to_string(step);
-    z3::expr marker_clause = ctx_->bool_const(s.c_str());
-    solver_->add(marker_clause);
-
     // Add the goal
     Assignment empty_assgn(&*problem_);
     z3::expr clause = getExpression(problem_->goal, empty_assgn, step);
-    solver_->add(clause);
-
+    addClause(clause);
 
     if (options_.dump_clauses)
         std::cout << clause << std::endl;
+
+    // Add optimization criteria
+    if (optimizer_)
+    {
+        if (options_.dump_clauses)
+            std::cout << ";; Adding Optimization Criteria @ " << step << ":" << std::endl;
+
+        z3::expr metric = getExpression(problem_->metric, empty_assgn, step);
+
+        if (problem_->minimize)
+            optimizer_->minimize(metric);
+        else
+            optimizer_->maximize(metric);
+
+        if (options_.dump_clauses)
+            std::cout << metric << std::endl;
+    }
 
     goal_expression_.stop();
     if (options_.diagnostics)
@@ -1366,17 +1495,18 @@ z3::expr Z3Planner::getState(const StatePtr &state, Time step) const
     for (const auto &[name, function] : problem_->domain->functions)
     {
         auto of = std::dynamic_pointer_cast<ObjectFunctionDefinition>(function);
-        if (of)
+
+        const auto &assignments = problem_->getGroundings(function->parameters);
+        for (const auto &assignment : assignments)
         {
-            const auto &assignments = problem_->getGroundings(of->parameters);
-            for (const auto &assignment : assignments)
+            z3::expr p = toZ3Fluent(function, assignment, step);
+
+            std::vector<std::string> objects;
+            for (const auto &variable : function->parameters)
+                objects.emplace_back(assignment.assigned(variable.name)->name);
+
+            if (of)
             {
-                z3::expr p = toZ3Fluent(of, assignment, step);
-
-                std::vector<std::string> objects;
-                for (const auto &variable : of->parameters)
-                    objects.emplace_back(assignment.assigned(variable.name)->name);
-
                 auto dt = getZ3DataType(of->type);
 
                 std::string value = state->getObject(name, objects);
@@ -1385,6 +1515,12 @@ z3::expr Z3Planner::getState(const StatePtr &state, Time step) const
                     z3::expr clause = p == dt->getConstant(value);
                     expr = expr and clause;
                 }
+            }
+            else  // is a numeric function
+            {
+                double number = state->getValue(name, objects);
+                z3::expr clause = p == toZ3Number(number);
+                expr = expr and clause;
             }
         }
     }
@@ -1400,7 +1536,7 @@ void Z3Planner::addStartState()
     start_propositions_.start();
 
     z3::expr clause = getState(problem_->start, 0);
-    solver_->add(clause);
+    addClause(clause);
 
     start_propositions_.inc();
     if (options_.dump_clauses)
@@ -1416,68 +1552,34 @@ void Z3Planner::addStartState()
 
 void Z3Planner::addConstraints(Time step)
 {
-    for (const auto &[action, assignment, state] : constraints_)
-        addConstraint(action, assignment, state, step);
-    for (const auto &[action1, assignment1, action2, assignment2, state] : constraints_simultaneous_)
-        addConstraintSimultaneous(action1, assignment1, action2, assignment2, state, step);
+    for (const auto &[state, set] : constraints_)
+        addConstraint(state, set, step);
+
+    for (const auto &[state, set] : simultaneous_constraints_)
+        addConstraint(state, set, step, true);
 }
 
-void Z3Planner::addConstraint(const ActionPtr &action, const Assignment &assignment, const StatePtr &state,
-                              Time step)
-{
-    if (options_.dump_clauses)
-        std::cout << ";; Adding Constraint @ :" << step << std::endl;
-
-    constraint_clauses_.start();
-
-
-
-    z3::expr aexpr = toZ3Action(action, assignment, step);
-    z3::expr sexpr = getState(state, step);
-    z3::expr clause = imply(sexpr, not aexpr);
-
-    solver_->add(clause);
-
-
-    // Add marker clause
-    std::string s = "ConstraintMarker"+std::to_string(step);
-    z3::expr marker_clause = ctx_->bool_const(s.c_str());
-    solver_->add(marker_clause);
-
-    constraint_clauses_.inc();
-    if (options_.dump_clauses)
-        std::cout << clause << std::endl;
-
-    constraint_clauses_.stop();
-    if (options_.diagnostics)
-    {
-        std::cout << "Building Z3 Constraint @ " << step
-                  << " took: " << io::getTiming(constraint_clauses_.onestep) << std::endl;
-    }
-}
-
-void Z3Planner::addConstraintSimultaneous(const ActionPtr &action1, const Assignment &assignment1, const ActionPtr &action2, const Assignment &assignment2, const StatePtr &state,
-                              Time step)
+void Z3Planner::addConstraint(const StatePtr &state, const std::set<size_t> &ground_indices, Time step,
+                              bool simultaneous)
 {
     if (options_.dump_clauses)
         std::cout << ";; Adding Constraint Simultaneous @ :" << step << std::endl;
 
     constraint_clauses_.start();
 
-
-
-    z3::expr aexpr1 = toZ3Action(action1, assignment1, step);
-    z3::expr aexpr2 = toZ3Action(action2, assignment2, step);
-
     z3::expr sexpr = getState(state, step);
-    z3::expr clause = imply(sexpr, not (aexpr1 and aexpr2));
+    z3::expr aexpr = ctx_->bool_val(false);
+    for (const auto &index : ground_indices)
+    {
+        const auto &action = ground_actions_[index].action;
+        if (simultaneous)
+            aexpr = aexpr and toZ3Action(action->action, action->assignment, step);
+        else
+            aexpr = aexpr or toZ3Action(action->action, action->assignment, step);
+    }
 
-    solver_->add(clause);
-
-    // Add marker clause
-    std::string s = "ConstraintMarker"+std::to_string(step);
-    z3::expr marker_clause = ctx_->bool_const(s.c_str());
-    solver_->add(marker_clause);
+    z3::expr clause = imply(sexpr, not aexpr);
+    addClause(clause);
 
     constraint_clauses_.inc();
     if (options_.dump_clauses)
@@ -1491,30 +1593,92 @@ void Z3Planner::addConstraintSimultaneous(const ActionPtr &action1, const Assign
     }
 }
 
-void Z3Planner::blockStateAction(const ActionPtr &action, const Assignment &assignment, const StatePtr &state)
+std::size_t Z3Planner::getGroundActionIndex(const ActionPtr &action, const Assignment &assignment) const
 {
-    solver_->pop();//remove goal as we will re-add it
-    constraints_.emplace_back(action, assignment, state);
+    const auto &id = action->toID(assignment);
+    auto it = std::find_if(ground_actions_.begin(), ground_actions_.end(),
+                           [id](const PredAction &pa) { return pa.action->string == id; });
 
-    for (Time step = 0; step <= current_step_; ++step)
-        addConstraint(action, assignment, state, step);
+    if (it == ground_actions_.end())
+        throw std::runtime_error(log::format("Attempted to block action `%1%`, which was not found.", id));
 
-    solver_->check();
-    solver_->push();//make this stay on the stack
-//    addGoalExpression(current_step_); // We call outside the loop, so current_step_ is already updated
+    return it - ground_actions_.begin();
 }
 
-void Z3Planner::blockStateActionSimultaneous(const ActionPtr &action1, const Assignment &assignment1, const ActionPtr &action2, const Assignment &assignment2,
-                                             const StatePtr &state)
+void Z3Planner::blockStateActions(
+    const std::vector<std::pair<const ActionPtr &, const Assignment &>> &actions, const StatePtr &state)
 {
-    solver_->pop();//remove goal as we will re-add it
-    //Not sure if we need this with our pipeline
-    constraints_simultaneous_.emplace_back(action1, assignment1, action2, assignment2, state);
+    solverPop();  // remove goal as we will re-add it
 
+    // get indices of all actions to block in the ground action list
+    std::set<std::size_t> toBlock;
+    for (const auto &[action, assignment] : actions)
+        toBlock.emplace(getGroundActionIndex(action, assignment));
+
+    // get a clean clone of the state to access map
+    const auto &copy = state->cleanClone();
+
+    // either emplace or insert the indices to block
+    auto [it, r] = constraints_.emplace(copy, toBlock);
+    if (not r)
+        it->second.insert(toBlock.begin(), toBlock.end());
+
+    // block up till current time step
     for (Time step = 0; step <= current_step_; ++step)
-        addConstraintSimultaneous(action1, assignment1, action2, assignment2, state, step);
+        addConstraint(it->first, it->second, step);
 
-    solver_->check();
-    solver_->push();//make this stay on the stack
-//    addGoalExpression(current_step_); // We call outside the loop, so current_step_ is already updated
+    solverCheck();
+    solverPush();  // make this stay on the stack
+}
+
+void Z3Planner::blockStateActionSimulataneous(
+    const std::vector<std::pair<const ActionPtr &, const Assignment &>> &actions, const StatePtr &state)
+{
+    solverPop();  // remove goal as we will re-add it
+
+    // get indices of all actions to block in the ground action list
+    std::set<std::size_t> toBlock;
+    for (const auto &[action, assignment] : actions)
+        toBlock.emplace(getGroundActionIndex(action, assignment));
+
+    // get a clean clone of the state to access map
+    const auto &copy = state->cleanClone();
+    simultaneous_constraints_.emplace_back(copy, toBlock);
+
+    // block up till current time step
+    for (Time step = 0; step <= current_step_; ++step)
+        addConstraint(copy, toBlock, step, true);
+
+    solverCheck();
+    solverPush();  // make this stay on the stack
+}
+
+void Z3Planner::addClause(const z3::expr &clause) const
+{
+    (optimizer_) ? optimizer_->add(clause) : solver_->add(clause);
+}
+
+bool Z3Planner::solverCheck() const
+{
+    return ((optimizer_) ? optimizer_->check() : solver_->check()) == z3::sat;
+}
+
+void Z3Planner::solverPush() const
+{
+    (optimizer_) ? optimizer_->push() : solver_->push();
+}
+
+void Z3Planner::solverPop() const
+{
+    (optimizer_) ? optimizer_->pop() : solver_->pop();
+}
+
+z3::model Z3Planner::getSolverModel() const
+{
+    return (optimizer_) ? optimizer_->get_model() : solver_->get_model();
+}
+
+z3::stats Z3Planner::getSolverStats() const
+{
+    return (optimizer_) ? optimizer_->statistics() : solver_->statistics();
 }

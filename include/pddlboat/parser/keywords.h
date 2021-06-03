@@ -67,6 +67,7 @@ namespace pddlboat
         {
             NONE,
             LITERAL,
+            NUMBER,
             AND,
             OR,
             NOT,

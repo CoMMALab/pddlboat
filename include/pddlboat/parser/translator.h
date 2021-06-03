@@ -16,6 +16,7 @@ namespace pddlboat
     PDDLBOAT_CLASS_FORWARD(DerivedPredicateDefinition);
     PDDLBOAT_CLASS_FORWARD(Variable);
 
+    std::vector<Variable> getVariables(const std::vector<ast::TypedList> &parsed);
     ExpressionPtr toExpression(const ast::Expression &expression, const std::vector<Variable> &variables,
                                const DomainPtr &domain, const ProblemPtr &problem = nullptr);
     ActionPtr toAction(const ast::Action &action, const DomainPtr &domain);

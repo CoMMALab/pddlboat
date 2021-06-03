@@ -1044,7 +1044,7 @@ Expression::Type Equals::getTypes() const
 }
 
 void Equals::getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
-                                   const Assignment &vars) const
+                               const Assignment &vars) const
 {
     if (term1_.function)
         term1_.function->getUsedPredicates(predicates, state, vars);
@@ -1112,6 +1112,16 @@ EqualsPtr pddlboat::makeEquals(const Value &term1, const Value &term2)
 BinaryExpression::BinaryExpression(const NumericExpressionPtr &lhs, const NumericExpressionPtr &rhs)
   : lhs_(lhs), rhs_(rhs)
 {
+}
+
+const NumericExpressionPtr &BinaryExpression::getLHS() const
+{
+    return lhs_;
+}
+
+const NumericExpressionPtr &BinaryExpression::getRHS() const
+{
+    return rhs_;
 }
 
 Expression::Type BinaryExpression::getTypes() const
@@ -1461,7 +1471,7 @@ AssignNumber::AssignNumber(const NumericFunctionPtr &lhs, double rhs) : lhs_(lhs
 {
 }
 
-double AssignNumber::getRHS(const StatePtr &in, const Assignment &vars) const
+double AssignNumber::getRHSValue(const StatePtr &in, const Assignment &vars) const
 {
     if (rhs_)
         return rhs_->getValue(in, vars);
@@ -1469,14 +1479,24 @@ double AssignNumber::getRHS(const StatePtr &in, const Assignment &vars) const
         return constant_;
 }
 
-double AssignNumber::getLHS(const StatePtr &in, const Assignment &vars) const
+double AssignNumber::getLHSValue(const StatePtr &in, const Assignment &vars) const
 {
     return in->getValue(lhs_->getName(), getValueObjects(lhs_->bindings, in, vars));
 }
 
+const NumericFunctionPtr &AssignNumber::getLHS() const
+{
+    return lhs_;
+}
+
+const NumericExpressionPtr &AssignNumber::getRHS() const
+{
+    return rhs_;
+}
+
 void AssignNumber::assign(StatePtr &out, const StatePtr &in, const Assignment &vars) const
 {
-    out->assignN(lhs_->getName(), getValueObjects(lhs_->bindings, in, vars), getRHS(in, vars));
+    out->assignN(lhs_->getName(), getValueObjects(lhs_->bindings, in, vars), getRHSValue(in, vars));
 }
 
 Expression::Type AssignNumber::type() const
@@ -1588,9 +1608,9 @@ Expression::Type ScaleUp::type() const
     return Expression::SCALE_UP;
 }
 
-double ScaleUp::getRHS(const StatePtr &in, const Assignment &vars) const
+double ScaleUp::getRHSValue(const StatePtr &in, const Assignment &vars) const
 {
-    return getLHS(in, vars) * AssignNumber::getRHS(in, vars);
+    return getLHSValue(in, vars) * AssignNumber::getRHSValue(in, vars);
 }
 
 ScaleUpPtr pddlboat::makeScaleUp(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs)
@@ -1620,9 +1640,9 @@ Expression::Type ScaleDown::type() const
     return Expression::SCALE_DOWN;
 }
 
-double ScaleDown::getRHS(const StatePtr &in, const Assignment &vars) const
+double ScaleDown::getRHSValue(const StatePtr &in, const Assignment &vars) const
 {
-    return getLHS(in, vars) / AssignNumber::getRHS(in, vars);
+    return getLHSValue(in, vars) / AssignNumber::getRHSValue(in, vars);
 }
 
 ScaleDownPtr pddlboat::makeScaleDown(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs)
@@ -1652,9 +1672,9 @@ Expression::Type Increase::type() const
     return Expression::INCREASE;
 }
 
-double Increase::getRHS(const StatePtr &in, const Assignment &vars) const
+double Increase::getRHSValue(const StatePtr &in, const Assignment &vars) const
 {
-    return getLHS(in, vars) + AssignNumber::getRHS(in, vars);
+    return getLHSValue(in, vars) + AssignNumber::getRHSValue(in, vars);
 }
 
 IncreasePtr pddlboat::makeIncrease(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs)
@@ -1683,9 +1703,9 @@ Expression::Type Decrease::type() const
     return Expression::DECREASE;
 }
 
-double Decrease::getRHS(const StatePtr &in, const Assignment &vars) const
+double Decrease::getRHSValue(const StatePtr &in, const Assignment &vars) const
 {
-    return getLHS(in, vars) - AssignNumber::getRHS(in, vars);
+    return getLHSValue(in, vars) - AssignNumber::getRHSValue(in, vars);
 }
 
 DecreasePtr pddlboat::makeDecrease(const NumericFunctionPtr &lhs, const NumericExpressionPtr &rhs)

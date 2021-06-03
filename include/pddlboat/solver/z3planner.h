@@ -54,55 +54,6 @@ namespace pddlboat
         }
     };
 
-    PDDLBOAT_CLASS_FORWARD(GroundedAction)
-    /** \brief A grounded action.
-     */
-    class GroundedAction
-    {
-    public:
-        ActionPtr action;       ///< Action
-        Assignment assignment;  ///< The grounding.
-        std::string string;     ///< String representation of this assigned action.
-
-        GroundedAction(const ActionPtr &action, const Assignment &assignment);
-    };
-
-    PDDLBOAT_CLASS_FORWARD(GroundedPredicate)
-    /** \brief A grounded predicate.
-     */
-    struct GroundedPredicate
-    {
-        PredicateDefinitionPtr predicate;  ///< Derived predicate
-        Assignment assignment;             ///< The grounding.
-        std::string string;                ///< String representation of this assigned action.
-
-        GroundedPredicate(const PredicateDefinitionPtr &action, const Assignment &assignment);
-    };
-
-    PDDLBOAT_CLASS_FORWARD(GroundedFluent)
-    /** \brief A grounded fluent.
-     */
-    struct GroundedFluent
-    {
-        ObjectFunctionDefinitionPtr fluent;  ///< Derived predicate
-        Assignment assignment;               ///< The grounding.
-        std::string string;                  ///< String representation of this assigned action.
-
-        GroundedFluent(const ObjectFunctionDefinitionPtr &fluent, const Assignment &assignment);
-    };
-
-    PDDLBOAT_CLASS_FORWARD(GroundedDerived)
-    /** \brief A grounded derived predicate.
-     */
-    struct GroundedDerived
-    {
-        DerivedPredicateDefinitionPtr derived;  ///< Derived predicate
-        Assignment assignment;                  ///< The grounding.
-        std::string string;                     ///< String representation of this assigned action.
-
-        GroundedDerived(const DerivedPredicateDefinitionPtr &action, const Assignment &assignment);
-    };
-
     /** \brief A grounded action with information on whether it effects a predicate or not.
      */
     struct PredAction
@@ -134,7 +85,7 @@ namespace pddlboat
             bool dump_clauses{false};  ///< Dump generated Z3 clauses.
             bool incremental{true};    ///< Solve the problem incrementally.
             bool simultaneous{true};   ///< Allow simultaneous actions.
-            unsigned int z3timeout{0}; ///< Maximum time to run each z3 planning attempt (ms)
+            bool optimize{true};       ///< If the problem has a metric, optimize.
 
             Options() = default;
         };
@@ -174,16 +125,16 @@ namespace pddlboat
          */
         bool solve(Plan &plan, unsigned int timeout) override;
 
-        /** \brief Block a state/action pair from being in the plan.
-         *  \param[in] action Action to block.
-         *  \param[in] assignment Grounding of action.
-         *  \param[in] state State that action cannot occur on.
+        /** \brief Block a set of state/action pairs from being in the plan.
+         *  \param[in] actions Action and grounding pairs to prevent.
+         *  \param[in] state The state the actions cannot be applied in.
          */
-        void blockStateAction(const ActionPtr &action, const Assignment &assignment,
-                              const StatePtr &state) override;
+        void blockStateActions(const std::vector<std::pair<const ActionPtr &, const Assignment &>> &actions,
+                               const StatePtr &state) override;
 
-        void blockStateActionSimultaneous(const ActionPtr &action1, const Assignment &assignment1, const ActionPtr &action2, const Assignment &assignment2,
-                              const StatePtr &state);
+        void blockStateActionSimulataneous(
+            const std::vector<std::pair<const ActionPtr &, const Assignment &>> &actions,
+            const StatePtr &state) override;
 
         /** \brief Print out the current solver model.
          *  \param[in,out] Output stream.
@@ -280,7 +231,7 @@ namespace pddlboat
          */
         void addStartState();
 
-        Options options_;
+        Options options_;  ///< Options for computation.
 
         // diagnostic timers
 
@@ -295,34 +246,46 @@ namespace pddlboat
 
         // groundings
 
-        std::vector<GroundedDerived> ground_derived_;      ///< All grounded derived predicates.
-        std::vector<GroundedPredicate> ground_predicate_;  ///< All grounded unaffected predicates.
-        std::vector<GroundedFluent> ground_fluent_;        ///< All grounded unaffected fluents.
-        std::map<std::string, GroundedPredicate> predicate_map_;
-        std::map<std::string, GroundedFluent> fluent_map_;
+        std::vector<GroundedDerivedPredicate> ground_derived_;  ///< All grounded derived predicates.
+        std::vector<GroundedPredicate> ground_predicate_;       ///< All grounded unaffected predicates.
+        std::vector<GroundedFunction> ground_fluent_;           ///< All grounded unaffected fluents.
 
-        /** \brief Add a state/action pair constraint at a time step.
+        std::map<std::string, GroundedPredicate> predicate_map_;  ///< Map of IDs to grounded predicates.
+        std::map<std::string, GroundedFunction> fluent_map_;      ///< Map of IDs to fluents.
+
+        /** \brief Add a state/actions pair constraint at a time step.
          */
-        void addConstraint(const ActionPtr &action, const Assignment &assignment, const StatePtr &state, Time step);
+        void addConstraint(const StatePtr &state, const std::set<size_t> &ground_indices, Time step,
+                           bool simultaneous = false);
 
-        void addConstraintSimultaneous(const ActionPtr &action1, const Assignment &assignment1, const ActionPtr &action2, const Assignment &assignment2, const StatePtr &state, Time step);
+        /** \brief Map of state to disallowed actions. Set is of indices into ground_actions_ (the list of all
+         * ground actions). */
+        StateMap<std::set<std::size_t>> constraints_;
 
+        /** \brief Pairs of states to the set of actions that cannot occur simultaneously at that state. */
+        std::vector<std::pair<StatePtr, std::set<std::size_t>>> simultaneous_constraints_;
 
-        std::vector<std::tuple<ActionPtr, Assignment, StatePtr>> constraints_;  ///< State/action constraints
-        std::vector<std::tuple<ActionPtr, Assignment, ActionPtr, Assignment, StatePtr>> constraints_simultaneous_;  ///< State/action constraints
-
+        /** get the index of a grounded action in the grounded action list */
+        std::size_t getGroundActionIndex(const ActionPtr &action, const Assignment &assignment) const;
 
         std::vector<PredAction> ground_actions_;  ///< All grounded actions.
         std::map<std::string, std::vector<PredAction>> action_effects_;
 
+        // Z3 Stuff
+        z3::context *ctx_{nullptr};         ///< Z3 Solver Context.
+        z3::solver *solver_{nullptr};       ///< Z3 Solver.
+        z3::optimize *optimizer_{nullptr};  ///< Z3 Optimizer.
 
-        size_t push_count_{0}; // The number of push() calls since the last pop.
+        // Add a clause to either the solver / optimizer
+        void addClause(const z3::expr &clause) const;
+        bool solverCheck() const;
 
-        /// Z3 Stuff
-    public:
-        z3::context *ctx_;      ///< Z3 Solver Context.
-        z3::solver *solver_;    ///< Z3 Solver.
-    private:
+        void solverPush() const;
+        void solverPop() const;
+
+        z3::model getSolverModel() const;
+        z3::stats getSolverStats() const;
+
         Time current_step_{0};  ///< Current step the solve is on.
 
         PDDLBOAT_CLASS_FORWARD(Z3Function)
@@ -340,7 +303,12 @@ namespace pddlboat
             void addTypeArgument(const Z3DataTypePtr &type);
             void addBoolArgument();
             void addIntArgument();
+
+            void setBoolReturn();
+            void setIntReturn();
+            void setRealReturn();
             void setTypeReturn(const Z3DataTypePtr &type);
+
             void make();
 
             z3::expr operator()() const;
@@ -397,14 +365,30 @@ namespace pddlboat
         z3::expr toZ3Predicate(const DerivedPredicatePtr &predicate, const Assignment &assignment,
                                Time step) const;
         z3::expr toZ3Predicate(const GroundedPredicate &grounding, Time step) const;
-        z3::expr toZ3Predicate(const GroundedDerived &grounding, Time step) const;
+        z3::expr toZ3Predicate(const GroundedDerivedPredicate &grounding, Time step) const;
         z3::expr toZ3Action(const ActionPtr &action, const Assignment &assignment, Time step) const;
+
+        z3::expr toZ3Fluent(const std::string &fluent, const std::vector<Value> &values,
+                            const Assignment &assignment, Time step) const;
+        z3::expr toZ3Fluent(const std::string &fluent, const VariableList &variables,
+                            const Assignment &assignment, Time step) const;
+
+        z3::expr toZ3Fluent(const NumericFunctionPtr &fluent, const Assignment &assignment, Time step) const;
+        z3::expr toZ3Fluent(const NumericFunctionDefinitionPtr &fluent, const Assignment &assignment,
+                            Time step) const;
+        z3::expr toZ3Fluent(const GroundedNumericFunction &grounding, Time step) const;
+
         z3::expr toZ3Fluent(const ObjectFunctionPtr &fluent, const Assignment &assignment, Time step) const;
         z3::expr toZ3Fluent(const ObjectFunctionDefinitionPtr &fluent, const Assignment &assignment,
                             Time step) const;
-        z3::expr toZ3Fluent(const GroundedFluent &grounding, Time step) const;
+        z3::expr toZ3Fluent(const GroundedObjectFunction &grounding, Time step) const;
+
+        z3::expr toZ3Fluent(const FunctionDefinitionPtr &fluent, const Assignment &assignment,
+                            Time step) const;
+        z3::expr toZ3Fluent(const GroundedFunction &grounding, Time step) const;
 
         z3::expr toZ3Time(Time time) const;
+        z3::expr toZ3Number(double value) const;
 
         z3::expr getState(const StatePtr &state, Time step) const;
 

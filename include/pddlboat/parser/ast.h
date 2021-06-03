@@ -132,6 +132,7 @@ namespace pddlboat
             ExpressionOperator op;
             std::vector<TypedList> parameters{};
             std::vector<Expression> terms{};
+            double number{0.};
 
             std::ostream &toString(std::ostream &out, bool literal = false) const;
         };

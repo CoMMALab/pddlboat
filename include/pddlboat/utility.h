@@ -48,10 +48,12 @@ namespace pddlboat
         void createFile(std::ofstream &out, const std::string &file);
         bool deleteFile(const std::string &file);
         std::optional<std::vector<std::string>> listDirectory(const std::string &directory);
-        std::optional<std::vector<std::string>> glob(const std::string &directory, const std::string &wildcard);
+        std::optional<std::vector<std::string>> glob(const std::string &directory,
+                                                     const std::string &wildcard);
 
         std::string generateUUID();
         std::string getTiming(const boost::timer::cpu_timer &timer);
+        unsigned int getElapsedMilliseconds(const boost::timer::cpu_timer &timer);
     }  // namespace io
 }  // namespace pddlboat
 

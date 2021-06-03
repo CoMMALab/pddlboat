@@ -128,10 +128,14 @@ std::ostream &PlanDependencyGraph::ActionNode::toString(std::ostream &out) const
 /// PlanDependencyGraph
 ///
 
-PlanDependencyGraph::PlanDependencyGraph(const PlanPtr &plan)
-  : plan_(*plan), problem_(plan->getProblem()), dag_()
+PlanDependencyGraph::PlanDependencyGraph(const Plan &plan) : plan_(plan), problem_(plan.getProblem()), dag_()
 {
+    plan_.validate();
     initialize();
+}
+
+PlanDependencyGraph::PlanDependencyGraph(const PlanPtr &plan) : PlanDependencyGraph(*plan)
+{
 }
 
 PlanDependencyGraph::PlanDependencyGraph(const PlanDependencyGraph &graph)
@@ -451,16 +455,6 @@ void PlanDependencyGraph::computeNodeStates()
 
         node->setState(state);
     }
-}
-
-void PlanDependencyGraph::insertStep(const ActionPtr &action, const Assignment &assignment, std::size_t index)
-{
-    return plan_.insertStep(action, assignment, index);
-}
-
-void PlanDependencyGraph::removeStep(std::size_t index)
-{
-    plan_.removeStep(index);
 }
 
 bool PlanDependencyGraph::removeNode(const ActionNodePtr &node)
