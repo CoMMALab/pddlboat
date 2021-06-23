@@ -259,7 +259,7 @@ namespace pddlboat
          *  \param[in] actions Actions and grounding pairs to prevent from occurring simultaneously.
          *  \param[in] state The state the actions cannot occur together in.
          */
-        virtual void blockStateActionSimulataneous(
+        virtual void blockStateActionsSimultaneous(
             const std::vector<std::pair<const ActionPtr &, const Assignment &>> &actions,
             const StatePtr &state);
 

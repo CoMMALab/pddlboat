@@ -253,7 +253,7 @@ void Planner::blockStateActions(const std::vector<std::pair<const ActionPtr &, c
     throw std::runtime_error("Not implemented!");
 }
 
-void Planner::blockStateActionSimulataneous(
+void Planner::blockStateActionsSimultaneous(
     const std::vector<std::pair<const ActionPtr &, const Assignment &>> &actions, const StatePtr &state)
 {
     throw std::runtime_error("Not implemented!");
