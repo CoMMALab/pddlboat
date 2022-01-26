@@ -135,7 +135,10 @@ bool Plan::validate()
         previous = step.state;
     }
 
-    return problem_->goal->evaluate(getStepConst(i - 1).state, Assignment(problem_));
+    if (i == 0)
+        return problem_->goal->evaluate(problem_->start, Assignment(problem_));
+    else
+        return problem_->goal->evaluate(getStepConst(i - 1).state, Assignment(problem_));
 }
 
 std::ostream &Plan::toString(std::ostream &out, bool steps) const
