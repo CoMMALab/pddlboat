@@ -1104,6 +1104,9 @@ void Z3PlannerInternal::generateFunctions()
     for (const auto &[name, predicate] : problem_->domain->predicates)
     {
         auto function = makeZ3Function(name, predicate->variables);
+        if (not function)
+            continue;
+
         z3_predicates_.emplace(name, function);
 
         auto mutex = makeZ3Function(name + "-mutex", predicate->variables);
@@ -1796,7 +1799,13 @@ Z3PlannerInternal::Z3FunctionPtr Z3PlannerInternal::makeZ3Function(const std::st
 {
     auto function = std::make_shared<Z3Function>(name, this);
     for (const auto &arg : arguments)
-        function->addTypeArgument(getZ3DataType(arg.type));
+    {
+        const auto &dt = getZ3DataType(arg.type);
+        if (dt->values.empty())
+            return nullptr;
+
+        function->addTypeArgument(dt);
+    }
 
     function->addIntArgument();
     function->make();
