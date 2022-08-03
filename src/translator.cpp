@@ -212,10 +212,10 @@ pddlboat::ExpressionPtr pddlboat::toExpression(const ast::Expression &expression
                 std::cout << "Translating Exists" << std::endl;
 
             if (expression.parameters.empty())
-                throw std::invalid_argument("Expression Forall must have parameters!");
+                throw std::invalid_argument("Expression Exists must have parameters!");
 
             if (expression.terms.size() != 1)
-                throw std::invalid_argument("Expression Forall must have one term!");
+                throw std::invalid_argument("Expression Exists must have one term!");
 
             const auto &quant = getVariables(expression.parameters);
             auto combined = quant;
