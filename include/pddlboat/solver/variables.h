@@ -4,6 +4,11 @@
 #define PDDLBOAT_OBJECT_CLASS "object"
 
 #include <pddlboat/macros.h>
+#include <iostream>
+#include <memory>
+#include <string>
+#include <set>
+#include <vector>
 
 namespace pddlboat
 {
