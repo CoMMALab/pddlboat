@@ -488,6 +488,11 @@ const std::string &Predicate::name() const
     return predicate->name;
 }
 
+const PredicateDefinition *Predicate::getDefinition() const
+{
+    return predicate;
+}
+
 ///
 /// DerivedPredicateDefinition
 ///
@@ -2014,6 +2019,23 @@ std::string Action::toID(const Assignment &vars) const
     return ss.str();
 }
 
+std::string Action::toStepID(const Assignment &vars) const
+{
+    std::stringstream ss;
+    ss << "(" << name;
+
+    ss << " ";
+    for (unsigned int i = 0; i < parameters.size(); ++i)
+    {
+        ss << vars.assigned(parameters[i].name)->name;
+        if (i < parameters.size() - 1)
+            ss << " ";
+    }
+    ss << ")";
+
+    return ss.str();
+}
+
 ActionPtr pddlboat::makeAction(const std::string &name, const VariableList &parameters,
                                const ExpressionPtr &preconditions, const ExpressionPtr &effects)
 {
@@ -2045,7 +2067,7 @@ GroundedPredicate::GroundedPredicate(const PredicateDefinitionPtr &predicate, co
 }
 
 GroundedFunction::GroundedFunction(const FunctionDefinitionPtr &fluent, const Assignment &assignment)
-    : fluent(fluent), assignment(assignment), string(fluent->toID(assignment))
+  : fluent(fluent), assignment(assignment), string(fluent->toID(assignment))
 {
 }
 
@@ -2064,5 +2086,10 @@ GroundedNumericFunction::GroundedNumericFunction(const NumericFunctionDefinition
 GroundedDerivedPredicate::GroundedDerivedPredicate(const DerivedPredicateDefinitionPtr &derived,
                                                    const Assignment &assignment)
   : derived(derived), assignment(assignment), string(derived->toID(assignment))
+{
+}
+
+GroundedExpression::GroundedExpression(const ExpressionPtr &expression, const Assignment &assignment)
+  : expression(expression), assignment(assignment)
 {
 }

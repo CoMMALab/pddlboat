@@ -127,11 +127,14 @@ bool Plan::validate()
     for (; i < getNumSteps(); ++i)
     {
         auto &step = getStep(i);
+
+        step.prior = previous->cleanClone();
         step.state = problem_->makeState();
 
         if (not step.action->doAction(step.state, previous, step.assignment))
             return false;
 
+        step.state->clean();
         previous = step.state;
     }
 
@@ -258,6 +261,24 @@ void Planner::blockStateActions(const std::vector<std::pair<const ActionPtr &, c
 
 void Planner::blockStateActionsSimultaneous(
     const std::vector<std::pair<const ActionPtr &, const Assignment &>> &actions, const StatePtr &state)
+{
+    throw std::runtime_error("Not implemented!");
+}
+
+void Planner::blockExpressionAction(const ActionPtr &action, const Assignment &act_assignment,
+                                    const ExpressionPtr &expression, const Assignment &exp_assignment)
+{
+    blockExpressionActions({{action, act_assignment}}, expression, exp_assignment);
+}
+
+void Planner::blockExpressionActions(
+    const std::vector<std::pair<const ActionPtr &, const Assignment &>> &actions,
+    const ExpressionPtr &expression, const Assignment &exp_assignment)
+{
+    throw std::runtime_error("Not implemented!");
+}
+
+void Planner::addConstraint(Planner::ConstraintTime time, const ExpressionPtr &expression, bool value)
 {
     throw std::runtime_error("Not implemented!");
 }

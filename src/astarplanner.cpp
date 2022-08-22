@@ -116,6 +116,7 @@ AStarPlanner::PlanData::Node *AStarPlanner::PlanData::addState(const StatePtr &s
     {
         node = new Node(state, params);
         nodes_.emplace(key, node);
+        node->id = id_++;
     }
 
     // If prior state (all except start), propagate information
@@ -295,6 +296,76 @@ bool AStarPlanner::solve(Plan &plan, unsigned int timeout)
     }
 
     return false;
+}
+
+void AStarPlanner::generateGraphML(const std::string &filename) const
+{
+    std::ofstream out;
+    io::createFile(out, filename);
+
+    out << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << std::endl;
+    out << "<graphml xmlns=\"http://graphml.graphdrawing.org/xmlns\" "
+           "xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
+           "xsi:schemaLocation=\"http://graphml.graphdrawing.org/xmlns "
+           "http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd\">"
+        << std::endl;
+    out << "<key id=\"d0\" for=\"node\" attr.name=\"state\" attr.type=\"string\"></key>" << std::endl;
+    out << "<key id=\"d1\" for=\"edge\" attr.name=\"action\" attr.type=\"string\"></key>" << std::endl;
+    out << "<graph id=\"G\" edgedefault=\"directed\">" << std::endl;
+
+    std::size_t iteration = 0;
+    boost::timer::cpu_timer timer;
+
+    PlanData data(this);         // Search data
+    Assignment empty(problem_);  // Empty assignment for goal evaluation
+
+    // Add start to frontier
+    data.addState(problem_->start->cleanClone(), options.start_param);
+
+    PlanData::Node *top;
+    while ((top = data.popFrontier()))
+    {
+        const auto &state = top->state;
+
+        out << "<node id=\"n" << top->id << "\">";
+        out << "<data key=\"d0\">";
+        state->toPDDL(out, 0);
+        out << "</data>"
+            << "</node>" << std::endl;
+
+        // Check all possible transitions from this state
+        for (std::size_t index = 0; index < ground_actions_.size(); ++index)
+        {
+            const auto &grounded = ground_actions_[index];
+
+            // Check if grounded action is feasible in this state
+            if (not grounded.action->precondition->evaluate(state, grounded.assignment))
+                continue;
+
+            // Propagate action on this state
+            StatePtr next = problem_->makeState();
+            if (not grounded.action->doAction(next, state, grounded.assignment))
+                throw std::runtime_error("Failed to apply action to state in planning.");
+            next->clean();
+
+            // If node already has been explored
+            auto existing = data.findNode(next, options.start_param);
+            if (not existing)
+                existing = data.addState(next, options.start_param, &grounded, top, 1.);
+
+            out << "<edge id=\"e" << top->id << "_" << existing->id << "\" source=\"n" << top->id << "\" target=\"n" << existing->id << "\">";
+            out << "<data key=\"d1\">";
+            out << grounded.action->toStepID(grounded.assignment);
+            out << "</data>"
+                << "</edge>" << std::endl;
+        }
+
+        iteration++;
+    }
+
+    out << "</graph>" << std::endl;
+    out << "</graphml>" << std::endl;
+    out.close();
 }
 
 void AStarPlanner::blockStateActions(

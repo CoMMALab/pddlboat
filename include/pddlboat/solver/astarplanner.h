@@ -104,6 +104,7 @@ namespace pddlboat
                     bool operator==(const Key &other) const;
                 };
 
+                unsigned int id;                        ///< Unique ID.
                 StatePtr state;                         ///< Symbolic state.
                 ParameterSpace::ParamsPtr params;       ///< State parameters.
                 const Node *prior{nullptr};             ///< Prior node in search.
@@ -207,6 +208,7 @@ namespace pddlboat
                 nodes_;  ///< Map of explored nodes.
 
             Node *best_{nullptr};  ///< Current node with highest cost.
+            unsigned int id_{0};   ///< Current node ID to allocate.
         };
 
         /** \brief Planner options.
@@ -254,6 +256,11 @@ namespace pddlboat
          */
         void blockStateActions(const std::vector<std::pair<const ActionPtr &, const Assignment &>> &actions,
                                const StatePtr &state) override;
+
+        /** \brief Generate a directed graph corresponding to the transition system defined by the problem.
+         *  \param[in] filename Filename to save GraphML formatted file to.
+         */
+        void generateGraphML(const std::string &filename) const;
 
         /** \brief Returns the set of supported domain requirements the planner can solve.
          *  \return The set of supported requirements.

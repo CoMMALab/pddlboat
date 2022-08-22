@@ -40,3 +40,5 @@
 /cmake-build-debug
 
 compile_commands.json
+/debug/
+/.z3-trace

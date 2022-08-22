@@ -89,6 +89,13 @@ namespace pddlboat
             const std::vector<std::pair<const ActionPtr &, const Assignment &>> &actions,
             const StatePtr &state) override;
 
+        void
+        blockExpressionActions(const std::vector<std::pair<const ActionPtr &, const Assignment &>> &actions,
+                               const ExpressionPtr &expression, const Assignment &exp_assignment) override;
+
+        void addConstraint(Planner::ConstraintTime time, const ExpressionPtr &expression,
+                           bool value) override;
+
         /** \brief Print out the current solver model.
          *  \param[in,out] Output stream.
          *  \param[in] only_true Only print true assignments.

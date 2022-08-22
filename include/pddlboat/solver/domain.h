@@ -411,6 +411,11 @@ namespace pddlboat
          */
         const std::string &name() const;
 
+        /** \brief Get definition of this predicate.
+         *  \return The definition of this predicate.
+         */
+        const PredicateDefinition *getDefinition() const;
+
     private:
         const PredicateDefinition *predicate;  ///< Definition of this predicate.
     };
@@ -829,6 +834,12 @@ namespace pddlboat
          *  \return ID of the grounded action.
          */
         std::string toID(const Assignment &vars) const;
+
+        /** \brief Generates a unique ID for this action given a grounding (in sexp form).
+         *  \param[in] vars A grounding of this action.
+         *  \return ID of the grounded action.
+         */
+        std::string toStepID(const Assignment &vars) const;
     };
 
     /** \brief Helper function to create an action.
@@ -1465,6 +1476,15 @@ namespace pddlboat
          *  \param[in] assignment The assignment to ground the derived predicate.
          */
         GroundedDerivedPredicate(const DerivedPredicateDefinitionPtr &derived, const Assignment &assignment);
+    };
+
+    class GroundedExpression
+    {
+    public:
+        const ExpressionPtr expression;
+        const Assignment assignment;
+
+        GroundedExpression(const ExpressionPtr &expression, const Assignment &assignment);
     };
 
     /** \brief Unordered map type that is keyed on symbolic states.

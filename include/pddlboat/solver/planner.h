@@ -37,6 +37,7 @@ namespace pddlboat
         public:
             ActionPtr action;       ///< Action taken in this step.
             Assignment assignment;  ///< Assignment to this action for this step.
+            StatePtr prior;         ///< State of the world before this action.
             StatePtr state;         ///< State of the world after this action.
 
             /** \brief Constructor.
@@ -254,6 +255,26 @@ namespace pddlboat
         virtual void
         blockStateActions(const std::vector<std::pair<const ActionPtr &, const Assignment &>> &actions,
                           const StatePtr &state);
+
+        void blockExpressionAction(const ActionPtr &action, const Assignment &act_assignment,
+                                   const ExpressionPtr &expression, const Assignment &exp_assignment);
+
+        virtual void
+        blockExpressionActions(const std::vector<std::pair<const ActionPtr &, const Assignment &>> &actions,
+                               const ExpressionPtr &expression, const Assignment &exp_assignment);
+
+        enum ConstraintTime
+        {
+            AT_END = 1 << 0,   // Constraint applies only to the final state of the plan.
+            OVER_ALL = 1 << 1  // Constraint applies to all states of the plan.
+        };
+
+        /** \brief Add a state constraint to the problem specification.
+         *  \param[in] time Specification of what times the constraint applies.
+         *  \param[in] expression Expression (fully grounded) that determines constraint.
+         *  \param[in] value Value that the constraint should evaluate to.
+         * */
+        virtual void addConstraint(ConstraintTime time, const ExpressionPtr &expression, bool value = false);
 
         /** \brief Block a set of actions from being used *simultaneously* in a specific state.
          *  \param[in] actions Actions and grounding pairs to prevent from occurring simultaneously.
