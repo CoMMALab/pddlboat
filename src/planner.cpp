@@ -3,6 +3,10 @@
 #include <pddlboat/utility.h>
 #include <pddlboat/solver/dependency.h>
 #include <pddlboat/solver/planner.h>
+#include <sys/poll.h>
+#include <unistd.h>
+#include <csignal>
+#include <cstdio>
 
 using namespace pddlboat;
 
@@ -224,6 +228,246 @@ std::ostream &pddlboat::operator<<(std::ostream &out, const Plan &plan)
 }
 
 ///
+/// PlanSet
+///
+
+PlanSet::PlanSet(const ProblemPtr &problem) : problem_{problem}
+{
+}
+
+PlanSet::PlanSet(const PlanSet &plans) : problem_{plans.problem_}, plans_(plans.plans_)
+{
+}
+
+void PlanSet::addPlan(Plan &&plan)
+{
+    plans_.emplace_back(std::move(plan));
+}
+
+Plan &PlanSet::newPlan()
+{
+    return plans_.emplace_back(problem_);
+}
+
+void PlanSet::clear()
+{
+    plans_.clear();
+}
+
+Plan &PlanSet::getPlan(std::size_t index)
+{
+    return plans_.at(index);
+}
+
+const Plan &PlanSet::getPlanConst(std::size_t index) const
+{
+    return plans_.at(index);
+}
+
+std::vector<Plan>::iterator PlanSet::begin()
+{
+    return plans_.begin();
+}
+
+std::vector<Plan>::iterator PlanSet::end()
+{
+    return plans_.end();
+}
+
+std::vector<Plan>::const_iterator PlanSet::cbegin()
+{
+    return plans_.cbegin();
+}
+
+std::vector<Plan>::const_iterator PlanSet::cend()
+{
+    return plans_.cend();
+}
+
+std::size_t PlanSet::count() const
+{
+    return plans_.size();
+}
+
+const ProblemPtr &PlanSet::getProblem() const
+{
+    return problem_;
+}
+
+PlanWatcher::PlanWatcher(const std::filesystem::path &output_dir, const std::string &filename_prefix,
+                         const ProblemPtr &problem, const std::string &cmd, unsigned int timeout,
+                         bool start_immediately)
+  : plans(problem)
+  , output_dir_(output_dir)
+  , filename_prefix_(filename_prefix)
+  , cmd_(cmd)
+  , timeout_(timeout)
+  // NOTE: Heuristic guess for size of events assuming that most closed written files are
+  // plans. +4 for .X and a bit of slack
+  , buf_len_(128 * (EVENT_SIZE + filename_prefix.size() + 4))
+{
+    inot_fd_ = inotify_init();
+    if (inot_fd_ < 0)
+    {
+        throw std::runtime_error("Failed to initialize inotify instance!");
+    }
+
+    pfd_.fd = inot_fd_;
+    pfd_.events = POLLIN;
+    pfd_.revents = 0;
+
+    watch_fd_ = inotify_add_watch(inot_fd_, output_dir.c_str(), IN_CLOSE_WRITE);
+    if (watch_fd_ < 0)
+    {
+        throw std::runtime_error("Failed to add inotify watch!");
+    }
+
+    event_buf_ = new char[buf_len_];
+    if (start_immediately)
+    {
+        start();
+    }
+}
+
+PlanWatcher::~PlanWatcher()
+{
+    stop();
+    inotify_rm_watch(inot_fd_, watch_fd_);
+    close(inot_fd_);
+    delete[] event_buf_;
+}
+
+void PlanWatcher::start()
+{
+    if (planner_is_running_)
+    {
+        return;
+    }
+
+    std::tie(planner_proc_file_, planner_pid_) = startPlanner();
+    if (planner_proc_file_ == nullptr)
+    {
+        throw std::runtime_error("Planner failed to start!");
+    }
+
+    auto planner_proc_fd = fileno(planner_proc_file_);
+    auto flags = fcntl(planner_proc_fd, F_GETFL, 0);
+    flags |= O_NONBLOCK;
+    fcntl(planner_proc_fd, F_SETFL, flags);
+    planner_is_running_ = true;
+}
+
+void PlanWatcher::stop()
+{
+    if (not planner_is_running_ or planner_proc_file_ == nullptr)
+    {
+        return;
+    }
+
+    kill(planner_pid_, SIGTERM);
+    close(fileno(planner_proc_file_));
+}
+
+auto PlanWatcher::getNextPlanIdx() -> std::optional<std::size_t>
+{
+    if (plan_idx >= plans.count())
+    {
+        if (not readPlans())
+        {
+            return std::nullopt;
+        }
+    }
+
+    return plan_idx++;
+}
+
+auto PlanWatcher::plannerRunning() -> bool
+{
+    if (not planner_is_running_)
+    {
+        return false;
+    }
+
+    if (feof(planner_proc_file_))
+    {
+        planner_is_running_ = false;
+        return false;
+    }
+
+    while (fgets(planner_buf_.data(), 128, planner_proc_file_) != nullptr)
+    {
+    }
+
+    return true;
+}
+
+auto PlanWatcher::readPlans() -> bool
+{
+    bool added_a_plan = false;
+    auto poll_ret = poll(&pfd_, 1, timeout_);
+    if (poll_ret > 0)
+    {
+        const auto read_len = read(inot_fd_, event_buf_, buf_len_);
+        if (read_len < 0)
+        {
+            if (errno != EINTR)
+            {
+                throw std::runtime_error("Failed to read inotify events!");
+            }
+        }
+
+        int i = 0;
+        while (i < read_len)
+        {
+            const auto *event = reinterpret_cast<inotify_event *>(&event_buf_[i]);
+            if (event->len > 0)
+            {
+                std::string_view name(event->name);
+                if (name.compare(0, filename_prefix_.size(), filename_prefix_.c_str()) == 0)
+                {
+                    if (not addPlan(name))
+                    {
+                        return false;
+                    }
+                    else
+                    {
+                        added_a_plan = true;
+                    }
+                }
+            }
+
+            i += EVENT_SIZE + event->len;
+        }
+    }
+
+    return added_a_plan;
+}
+
+auto PlanWatcher::addPlan(std::string_view filename) -> bool
+{
+    std::filesystem::path full_path = output_dir_ / filename;
+    ast::Plan parsed;
+    parseFile(full_path, parsed);
+    auto &plan = plans.newPlan();
+    for (const auto &action : parsed.actions)
+    {
+        std::vector<std::string> objects;
+        for (const auto &tl : action.variables)
+            for (const auto &t : tl.types)
+                objects.emplace_back(t);
+
+        plan.addStep(action.name, objects);
+    }
+
+    if (not plan.validate())
+    {
+        return false;
+    }
+
+    return true;
+}
+
+///
 /// Planner
 ///
 
@@ -281,4 +525,28 @@ void Planner::blockExpressionActions(
 void Planner::addConstraint(Planner::ConstraintTime time, const ExpressionPtr &expression, bool value)
 {
     throw std::runtime_error("Not implemented!");
+}
+auto pddlboat::PlanWatcher::startPlanner() -> std::pair<FILE *, pid_t>
+{
+    int pdes[2];
+    pid_t ppid;
+    pipe(pdes);
+    switch (ppid = fork())
+    {
+        case -1:
+            close(pdes[0]);
+            close(pdes[1]);
+            return {nullptr, -1};
+        case 0:
+            dup2(pdes[1], fileno(stdout));
+            close(pdes[1]);
+            close(pdes[0]);
+            execl("/bin/sh", "sh", "-c", cmd_.c_str(), NULL);
+            _exit(127);
+    }
+
+    FILE *pout = fdopen(pdes[0], "r");
+    close(pdes[1]);
+
+    return {pout, ppid};
 }

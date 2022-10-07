@@ -5,9 +5,24 @@
 
 #include <pddlboat/macros.h>
 #include <pddlboat/parser/keywords.h>
+#include <array>
+#include <cerrno>
+#include <cstdio>
+#include <fcntl.h>
+#include <filesystem>
 #include <pddlboat/solver/domain.h>
+#include <memory>
+#include <poll.h>
+#include <optional>
+#include <stdexcept>
 #include <string>
 #include <sstream>
+#include <string_view>
+#include "pddlboat/parser/ast.h"
+#include "pddlboat/parser/parser.h"
+#include "pddlboat/solver/expression.h"
+#include <sys/inotify.h>
+#include <unistd.h>
 
 namespace pddlboat
 {
@@ -25,7 +40,7 @@ namespace pddlboat
     /** \class pddlboat::PlanConstPtr
         \brief A const shared pointer wrapper for pddlboat::Plan. */
 
-    /** \brief A class that stores the step of a plan to solve a problem.
+    /** \brief A class that stores the steps of a plan to solve a problem.
      */
     class Plan
     {
@@ -174,6 +189,148 @@ namespace pddlboat
 
         std::vector<std::vector<Step>> steps_;  ///< The steps of the plan.
         const ProblemPtr problem_;              ///< Problem this plan is for.
+    };
+
+    /** \cond IGNORE */
+    PDDLBOAT_CLASS_FORWARD(PlanSet)
+    /** \endcond */
+
+    /** \class pddlboat::PlanSetPtr
+        \brief A shared pointer wrapper for pddlboat::PlanSet. */
+
+    /** \class pddlboat::PlanSetConstPtr
+        \brief A const shared pointer wrapper for pddlboat::PlanSet. */
+
+    /** \brief A class that stores several plans for a given problem
+     */
+    class PlanSet
+    {
+    public:
+        /** \brief Constructor.
+         *  \param[in] problem The problem these plans are for.
+         */
+        PlanSet(const ProblemPtr &problem);
+
+        /** \brief Copy Constructor.
+         *  \param[in] plans PlanSet to copy.
+         */
+        PlanSet(const PlanSet &plans);
+
+        /** \name Adding plans to the collection
+          \{ */
+
+        /** \brief Add a plan to the collection
+         *  \param[in] plan Plan the plan to add
+         */
+        void addPlan(Plan &&plan);
+
+        /** \brief Create a new plan in the collection
+         *  \return A mutable reference to an empty plan in the collection
+         */
+        Plan &newPlan();
+
+        /** \} */
+
+        /** \name Emptying the collection
+          \{ */
+
+        /** \brief Empty the PlanSet
+         */
+        void clear();
+
+        /** \} */
+
+        /** \name Retrieving plans from the collection
+            \{ */
+
+        /** \brief Get a plan at an index.
+         *  \param[in] index The index of the plan to retrieve.
+         *  \return The plan at a specified index.
+         */
+        Plan &getPlan(std::size_t index);
+
+        Plan &operator[](std::size_t index)
+        {
+            return plans_[index];
+        }
+
+        /** \brief Get a plan at an index.
+         *  \param[in] index The index of the plan to retrieve.
+         *  \return The plan at a specified index.
+         */
+        const Plan &getPlanConst(std::size_t index) const;
+
+        /** \brief Forward iterate over plans
+         * \return The starting iterator to the collection of plans
+         **/
+        std::vector<Plan>::iterator begin();
+
+        /** \brief Forward iterate over plans
+         * \return The starting iterator to the collection of plans
+         **/
+        std::vector<Plan>::iterator end();
+
+        /** \brief Forward iterate over plans
+         * \return The starting iterator to the collection of plans
+         **/
+        std::vector<Plan>::const_iterator cbegin();
+
+        /** \brief Forward iterate over plans
+         * \return The starting iterator to the collection of plans
+         **/
+        std::vector<Plan>::const_iterator cend();
+
+        /** \brief Get the current number of plans
+         * \return The number of plans in the collection
+         **/
+        std::size_t count() const;
+        /** \} */
+
+        /** \brief Get the problem these plans are for.
+         *  \return Problem.
+         */
+        const ProblemPtr &getProblem() const;
+
+    protected:
+        const ProblemPtr problem_;  ///< Problem these plans are for
+        std::vector<Plan> plans_;   ///< The collected plans
+    };
+
+    class PlanWatcher
+    {
+    public:
+        PlanWatcher(const std::filesystem::path &output_dir, const std::string &filename_prefix,
+                    const ProblemPtr &problem, const std::string &cmd, unsigned int timeout = 50,
+                    bool start_immediately = true);
+        ~PlanWatcher();
+        void start();
+        void stop();
+        auto getNextPlanIdx() -> std::optional<std::size_t>;
+        auto plannerRunning() -> bool;
+        PlanSet plans;
+        std::size_t plan_idx = 0;
+
+    protected:
+        auto readPlans() -> bool;
+        auto addPlan(std::string_view filename) -> bool;
+        auto startPlanner() -> std::pair<FILE *, pid_t>;
+
+        static constexpr std::size_t EVENT_SIZE = sizeof(inotify_event);
+
+        const std::filesystem::path output_dir_;
+        const std::string filename_prefix_;
+        const std::string cmd_;
+        const unsigned int timeout_;
+        const std::size_t buf_len_;
+
+        FILE *planner_proc_file_ = nullptr;
+        pid_t planner_pid_;
+        bool planner_is_running_ = false;
+        int inot_fd_ = -1;
+        int watch_fd_ = -1;
+        char *event_buf_;
+        pollfd pfd_;
+        std::array<char, 128> planner_buf_;
     };
 
     /** \brief Output stream operator for a step in the plan.

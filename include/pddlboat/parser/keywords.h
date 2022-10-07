@@ -43,6 +43,8 @@ namespace pddlboat
             OBJECT_FLUENTS = 1 << 13,
             NUMERIC_FLUENTS = 1 << 14 | ACTION_COSTS,
             FLUENTS = OBJECT_FLUENTS | NUMERIC_FLUENTS,
+            TOPK = 1 << 15,
+            TOPQ = 1 << 16,
         };
 
         typedef boost::bimap<std::string, Keyword> bimap;

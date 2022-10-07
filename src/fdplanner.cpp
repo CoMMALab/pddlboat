@@ -9,26 +9,20 @@
 
 using namespace pddlboat;
 
-const std::string FastDownwardPlanner::FastDownwardPlanner::directory =
-    PDDLBOAT_FASTDOWNWARD_LOCATION;  ///< Directory where the fast downward
+const std::string FastDownwardPlanner::FastDownwardPlanner::fd_directory =
+    PDDLBOAT_FASTDOWNWARD_LOCATION;  ///< Directory where the fast downward binary resides
 
 FastDownwardPlanner::FastDownwardPlanner(const ProblemPtr &problem, const Search &search)
   : Planner(problem)
-  , search(search)
   , uuid(io::generateUUID())
-  , translator(io::resolvePath(log::format("%1%/translate/translate.py", directory)))
-  , solver(io::resolvePath(log::format("%1%/downward", directory)))
   , domain_file(temporary + "/" + log::format(domain_file_template, uuid))
   , problem_file(temporary + "/" + log::format(problem_file_template, uuid))
   , sas_file(temporary + "/" + log::format(sas_file_template, uuid))
   , output_filename(log::format(output_file_template, uuid))
   , output_file(temporary + "/" + output_filename)
-  , solver_command(generateSolverCommand())
-  , translator_command(generateTranslatorCommand())
+  , search(search)
 {
     checkRequirements();
-    // Fast Downward uses an intermediate format that needs to be generated
-    update();
 }
 
 FastDownwardPlanner::~FastDownwardPlanner()
@@ -49,7 +43,7 @@ FastDownwardPlanner::~FastDownwardPlanner()
 Requirements::Keyword FastDownwardPlanner::getSupportedRequirements() const
 {
     auto reqs = Requirements::ADL | Requirements::ACTION_COSTS;
-    if (search != ASTAR)
+    if (search != Search::ASTAR)
         reqs = reqs | Requirements::DERIVED_PREDICATES;
     return reqs;
 }
@@ -57,7 +51,7 @@ Requirements::Keyword FastDownwardPlanner::getSupportedRequirements() const
 std::string FastDownwardPlanner::generateSolverCommand() const
 {
     std::stringstream cs;
-    cs << solver;
+    cs << *solver;
 
     // Output file
     cs << " --internal-plan-file " << output_file;
@@ -66,19 +60,19 @@ std::string FastDownwardPlanner::generateSolverCommand() const
     // Also, the aliases.py file in the driver provided with fast downward
     switch (search)
     {
-        case ASTAR:
+        case Search::ASTAR:
             // A* with landmark cut heuristic
             cs << " --search \"astar(lmcut())\"";
             break;
 
-        case LAZYGREEDY:
+        case Search::LAZYGREEDY:
             // Lazy greedy best-first search with preferred operators and the queue alternation method
             cs << " --evaluator \"hff=ff()\"";
             cs << " --evaluator \"hcea=cea()\"";
             cs << " --search \"lazy_greedy([hff, hcea], preferred=[hff, hcea])\"";
             break;
 
-        case FDAT:
+        case Search::FDAT:
             // Fast Downward Autotune 2
             cs << " --evaluator \"hcea=cea(transform=adapt_costs(plusone))\"";
             cs << " --evaluator \"hcg=cg(transform=adapt_costs(one))\"";
@@ -123,7 +117,7 @@ std::string FastDownwardPlanner::generateSolverCommand() const
             cs << "\"";
             break;
 
-        case LAMA:
+        case Search::LAMA:
             cs << " --if-unit-cost";
             cs << " --evaluator \"hlm=lmcount(lm_rhw(reasonable_orders=true),pref=true)\"";
             cs << " --evaluator \"hff=ff()\"";
@@ -169,13 +163,13 @@ std::string FastDownwardPlanner::generateSolverCommand() const
 std::string FastDownwardPlanner::generateTranslatorCommand() const
 {
     std::stringstream ts;
-    ts << translator;
+    ts << *translator;
     ts << " --sas-file " << sas_file << " " << domain_file << " " << problem_file;
 
     return ts.str();
 }
 
-void FastDownwardPlanner::update(bool domain, bool problem) const
+void FastDownwardPlanner::update(bool domain, bool problem)
 {
     // Serialize problem and domain
 
@@ -197,10 +191,12 @@ void FastDownwardPlanner::update(bool domain, bool problem) const
 
     if (domain or problem)
     {
-        // Call fast downward
-        auto tr = io::runCommand(translator_command);
+        // Call translator
+        auto tr = io::runCommand(getTranslatorCommand());
         if (not tr)
             throw std::runtime_error("Failed to translate problem and domain!");
+        if (not preprocess())
+            throw std::runtime_error("Failed to preprocess problem and domain!");
     }
 }
 
@@ -209,11 +205,23 @@ bool FastDownwardPlanner::solve(Plan &plan)
     return solve(plan, 0);
 }
 
+bool FastDownwardPlanner::runSolver()
+{
+    if (not translator_command)
+    {
+        // This signifies that we haven't run update() ever
+        update();
+    }
+
+    return io::runCommand(getSolverCommand()) != std::nullopt;
+}
+
 bool FastDownwardPlanner::solve(Plan &plan, unsigned int timeout)
 {
-    auto pr = io::runCommand(solver_command);
-    if (not pr)
+    if (not runSolver())
+    {
         return false;
+    }
 
     // Parse output file
     ast::Plan parsed;
@@ -243,4 +251,49 @@ bool FastDownwardPlanner::solve(Plan &plan, unsigned int timeout)
     }
 
     return plan.validate();
+}
+
+const std::string &FastDownwardPlanner::getDirectory() const
+{
+    return fd_directory;
+}
+
+std::string FastDownwardPlanner::getSolver()
+{
+    return io::resolvePath(log::format("%1%/downward", getDirectory()));
+}
+
+const std::string &FastDownwardPlanner::getSolverCommand()
+{
+    if (not solver_command)
+    {
+        if (not solver)
+        {
+            solver = getSolver();
+        }
+
+        solver_command = generateSolverCommand();
+    }
+
+    return *solver_command;
+}
+
+const std::string &FastDownwardPlanner::getTranslatorCommand()
+{
+    if (not translator_command)
+    {
+        if (not translator)
+        {
+            translator = io::resolvePath(log::format("%1%/translate/translate.py", getDirectory()));
+        }
+
+        translator_command = generateTranslatorCommand();
+    }
+
+    return *translator_command;
+}
+
+bool FastDownwardPlanner::preprocess() const
+{
+    return true;
 }

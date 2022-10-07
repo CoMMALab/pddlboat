@@ -7,7 +7,14 @@ int main(int argc, char **argv)
         return 1;
 
     helper.initialize();
-    helper.doPlanning();
+    if (helper.planner_type == pddlboat::SYMK)
+    {
+        helper.doMultiPlanning();
+    }
+    else
+    {
+        helper.doPlanning();
+    }
 
     return 0;
 }

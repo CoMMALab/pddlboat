@@ -1,9 +1,11 @@
 #ifndef PDDLBOAT_HELPER_
 #define PDDLBOAT_HELPER_
 
+#include <boost/timer/timer.hpp>
 #include <iostream>
 
 #include <boost/program_options.hpp>
+#include <limits>
 
 #include <pddlboat/utility.h>
 #include <pddlboat/parser/parser.h>
@@ -11,6 +13,7 @@
 #include <pddlboat/solver/expressions.h>
 #include <pddlboat/solver/planner.h>
 #include <pddlboat/solver/fdplanner.h>
+#include <pddlboat/solver/symkplanner.h>
 #include <pddlboat/solver/z3planner.h>
 #include <pddlboat/solver/astarplanner.h>
 #include <pddlboat/solver/dependency.h>
@@ -27,6 +30,7 @@ namespace pddlboat
         Z3,
         FD,
         AS,
+        SYMK,
     };
 
     std::istream &operator>>(std::istream &in, PlannerType &unit)
@@ -39,6 +43,8 @@ namespace pddlboat
             unit = PlannerType::FD;
         else if (token == "astar")
             unit = PlannerType::AS;
+        else if (token == "symk")
+            unit = PlannerType::SYMK;
         else
             in.setstate(std::ios_base::failbit);
         return in;
@@ -56,6 +62,19 @@ namespace pddlboat
             unit = FastDownwardPlanner::Search::FDAT;
         else if (token == "lama")
             unit = FastDownwardPlanner::Search::LAMA;
+        else
+            in.setstate(std::ios_base::failbit);
+        return in;
+    }
+
+    std::istream &operator>>(std::istream &in, SymKPlanner::SolutionSelector &unit)
+    {
+        std::string token;
+        in >> token;
+        if (token == "top-k" or token == "topk")
+            unit = SymKPlanner::SolutionSelector::TOPK;
+        else if (token == "top-q" or token == "topq")
+            unit = SymKPlanner::SolutionSelector::TOPQ;
         else
             in.setstate(std::ios_base::failbit);
         return in;
@@ -118,6 +137,13 @@ namespace pddlboat
 
         struct
         {
+            SymKPlanner::SolutionSelector selector;
+            unsigned int k;
+            float q;
+        } symk;
+
+        struct
+        {
             AStarPlanner::Options options;
 
             bool planning_heuristic;
@@ -142,7 +168,7 @@ namespace pddlboat
                 ("problem,p", po::value<std::string>(&problem_file)->required(),                      //
                  "PDDL file that describes the problem")                                              //
                 ("planner,s", po::value<PlannerType>(&planner_type)->default_value(PlannerType::FD),  //
-                 "Planner to use. Either `z3` or `fd`")                                               //
+                 "Planner to use. Either `z3`, `fd`, or `symk`")                                      //
                 ("od", po::bool_switch(&output.domain),                                               //
                  "Print the domain as PDDL")                                                          //
                 ("op", po::bool_switch(&output.problem),                                              //
@@ -194,12 +220,25 @@ namespace pddlboat
 
             po::options_description fdopt("Fast Downward Planner Options");
             fdopt.add_options()  //
-                ("search,y",
+                ("fdsearch,y",
                  po::value<FastDownwardPlanner::Search>(&fd.search)
                      ->default_value(FastDownwardPlanner::Search::LAZYGREEDY),          //
                  "Search algorithm for FD. Can be `astar`, `greedy`, `fd`, or `lama`")  //
                 ;
             description.add(fdopt);
+
+            po::options_description symkopt("sym-k Planner Options");
+            symkopt.add_options()  //
+                ("symksearch,m",
+                 po::value<SymKPlanner::SolutionSelector>(&symk.selector)
+                     ->default_value(SymKPlanner::SolutionSelector::TOPK),       //
+                 "Solution selector type for sym-k. Either `top-k` or `top-q`")  //
+                ("nplans,k", po::value<unsigned int>(&symk.k)->default_value(1),
+                 "Number of plans to retrieve for sym-k")  //
+                ("costbound,q",
+                 po::value<float>(&symk.q)->default_value(std::numeric_limits<float>::infinity()),
+                 "Plan quality bound for sym-k");
+            description.add(symkopt);
 
             po::options_description asopt("A* Planner Options");
             asopt.add_options()                                                     //
@@ -284,10 +323,9 @@ namespace pddlboat
             if (astar.planning_heuristic)
             {
                 auto copy = fd.search;
-                astar.options.heuristic =
-                    PlannerHeuristicFactory::make(problem, [copy](const ProblemPtr &problem) {
-                        return std::make_shared<FastDownwardPlanner>(problem, copy);
-                    });
+                astar.options.heuristic = PlannerHeuristicFactory::make(
+                    problem, [copy](const ProblemPtr &problem)
+                    { return std::make_shared<FastDownwardPlanner>(problem, copy); });
             }
 
             // setup planner
@@ -302,9 +340,70 @@ namespace pddlboat
                 case AS:
                     planner = std::make_shared<AStarPlanner>(problem, astar.options);
                     break;
+                case SYMK:
+                    planner = std::make_shared<SymKPlanner>(problem, symk.selector, symk.k, symk.q);
+                    break;
                 default:
                     std::cerr << "Unknown planner type. Exiting." << std::endl;
                     return false;
+            }
+
+            return true;
+        }
+
+        bool doMultiPlanning()
+        {
+            bool r;
+            PlanSet plans(problem);
+            {
+                boost::timer::cpu_timer t;
+                r = static_cast<SymKPlanner *>(planner.get())->multiSolve(plans);
+
+                if (output.time)
+                {
+                    t.stop();
+                    std::cout << io::getTiming(t) << std::endl;
+                }
+            }
+
+            if (r)
+            {
+                std::cerr << "Planning succeeded!" << std::endl;
+                std::cerr << "Found " << plans.count() << " plans!" << std::endl;
+            }
+            else
+                std::cerr << "Planning failed!" << std::endl;
+
+            return r;
+        }
+
+        bool doAnytimePlanning()
+        {
+            std::size_t count = 0;
+            try
+            {
+                boost::timer::cpu_timer t;
+                auto plans = static_cast<SymKPlanner *>(planner.get())->anytimeSolve();
+                do
+                {
+                    if (plans.getNextPlanIdx())
+                    {
+                        ++count;
+                    }
+                } while (plans.plannerRunning() && count < 500);
+                if (output.time)
+                {
+                    t.stop();
+                    std::cout << io::getTiming(t) << std::endl;
+                }
+
+                plans.stop();
+
+                std::cerr << "Found " << count << " plans!" << std::endl;
+            }
+            catch (...)
+            {
+                return false;
             }
 
             return true;

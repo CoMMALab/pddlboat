@@ -1,6 +1,12 @@
 [submodule "submodules/z3"]
 	path = submodules/z3
 	url = git@github.com:Z3Prover/z3.git
+	shallow = True
 [submodule "submodules/downward"]
 	path = submodules/downward
 	url = git@github.com:aibasel/downward.git
+	shallow = True
+[submodule "submodules/symk"]
+	path = submodules/symk
+	url = git@github.com:wbthomason/symk.git
+	shallow = True
