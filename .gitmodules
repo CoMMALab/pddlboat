@@ -10,3 +10,6 @@
 	path = submodules/symk
 	url = git@github.com:wbthomason/symk.git
 	shallow = True
+[submodule "resources/icaps"]
+	path = resources/icaps
+	url = git@github.com:AI-Planning/classical-domains.git
