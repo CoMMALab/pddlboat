@@ -50,10 +50,16 @@ namespace pddlboat
         class Step
         {
         public:
+            PDDLBOAT_CLASS_FORWARD(Extra)
+            class Extra
+            {
+            };
+
             ActionPtr action;       ///< Action taken in this step.
             Assignment assignment;  ///< Assignment to this action for this step.
             StatePtr prior;         ///< State of the world before this action.
             StatePtr state;         ///< State of the world after this action.
+            ExtraPtr other;
 
             /** \brief Constructor.
              *  \param[in] action Action to take.
@@ -92,28 +98,28 @@ namespace pddlboat
          *  \param[in] action_name Name of action to take.
          *  \param[in] objects Arguments to the action. Must be a valid assignment.
          */
-        void addStep(const std::string &action_name, const std::vector<std::string> &objects);
+        Step &addStep(const std::string &action_name, const std::vector<std::string> &objects);
 
         /** \brief Insert a step in the middle of an existing plan.
          *  \param[in] action_name Name of action to take.
          *  \param[in] objects Arguments to the action. Must be a valid assignment.
          *  \param[in] index Desired index of insertion.
          */
-        void insertStep(const std::string &action_name, const std::vector<std::string> &objects,
-                        std::size_t index);
+        Step &insertStep(const std::string &action_name, const std::vector<std::string> &objects,
+                         std::size_t index);
 
         /** \brief Add a step to the end of an existing plan.
          *  \param[in] action Action to take.
          *  \param[in] assignment Assignment to the action.
          */
-        void addStep(const ActionPtr &action, const Assignment &assignment);
+        Step &addStep(const ActionPtr &action, const Assignment &assignment);
 
         /** \brief Insert a step in the middle of an existing plan.
          *  \param[in] action Action to take.
          *  \param[in] assignment Assignment to the action.
          *  \param[in] index Desired index of insertion.
          */
-        void insertStep(const ActionPtr &action, const Assignment &assignment, std::size_t index);
+        Step &insertStep(const ActionPtr &action, const Assignment &assignment, std::size_t index);
 
         /** \} */
 

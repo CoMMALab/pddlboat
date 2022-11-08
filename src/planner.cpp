@@ -98,29 +98,29 @@ std::pair<ActionPtr, Assignment> Plan::getAction(const std::string &action_name,
     return {action, assignment};
 }
 
-void Plan::addStep(const std::string &action_name, const std::vector<std::string> &objects)
+Plan::Step &Plan::addStep(const std::string &action_name, const std::vector<std::string> &objects)
 {
-    insertStep(action_name, objects, getMakespan());
+    return insertStep(action_name, objects, getMakespan());
 }
 
-void Plan::addStep(const ActionPtr &action, const Assignment &assignment)
+Plan::Step &Plan::addStep(const ActionPtr &action, const Assignment &assignment)
 {
-    insertStep(action, assignment, getMakespan());
+    return insertStep(action, assignment, getMakespan());
 }
 
-void Plan::insertStep(const std::string &action_name, const std::vector<std::string> &objects,
-                      std::size_t index)
+Plan::Step &Plan::insertStep(const std::string &action_name, const std::vector<std::string> &objects,
+                             std::size_t index)
 {
     const auto &[action, assignment] = getAction(action_name, objects);
-    insertStep(action, assignment, index);
+    return insertStep(action, assignment, index);
 }
 
-void Plan::insertStep(const ActionPtr &action, const Assignment &assignment, std::size_t index)
+Plan::Step &Plan::insertStep(const ActionPtr &action, const Assignment &assignment, std::size_t index)
 {
     if (index >= getMakespan())
         steps_.resize(index + 1);
 
-    steps_[index].emplace_back(action, assignment);
+    return steps_[index].emplace_back(action, assignment);
 }
 
 bool Plan::validate()

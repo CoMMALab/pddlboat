@@ -1285,6 +1285,10 @@ void Domain::addFunction(const FunctionDefinitionPtr &function)
 {
     if (function->type == PDDLBOAT_NUMERIC_CLASS and function->name == "total-cost")
         addRequirement(Requirements::ACTION_COSTS);
+    else if (function->type == PDDLBOAT_NUMERIC_CLASS)
+        addRequirement(Requirements::NUMERIC_FLUENTS);
+    else
+        addRequirement(Requirements::OBJECT_FLUENTS);
 
     auto [it, r] = functions.emplace(function->name, function);
     if (not r)
@@ -1665,7 +1669,7 @@ std::ostream &Problem::toPDDL(std::ostream &out) const
 /// State
 ///
 
-State::State(const Problem *problem) : problem_(problem)
+State::State(const Problem *problem) : problem_(const_cast<Problem *>(problem))
 {
 }
 
@@ -1683,6 +1687,11 @@ StatePtr State::cleanClone() const
     state->clean();
 
     return state;
+}
+
+void State::setProblem(Problem *problem)
+{
+    problem_ = problem;
 }
 
 const Problem *State::getProblem() const

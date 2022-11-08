@@ -14,7 +14,7 @@ bool AStarPlanner::ParameterSpace::Params::isEqual(const Params &other) const
 }
 
 std::vector<AStarPlanner::ParameterSpace::ParamsPtr> AStarPlanner::ParameterSpace::getNeighbors(
-    const StatePtr &state, const StatePtr &next, const GroundedAction &action)
+    const StatePtr &state, const ParamsPtr &params, const StatePtr &next, const GroundedAction &action)
 {
     return std::vector<ParamsPtr>{std::make_shared<Params>()};
 }
@@ -181,7 +181,10 @@ void AStarPlanner::PlanData::buildPlan(Plan &plan, const Node *goal) const
     std::reverse(node_list.begin(), node_list.end());
 
     for (const auto &node : node_list)
-        plan.addStep(node->action->action, node->action->assignment);
+    {
+        auto &step = plan.addStep(node->action->action, node->action->assignment);
+        step.other = node->params;
+    }
 }
 
 //
@@ -192,6 +195,129 @@ AStarPlanner::AStarPlanner(const ProblemPtr &problem, const Options &options)
   : Planner(problem), options(options)
 {
     initialize();
+}
+
+std::vector<Plan::Step> AStarPlanner::randomWalk(std::size_t steps)
+{
+    PlanData data(this);         // Search data
+    Assignment empty(problem_);  // Empty assignment for goal evaluation
+
+    data.addState(problem_->start->cleanClone(), options.start_param);
+    PlanData::Node *start = data.popFrontier();
+
+    std::vector<Plan::Step> states;
+    for (std::size_t i = 0; i < steps; ++i)
+    {
+        auto state = start->state;
+
+        for (std::size_t j = 0; j < ground_actions_.size(); ++j)
+        {
+            const auto &grounded = ground_actions_[j];
+
+            // Check if grounded action is feasible in this state
+            if (not grounded.action->precondition->evaluate(state, grounded.assignment))
+                continue;
+
+            // Propagate action on this state
+            StatePtr next = problem_->makeState();
+            if (not grounded.action->doAction(next, state, grounded.assignment))
+                throw std::runtime_error("Failed to apply action to state in planning.");
+
+            next->clean();
+            const auto &nbrs = options.param_space->getNeighbors(state, start->params, next, grounded);
+
+            for (std::size_t k = 0; k < nbrs.size(); ++k)
+            {
+                double distance = options.transition_distance(start, grounded, next, nbrs[k]);
+                data.addState(next, nbrs[k], &grounded, start, distance);
+            }
+        }
+
+
+        double mc = 0;
+        std::vector<PlanData::Node *> nodes;
+        while ((start = data.popFrontier()))
+        {
+            if (start->cost > mc)
+                mc = start->cost;
+
+            nodes.emplace_back(start);
+        }
+
+        double total = 0;
+        std::vector<double> values;
+        for (const auto &node : nodes)
+        {
+            total += mc - node->cost + 1;
+            values.emplace_back(total);
+        }
+
+        double r = static_cast<double>(rand()) / static_cast<double>(RAND_MAX);
+        r *= total;
+        for (std::size_t j = 0; j < values.size(); ++j)
+            if (r < values[j])
+            {
+                start = nodes[j];
+                Plan::Step step(start->action->action, start->action->assignment);
+                step.state = start->state;
+                step.other = start->params;
+                states.emplace_back(step);
+                break;
+            }
+
+    }
+
+    return states;
+}
+
+std::vector<Plan::Step> AStarPlanner::getStartNeighbors()
+{
+    PlanData data(this);         // Search data
+    Assignment empty(problem_);  // Empty assignment for goal evaluation
+
+    data.addState(problem_->start->cleanClone(), options.start_param);
+    PlanData::Node *start = data.popFrontier();
+    auto state = start->state;
+
+    // Get the blocked actions for this state
+    const auto &blocked = blocked_actions_.find(state);
+
+    // Check all possible transitions from this state
+    for (std::size_t index = 0; index < ground_actions_.size(); ++index)
+    {
+        const auto &grounded = ground_actions_[index];
+
+        // Check if action is in blocked list (i.e., its index appears)
+        if (blocked != blocked_actions_.end() and
+            std::find(blocked->second.begin(), blocked->second.end(), index) != blocked->second.end())
+            continue;
+
+        // Check if grounded action is feasible in this state
+        if (not grounded.action->precondition->evaluate(state, grounded.assignment))
+            continue;
+
+        // Propagate action on this state
+        StatePtr next = problem_->makeState();
+        if (not grounded.action->doAction(next, state, grounded.assignment))
+            throw std::runtime_error("Failed to apply action to state in planning.");
+        next->clean();
+
+        // Check all possible parameter transitions from this state
+        for (const auto &params : options.param_space->getNeighbors(state, start->params, next, grounded))
+            data.addState(next, params, &grounded, start);
+    }
+
+    std::vector<Plan::Step> states;
+    PlanData::Node *node;
+    while ((node = data.popFrontier()))
+    {
+        Plan::Step step(node->action->action, node->action->assignment);
+        step.state = node->state;
+        step.other = node->params;
+        states.emplace_back(step);
+    }
+
+    return states;
 }
 
 bool AStarPlanner::solve(Plan &plan)
@@ -272,7 +398,7 @@ bool AStarPlanner::solve(Plan &plan, unsigned int timeout)
             next->clean();
 
             // Check all possible parameter transitions from this state
-            for (const auto &params : options.param_space->getNeighbors(state, next, grounded))
+            for (const auto &params : options.param_space->getNeighbors(state, top->params, next, grounded))
             {
                 // Compute distance to next node
                 double distance = options.transition_distance(top, grounded, next, params);
@@ -429,6 +555,8 @@ PlannerHeuristicFactory::PlannerHeuristicFactory(const ProblemPtr &problem,
 
 double PlannerHeuristicFactory::value(const AStarPlanner::PlanData::Node *node)
 {
+    std::unique_lock<std::mutex> lock(mutex_);
+
     auto it = distance_cache_.find(node->state);
     if (it == distance_cache_.end())
     {

@@ -4,6 +4,7 @@
 #define PDDLBOAT_SOLVER_ASTARPLANNER_
 
 #include <queue>
+#include <mutex>
 #include <unordered_map>
 #include <boost/functional/hash.hpp>
 
@@ -50,7 +51,7 @@ namespace pddlboat
 
             /** \brief Parameters from the parameter space.
              */
-            class Params
+            class Params : public Plan::Step::Extra
             {
             public:
                 /** \brief Comparator. Returns true if these are equal parameters.
@@ -62,12 +63,13 @@ namespace pddlboat
 
             /** \brief Get the neighboring parameters given a symbolic transition.
              *  \param[in] state The source state.
+             *  \param[in] params The source params.
              *  \param[in] next The destination state.
              *  \param[in] action The transitioning action.
              *  \return The set of parameters for a composite state with next.
              */
-            virtual std::vector<ParamsPtr> getNeighbors(const StatePtr &state, const StatePtr &next,
-                                                        const GroundedAction &action);
+            virtual std::vector<ParamsPtr> getNeighbors(const StatePtr &state, const ParamsPtr &params,
+                                                        const StatePtr &next, const GroundedAction &action);
         };
 
         /** \brief Data structures used in A* search.
@@ -234,6 +236,10 @@ namespace pddlboat
          */
         AStarPlanner(const ProblemPtr &problem, const Options &options = Options());
 
+        std::vector<Plan::Step> getStartNeighbors();
+
+        std::vector<Plan::Step> randomWalk(std::size_t steps);
+
         /** \brief Initialize planner.
          */
         void initialize();
@@ -318,6 +324,7 @@ namespace pddlboat
         ProblemPtr problem_;                        ///< Per-state problem used for evaluation.
         const PlannerAllocator planner_allocator_;  ///< Planner allocator.
         StateMap<std::size_t> distance_cache_;      ///< Cache of state cost-to-go.
+        std::mutex mutex_;
     };
 
 }  // namespace pddlboat
