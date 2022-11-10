@@ -44,8 +44,8 @@ std::vector<std::string> pddlboat::getValueObjects(const std::vector<Value> &val
     return objects;
 }
 
-Value pddlboat::getValue(const std::string &term, const Variable *variable, const ProblemPtr &problem,
-                         const DomainPtr &domain)
+Value pddlboat::getValue(const std::string &term, const Variable *variable, const Problem *problem,
+                         const Domain *domain)
 {
     std::string b = term;
     std::string type = PDDLBOAT_OBJECT_CLASS;
@@ -85,6 +85,14 @@ Value pddlboat::getValue(const std::string &term, const Variable *variable, cons
 std::vector<Value> pddlboat::getValues(const std::vector<std::string> &terms,
                                        const std::vector<Variable> &variables, const ProblemPtr &problem,
                                        const DomainPtr &domain)
+{
+    return getValues(terms, variables, (problem) ? problem.get() : nullptr,
+                     (domain) ? domain.get() : nullptr);
+}
+
+std::vector<Value> pddlboat::getValues(const std::vector<std::string> &terms,
+                                       const std::vector<Variable> &variables, const Problem *problem,
+                                       const Domain *domain)
 {
     std::vector<Value> toUse;
     for (unsigned int i = 0; i < terms.size(); ++i)

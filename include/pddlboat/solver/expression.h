@@ -147,12 +147,15 @@ namespace pddlboat
     std::vector<std::string> getValueObjects(const std::vector<Value> &values, const StatePtr &state,
                                              const Assignment &assignment);
 
-    Value getValue(const std::string &term, const Variable *variable, const ProblemPtr &problem,
-                   const DomainPtr &domain);
+    Value getValue(const std::string &term, const Variable *variable, const Problem *problem,
+                   const Domain *domain);
 
     std::vector<Value> getValues(const std::vector<std::string> &terms,
                                  const std::vector<Variable> &variables, const ProblemPtr &problem,
                                  const DomainPtr &domain);
+    std::vector<Value> getValues(const std::vector<std::string> &terms,
+                                 const std::vector<Variable> &variables, const Problem *problem,
+                                 const Domain *domain);
 }  // namespace pddlboat
 
 #endif

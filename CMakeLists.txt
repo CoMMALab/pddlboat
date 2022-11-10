@@ -32,6 +32,9 @@ list(APPEND LIBRARIES ${Boost_LIBRARIES})
 
 add_subdirectory(submodules)
 add_definitions(
+  -DPDDLBOAT_FASTFORWARD_LOCATION="${CMAKE_CURRENT_SOURCE_DIR}/submodules/ff"
+)
+add_definitions(
   -DPDDLBOAT_FASTDOWNWARD_LOCATION="${CMAKE_CURRENT_BINARY_DIR}/submodules/downward/src/bin"
 )
 add_definitions(
@@ -55,6 +58,7 @@ list(
   src/parser.cpp
   src/planner.cpp
   src/dependency.cpp
+  src/ffplanner.cpp
   src/fdplanner.cpp
   src/symkplanner.cpp
   src/z3planner.cpp

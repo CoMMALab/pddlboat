@@ -184,6 +184,18 @@ Assignment::Assignment(const Assignment &other) : problem(other.problem), varToO
 {
 }
 
+Assignment &Assignment::operator=(const Assignment &other)
+{
+    if (this != &other)
+    {
+        problem = other.problem;
+        varToObj = other.varToObj;
+        varToType = other.varToType;
+    }
+
+    return *this;
+}
+
 void Assignment::fold(const Assignment &other)
 {
     for (const auto &[name, obj] : other.varToObj)
@@ -280,6 +292,15 @@ PredicatePtr PredicateDefinition::bind() const
 
 PredicatePtr PredicateDefinition::bind(const std::vector<std::string> &bound, const ProblemPtr &problem,
                                        const DomainPtr &domain) const
+{
+    if (variables.size() != bound.size())
+        throw std::invalid_argument("Cannot bind variables, size mismatch!");
+
+    return bindValues(getValues(bound, variables, problem, domain));
+}
+
+PredicatePtr PredicateDefinition::bind(const std::vector<std::string> &bound, const Problem *problem,
+                                       const Domain *domain) const
 {
     if (variables.size() != bound.size())
         throw std::invalid_argument("Cannot bind variables, size mismatch!");

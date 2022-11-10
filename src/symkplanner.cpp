@@ -72,10 +72,12 @@ std::string SymKPlanner::generateAnytimeSolverCommand()
 
 bool SymKPlanner::multiSolve(PlanSet &plans)
 {
-    if (not runSolver())
-    {
+    if (not translator_command)
+        // This signifies that we haven't run update() ever
+        update();
+
+    if (not (io::runCommand(getSolverCommand()) != std::nullopt))
         return false;
-    }
 
     // Parse output files
     auto matches = io::glob("/tmp", output_filename + ".*");

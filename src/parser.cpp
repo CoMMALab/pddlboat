@@ -61,7 +61,7 @@ namespace parser
     const x3::rule<name_class, std::string> name = "name";
     const x3::rule<namelist_class, std::vector<std::string>> namelist = "namelist";
 
-    auto name_symbols1 = x3::char_("*+/><=_");
+    auto name_symbols1 = x3::char_("");
     auto name_symbols2 = x3::char_("*+/><=_-");
     const auto name_identifier = (ascii::alpha | name_symbols1) >> *(ascii::alnum | name_symbols2);
     const auto name_def = x3::lexeme[name_identifier];
@@ -134,7 +134,7 @@ namespace parser
     struct requirements_class;
     const x3::rule<requirements_class, std::vector<Requirements::Keyword>> requirements = "requirements";
     const auto requirements_def =                                           //
-        '(' >> x3::lit(":requirements") >>                                  //
+        '(' >> (x3::lit(":REQUIREMENTS") | x3::lit(":requirements")) >>     //
         *(ast::RequirementsKeywords |                                       //
           (x3::attr(Requirements::Keyword::NONE) >> ':' >> x3::omit[name])  //
           ) >>
@@ -147,8 +147,8 @@ namespace parser
     ///
     struct types_class;
     const x3::rule<types_class, std::vector<ast::TypedList>> types = "types";
-    const auto types_def =                                  //
-        '(' >> x3::lit(":types") >> *typedlist_name >> ')'  //
+    const auto types_def =                                                        //
+        '(' >> (x3::lit(":TYPES") | x3::lit(":types")) >> *typedlist_name >> ')'  //
         ;
     PARSE(types);
 
@@ -165,8 +165,8 @@ namespace parser
 
     struct constants_class;
     const x3::rule<constants_class, std::vector<ast::TypedList>> constants = "constants";
-    const auto constants_def =                                  //
-        '(' >> x3::lit(":constants") >> *typedlist_name >> ')'  //
+    const auto constants_def =                                                            //
+        '(' >> (x3::lit(":CONSTANTS") | x3::lit(":constants")) >> *typedlist_name >> ')'  //
         ;
     PARSE(constants);
 
@@ -176,8 +176,8 @@ namespace parser
 
     struct predicates_class;
     const x3::rule<predicates_class, std::vector<ast::AtomicFormula>> predicates = "predicates";
-    const auto predicates_def =                                  //
-        '(' >> x3::lit(":predicates") >> *atomic_formula >> ')'  //
+    const auto predicates_def =                                                             //
+        '(' >> (x3::lit(":PREDICATES") | x3::lit(":predicates")) >> *atomic_formula >> ')'  //
         ;
     PARSE(predicates);
 
@@ -195,8 +195,8 @@ namespace parser
 
     struct functions_class;
     const x3::rule<functions_class, std::vector<ast::AtomicFormulaList>> functions = "functions";
-    const auto functions_def =                                       //
-        '(' >> x3::lit(":functions") >> *atomic_formula_list >> ')'  //
+    const auto functions_def =                                                                 //
+        '(' >> (x3::lit(":FUNCTIONS") | x3::lit(":functions")) >> *atomic_formula_list >> ')'  //
         ;
     PARSE(functions);
 
@@ -239,12 +239,12 @@ namespace parser
 
     struct action_class;
     const x3::rule<action_class, ast::Action> action = "action";
-    const auto action_def =                                                //
-        '(' >> x3::attr(false) >> x3::lit(":action") >> name >>            //
-        -(x3::lit(":parameters") >> '(' >> *typedlist_variable >> ')') >>  //
-        -(x3::lit(":precondition") >> expression) >>                       //
-        -(x3::lit(":effect") >> expression) >>                             //
-        ')'                                                                //
+    const auto action_def =                                                                           //
+        '(' >> x3::attr(false) >> (x3::lit(":ACTION") | x3::lit(":action")) >> name >>                //
+        -((x3::lit(":PARAMETERS") | x3::lit(":parameters")) >> '(' >> *typedlist_variable >> ')') >>  //
+        -((x3::lit(":PRECONDITION") | x3::lit(":precondition")) >> expression) >>                     //
+        -((x3::lit(":EFFECT") | x3::lit(":effect")) >> expression) >>                                 //
+        ')'                                                                                           //
         ;
     PARSE(action)
     struct action_class : error_handler
@@ -257,12 +257,12 @@ namespace parser
 
     struct derived_class;
     const x3::rule<derived_class, ast::Action> derived = "derived";
-    const auto derived_def =                             //
-        '(' >> x3::attr(true) >> x3::lit(":derived") >>  //
-        '(' >> name >> *typedlist_variable >> ')' >>     //
-        -(expression) >>                                 //
-        x3::attr(ast::Expression{}) >>                   //
-        ')'                                              //
+    const auto derived_def =                                                     //
+        '(' >> x3::attr(true) >> (x3::lit(":DERIVED") | x3::lit(":derived")) >>  //
+        '(' >> name >> *typedlist_variable >> ')' >>                             //
+        -(expression) >>                                                         //
+        x3::attr(ast::Expression{}) >>                                           //
+        ')'                                                                      //
         ;
     PARSE(derived)
     struct derived_class : error_handler
@@ -275,16 +275,16 @@ namespace parser
 
     struct domain_class;
     const x3::rule<domain_class, ast::Domain> domain = "domain";
-    const auto domain_def =                         //
-        '(' >> x3::lit("define") >>                 //
-        '(' >> x3::lit("domain") >> name >> ')' >>  //
-        -requirements >>                            //
-        -types >>                                   //
-        -constants >>                               //
-        -predicates >>                              //
-        -functions >>                               //
-        *(action | derived) >>                      //
-        ')'                                         //
+    const auto domain_def =                                               //
+        '(' >> (x3::lit("DEFINE") | x3::lit("define")) >>                 //
+        '(' >> (x3::lit("DOMAIN") | x3::lit("domain")) >> name >> ')' >>  //
+        -requirements >>                                                  //
+        -types >>                                                         //
+        -constants >>                                                     //
+        -predicates >>                                                    //
+        -functions >>                                                     //
+        *(action | derived) >>                                            //
+        ')'                                                               //
         ;
     PARSE(domain);
     struct domain_class : error_handler
@@ -297,8 +297,8 @@ namespace parser
 
     struct objects_class;
     const x3::rule<objects_class, std::vector<ast::TypedList>> objects = "objects";
-    const auto objects_def =                               //
-        '(' > x3::lit(":objects") > *typedlist_name > ')'  //
+    const auto objects_def =                                                       //
+        '(' > (x3::lit(":OBJECTS") | x3::lit(":objects")) > *typedlist_name > ')'  //
         ;
     PARSE(objects);
 
@@ -326,8 +326,8 @@ namespace parser
 
     struct initial_class;
     const x3::rule<initial_class, std::vector<ast::Initial>> initial = "initial";
-    const auto initial_def =                                          //
-        '(' > x3::lit(":init") > *(initial_set | initial_pred) > ')'  //
+    const auto initial_def =                                                               //
+        '(' > (x3::lit(":INIT") | x3::lit(":init")) > *(initial_set | initial_pred) > ')'  //
         ;
     PARSE(initial);
 
@@ -337,8 +337,8 @@ namespace parser
 
     struct goal_class;
     const x3::rule<goal_class, ast::Expression> goal = "goal";
-    const auto goal_def =                             //
-        '(' >> x3::lit(":goal") >> expression >> ')'  //
+    const auto goal_def =                                                  //
+        '(' >> (x3::lit(":GOAL") | x3::lit(":goal")) >> expression >> ')'  //
         ;
     PARSE(goal);
 
@@ -349,10 +349,12 @@ namespace parser
     struct metric_class;
     const x3::rule<metric_class, ast::Metric> metric = "metric";
     const auto metric_def =                                                    //
-        '(' >> x3::lit(":metric") >> x3::attr(true) >>                         //
-        (("minimize" >> x3::attr(true)) | ("maximize" >> x3::attr(false))) >>  //
-        expression >>                                                          //
-        ')'                                                                    //
+        '(' >> (x3::lit(":METRIC") | x3::lit(":metric")) >> x3::attr(true) >>  //
+        (((x3::lit("MINIMIZE") | x3::lit("minimize")) >> x3::attr(true)) |     //
+         ((x3::lit("MAXIMIZE") | x3::lit("maximize")) >> x3::attr(false))) >>  //
+        expression
+        >>   //
+        ')'  //
         ;
     PARSE(metric);
 
@@ -362,14 +364,14 @@ namespace parser
 
     struct problem_class;
     const x3::rule<problem_class, ast::Problem> problem = "problem";
-    const auto problem_def =                     //
-        '(' > x3::lit("define") >                //
-        '(' > x3::lit("problem") > name > ')' >  //
-        '(' > x3::lit(":domain") > name > ')' >  //
-        -objects >                               //
-        -initial >                               //
-        -goal >                                  //
-        -metric > ')'                            //
+    const auto problem_def =                                            //
+        '(' > (x3::lit("DEFINE") | x3::lit("define")) >                 //
+        '(' > (x3::lit("PROBLEM") | x3::lit("problem")) > name > ')' >  //
+        '(' > (x3::lit(":DOMAIN") | x3::lit(":domain")) > name > ')' >  //
+        -objects >                                                      //
+        -initial >                                                      //
+        -goal >                                                         //
+        -metric > ')'                                                   //
         ;
     PARSE(problem);
     struct problem_class : error_handler

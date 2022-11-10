@@ -227,6 +227,16 @@ std::ostream &pddlboat::operator<<(std::ostream &out, const Plan &plan)
     return plan.toString(out);
 }
 
+double Plan::getTimeTaken(const std::string &key) const
+{
+    return times_.find(key)->second;
+}
+
+void Plan::setTimeTaken(const std::string &key, double time)
+{
+    times_[key] = time;
+}
+
 ///
 /// PlanSet
 ///
@@ -526,6 +536,7 @@ void Planner::addConstraint(Planner::ConstraintTime time, const ExpressionPtr &e
 {
     throw std::runtime_error("Not implemented!");
 }
+
 auto pddlboat::PlanWatcher::startPlanner() -> std::pair<FILE *, pid_t>
 {
     int pdes[2];

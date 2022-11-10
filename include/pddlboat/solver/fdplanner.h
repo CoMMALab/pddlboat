@@ -26,11 +26,21 @@ namespace pddlboat
             LAMA,        ///< LAMA 2011
         };
 
+        /** \brief Options for planner.
+         */
+        struct Options
+        {
+            Search search{Search::ASTAR};  ///< Search method to use.
+            bool no_simplify_sas{true};    ///< Simplify SAS output in translation.
+
+            Options(){};
+        };
+
         /** \brief Constructor.
          *  \param[in] problem Problem to solve.
          *  \param[in] search Search method to use.
          */
-        FastDownwardPlanner(const ProblemPtr &problem, const Search &search = Search::LAZYGREEDY);
+        FastDownwardPlanner(const ProblemPtr &problem, const Options &options = Options());
 
         /** \brief Destructor. Cleans up generated files.
          */
@@ -91,14 +101,11 @@ namespace pddlboat
          */
         virtual bool preprocess() const;
 
-        /** \brief Common logic for running a FD-based planner
-         */
-        bool runSolver();
-
         /** \brief Get the directory where the binary resides
          *  \return Path to the binary directory
          */
         virtual const std::string &getDirectory() const;
+
         const std::string temporary{"/tmp"};  ///< Scratch directory to generate intermediate files.
 
         const std::string domain_file_template{"pddlboat_domain_%1%.pddl"};    ///< Template domain name.
@@ -117,10 +124,11 @@ namespace pddlboat
         std::optional<std::string> solver_command{std::nullopt};      ///< Command to use for solving.
         std::optional<std::string> translator{std::nullopt};          ///< Translator executable.
         std::optional<std::string> translator_command{std::nullopt};  ///< Command to use for translating.
+        std::optional<double> translator_time{std::nullopt};          ///< Time taken for last translation.
 
     private:
-        const Search search{Search::FDAT};  ///< Search method to use.
-        const static std::string fd_directory;
+        const Options options;                  ///< Planner options.
+        const static std::string fd_directory;  ///< Directory where FD executable lives.
     };
 
 }  // namespace pddlboat

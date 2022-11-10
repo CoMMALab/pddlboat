@@ -12,6 +12,7 @@
 #include <pddlboat/parser/translator.h>
 #include <pddlboat/solver/expressions.h>
 #include <pddlboat/solver/planner.h>
+#include <pddlboat/solver/ffplanner.h>
 #include <pddlboat/solver/fdplanner.h>
 #include <pddlboat/solver/symkplanner.h>
 #include <pddlboat/solver/z3planner.h>
@@ -28,6 +29,7 @@ namespace pddlboat
     enum PlannerType
     {
         Z3,
+        FF,
         FD,
         AS,
         SYMK,
@@ -39,6 +41,8 @@ namespace pddlboat
         in >> token;
         if (token == "z3")
             unit = PlannerType::Z3;
+        else if (token == "ff")
+            unit = PlannerType::FF;
         else if (token == "fd")
             unit = PlannerType::FD;
         else if (token == "astar")
@@ -83,6 +87,8 @@ namespace pddlboat
     class ProblemSetup
     {
     public:
+        std::string relative_path;
+
         std::string domain_file;
         ast::Domain domain_ast;
         DomainPtr domain;
@@ -132,7 +138,12 @@ namespace pddlboat
 
         struct
         {
-            FastDownwardPlanner::Search search;
+            FastForwardPlanner::Options options;
+        } ff;
+
+        struct
+        {
+            FastDownwardPlanner::Options options;
         } fd;
 
         struct
@@ -163,12 +174,14 @@ namespace pddlboat
         {
             description.add_options()                                                                 //
                 ("help,h", "Produces this help message")                                              //
+                ("folder,f", po::value<std::string>(&relative_path)->default_value("."),              //
+                 "Relative folder that domain and problem are specified in.")                         //
                 ("domain,d", po::value<std::string>(&domain_file)->required(),                        //
                  "PDDL file that describes the problem domain")                                       //
                 ("problem,p", po::value<std::string>(&problem_file)->required(),                      //
                  "PDDL file that describes the problem")                                              //
                 ("planner,s", po::value<PlannerType>(&planner_type)->default_value(PlannerType::FD),  //
-                 "Planner to use. Either `z3`, `fd`, or `symk`")                                      //
+                 "Planner to use. Either `astar`, `z3`, `ff`, `fd`, or `symk`")                       //
                 ("od", po::bool_switch(&output.domain),                                               //
                  "Print the domain as PDDL")                                                          //
                 ("op", po::bool_switch(&output.problem),                                              //
@@ -218,12 +231,17 @@ namespace pddlboat
                 ;
             description.add(z3opt);
 
+            po::options_description ffopt("Fast Forward Planner Options");
+            description.add(ffopt);
+
             po::options_description fdopt("Fast Downward Planner Options");
             fdopt.add_options()  //
                 ("fdsearch,y",
-                 po::value<FastDownwardPlanner::Search>(&fd.search)
-                     ->default_value(FastDownwardPlanner::Search::LAZYGREEDY),          //
+                 po::value<FastDownwardPlanner::Search>(&fd.options.search)
+                     ->default_value(FastDownwardPlanner::Search::ASTAR),               //
                  "Search algorithm for FD. Can be `astar`, `greedy`, `fd`, or `lama`")  //
+                ("sas_reduce", po::bool_switch(&fd.options.no_simplify_sas),
+                 "If set, do NOT use heuristics to remove unreachable states from FD search.")  //
                 ;
             description.add(fdopt);
 
@@ -271,6 +289,8 @@ namespace pddlboat
          */
         bool initialize()
         {
+            domain_file = io::concatenatePaths(relative_path, domain_file);
+
             // parse domain
             if (not parseFile(domain_file, domain_ast))
             {
@@ -294,6 +314,8 @@ namespace pddlboat
                 domain->toPDDL(std::cout);
                 std::cout << std::endl;
             }
+
+            problem_file = io::concatenatePaths(relative_path, problem_file);
 
             // parse problem
             if (not parseFile(problem_file, problem_ast))
@@ -322,10 +344,11 @@ namespace pddlboat
             // Use special heuristic if requested
             if (astar.planning_heuristic)
             {
-                auto copy = fd.search;
-                astar.options.heuristic = PlannerHeuristicFactory::make(
-                    problem, [copy](const ProblemPtr &problem)
-                    { return std::make_shared<FastDownwardPlanner>(problem, copy); });
+                auto copy = fd.options;
+                astar.options.heuristic =
+                    PlannerHeuristicFactory::make(problem, [copy](const ProblemPtr &problem) {
+                        return std::make_shared<FastDownwardPlanner>(problem, copy);
+                    });
             }
 
             // setup planner
@@ -334,8 +357,11 @@ namespace pddlboat
                 case Z3:
                     planner = std::make_shared<Z3Planner>(problem, z3.options);
                     break;
+                case FF:
+                    planner = std::make_shared<FastForwardPlanner>(problem, ff.options);
+                    break;
                 case FD:
-                    planner = std::make_shared<FastDownwardPlanner>(problem, fd.search);
+                    planner = std::make_shared<FastDownwardPlanner>(problem, fd.options);
                     break;
                 case AS:
                     planner = std::make_shared<AStarPlanner>(problem, astar.options);

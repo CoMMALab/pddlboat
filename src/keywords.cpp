@@ -1,5 +1,6 @@
 /* Author: Zachary Kingston */
 
+#include <boost/algorithm/string.hpp>
 #include <pddlboat/parser/keywords.h>
 
 using namespace pddlboat;
@@ -147,7 +148,7 @@ void Operators::initialize()
 
 Operators::Keyword Operators::getKeyword(const std::string &string)
 {
-    auto result = Operators::getMap().left.find(string);
+    auto result = Operators::getMap().left.find(boost::algorithm::to_lower_copy(string));
     if (result == Operators::getMap().left.end())
         return Operators::LITERAL;
 

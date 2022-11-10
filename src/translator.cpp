@@ -53,7 +53,7 @@ namespace
         if (term.op.toOp() != Operators::LITERAL)
             throw std::invalid_argument(log::format("Invalid op %1% in predicate!", term.op.toString()));
 
-        const auto &name = term.op.toString();
+        const auto &name = boost::algorithm::to_lower_copy(term.op.toString());
         const Variable *var = isVariable(name, variables);
         if (domain->isFunction(name))
         {
@@ -67,7 +67,7 @@ namespace
         else if (var or isObject(name, domain, problem))
         {
             auto temp = (var ? "?" : "") + name;
-            return getValue(temp, var, problem, domain);
+            return getValue(temp, var, problem.get(), domain.get());
         }
 
         throw std::invalid_argument(log::format("Invalid term %1% in predicate!", name));
@@ -80,14 +80,14 @@ std::vector<Variable> pddlboat::getVariables(const std::vector<ast::TypedList> &
 
     for (const auto &list : parsed)
     {
-        const auto &parent = (list.parent != "") ? list.parent : PDDLBOAT_OBJECT_CLASS;
+        const auto &parent =
+            boost::algorithm::to_lower_copy((list.parent != "") ? list.parent : PDDLBOAT_OBJECT_CLASS);
         for (const auto &variable : list.types)
-            variables.emplace_back(variable, parent);
+            variables.emplace_back(boost::algorithm::to_lower_copy(variable), parent);
     }
 
     return variables;
 }
-
 
 pddlboat::ExpressionPtr pddlboat::toExpression(const ast::Expression &expression,
                                                const std::vector<Variable> &variables,
@@ -97,7 +97,7 @@ pddlboat::ExpressionPtr pddlboat::toExpression(const ast::Expression &expression
     {
         case Operators::LITERAL:
         {
-            const auto &s = expression.op.toString();
+            const auto &s = boost::algorithm::to_lower_copy(expression.op.toString());
 
             if (debug)
                 std::cout << "Translating Literal " << s << std::endl;
@@ -534,9 +534,10 @@ pddlboat::DomainPtr pddlboat::toDomain(const ast::Domain &domain)
 
     for (const auto &constantlist : domain.constants)
     {
-        const auto &parent = (constantlist.parent != "") ? constantlist.parent : PDDLBOAT_OBJECT_CLASS;
+        const auto &parent = boost::algorithm::to_lower_copy(
+            (constantlist.parent != "") ? constantlist.parent : PDDLBOAT_OBJECT_CLASS);
         for (const auto &constant : constantlist.types)
-            r->addConstant(constant, parent);
+            r->addConstant(boost::algorithm::to_lower_copy(constant), parent);
     }
 
     for (const auto &predicate : domain.predicates)
@@ -545,32 +546,37 @@ pddlboat::DomainPtr pddlboat::toDomain(const ast::Domain &domain)
 
         for (const auto &list : predicate.variables)
         {
-            const auto &parent = (list.parent != "") ? list.parent : PDDLBOAT_OBJECT_CLASS;
+            const auto &parent =
+                boost::algorithm::to_lower_copy((list.parent != "") ? list.parent : PDDLBOAT_OBJECT_CLASS);
             for (const auto &variable : list.types)
-                variables.emplace_back(variable, parent);
+                variables.emplace_back(boost::algorithm::to_lower_copy(variable), parent);
         }
 
-        r->addPredicate(pddlboat::makePred(predicate.name, variables));
+        r->addPredicate(pddlboat::makePred(boost::algorithm::to_lower_copy(predicate.name), variables));
     }
 
     for (const auto &functionlist : domain.functions)
     {
-        const auto &listparent = (functionlist.parent != "") ? functionlist.parent : PDDLBOAT_NUMERIC_CLASS;
+        const auto &listparent = boost::algorithm::to_lower_copy(
+            (functionlist.parent != "") ? functionlist.parent : PDDLBOAT_NUMERIC_CLASS);
         for (const auto &function : functionlist.formulas)
         {
             std::vector<Variable> variables;
 
             for (const auto &list : function.variables)
             {
-                const auto &parent = (list.parent != "") ? list.parent : PDDLBOAT_OBJECT_CLASS;
+                const auto &parent = boost::algorithm::to_lower_copy(
+                    (list.parent != "") ? list.parent : PDDLBOAT_OBJECT_CLASS);
                 for (const auto &variable : list.types)
-                    variables.emplace_back(variable, parent);
+                    variables.emplace_back(boost::algorithm::to_lower_copy(variable), parent);
             }
 
             if (listparent == PDDLBOAT_NUMERIC_CLASS)
-                r->addFunction(pddlboat::makeFunction(function.name, variables));
+                r->addFunction(
+                    pddlboat::makeFunction(boost::algorithm::to_lower_copy(function.name), variables));
             else
-                r->addFunction(pddlboat::makeObjectFunction(function.name, listparent, variables));
+                r->addFunction(pddlboat::makeObjectFunction(boost::algorithm::to_lower_copy(function.name),
+                                                            listparent, variables));
         }
     }
 
@@ -594,9 +600,14 @@ pddlboat::ProblemPtr pddlboat::toProblem(const ast::Problem &problem, const Doma
 
     for (const auto &objectlist : problem.objects)
     {
-        const auto &parent = (objectlist.parent != "") ? objectlist.parent : PDDLBOAT_OBJECT_CLASS;
+        auto parent = boost::algorithm::to_lower_copy((objectlist.parent != "") ? objectlist.parent :
+                                                                                  PDDLBOAT_OBJECT_CLASS);
+
+        if (not domain->isType(parent))
+            throw std::invalid_argument(log::format("Invalid type `%1%` in problem!", parent));
+
         for (const auto &object : objectlist.types)
-            r->addObject(object, parent);
+            r->addObject(boost::algorithm::to_lower_copy(object), parent);
     }
 
     for (const auto &formula : problem.initial)
@@ -604,20 +615,21 @@ pddlboat::ProblemPtr pddlboat::toProblem(const ast::Problem &problem, const Doma
         std::vector<std::string> names;
         for (const auto &types : formula.formula.variables)
             for (const auto &type : types.types)
-                names.emplace_back(type);
+                names.emplace_back(boost::algorithm::to_lower_copy(type));
 
+        std::string name = boost::algorithm::to_lower_copy(formula.formula.name);
         if (not formula.set)
-            r->start->assignN(formula.formula.name, names, true);
+            r->start->assignN(name, names, true);
         else
         {
             try
             {
                 double x = boost::lexical_cast<double>(formula.object);
-                r->start->assignN(formula.formula.name, names, x);
+                r->start->assignN(name, names, x);
             }
             catch (...)
             {
-                r->start->assignN(formula.formula.name, names, formula.object);
+                r->start->assignN(name, names, boost::algorithm::to_lower_copy(formula.object));
             }
         }
     }

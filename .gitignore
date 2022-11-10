@@ -44,3 +44,9 @@ compile_commands.json
 /.z3-trace
 
 .cache
+/submodules/ff/lex.fct_pddl.c
+/submodules/ff/lex.ops_pddl.c
+/submodules/ff/scan-fct_pddl.tab.c
+/submodules/ff/scan-ops_pddl.tab.c
+*.sas
+submodules/ff/ff

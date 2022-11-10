@@ -42,6 +42,7 @@ namespace pddlboat
         bool isPrefix(const std::string &lhs, const std::string &rhs);
         bool isSuffix(const std::string &lhs, const std::string &rhs);
         bool isExtension(const std::string &path_string, const std::string &extension);
+        std::string concatenatePaths(const std::string &first, const std::string &second);
         std::string resolvePath(const std::string &path);
         std::string loadFileToString(const std::string &path);
         std::optional<std::string> runCommand(const std::string &cmd);

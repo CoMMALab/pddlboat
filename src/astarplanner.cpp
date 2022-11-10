@@ -1,5 +1,6 @@
 /* Author: Zachary Kingston */
 
+#include <random>
 #include <pddlboat/solver/astarplanner.h>
 
 using namespace pddlboat;
@@ -197,8 +198,11 @@ AStarPlanner::AStarPlanner(const ProblemPtr &problem, const Options &options)
     initialize();
 }
 
-std::vector<Plan::Step> AStarPlanner::randomWalk(std::size_t steps)
+std::vector<Plan::Step> AStarPlanner::randomWalk(std::size_t steps, std::size_t seed, bool weighted)
 {
+    std::random_device rd;
+    std::mt19937 gen((seed) ? seed : rd());  // If seed == 0, then use random seed.
+
     PlanData data(this);         // Search data
     Assignment empty(problem_);  // Empty assignment for goal evaluation
 
@@ -233,7 +237,6 @@ std::vector<Plan::Step> AStarPlanner::randomWalk(std::size_t steps)
             }
         }
 
-
         double mc = 0;
         std::vector<PlanData::Node *> nodes;
         while ((start = data.popFrontier()))
@@ -244,27 +247,44 @@ std::vector<Plan::Step> AStarPlanner::randomWalk(std::size_t steps)
             nodes.emplace_back(start);
         }
 
-        double total = 0;
-        std::vector<double> values;
-        for (const auto &node : nodes)
-        {
-            total += mc - node->cost + 1;
-            values.emplace_back(total);
-        }
+        if (nodes.empty())
+            break;
 
-        double r = static_cast<double>(rand()) / static_cast<double>(RAND_MAX);
-        r *= total;
-        for (std::size_t j = 0; j < values.size(); ++j)
-            if (r < values[j])
+        if (weighted)
+        {
+            double total = 0;
+            std::vector<double> values;
+            for (const auto &node : nodes)
             {
-                start = nodes[j];
-                Plan::Step step(start->action->action, start->action->assignment);
-                step.state = start->state;
-                step.other = start->params;
-                states.emplace_back(step);
-                break;
+                total += mc - node->cost + 1;
+                values.emplace_back(total);
             }
 
+            std::uniform_real_distribution<double> urand(0, total);
+            double r = urand(gen);
+
+            for (std::size_t j = 0; j < values.size(); ++j)
+                if (r < values[j])
+                {
+                    start = nodes[j];
+                    Plan::Step step(start->action->action, start->action->assignment);
+                    step.state = start->state;
+                    step.other = start->params;
+                    states.emplace_back(step);
+                    break;
+                }
+        }
+        else
+        {
+            std::uniform_int_distribution<std::size_t> urand(0, nodes.size() - 1);
+            std::size_t r = urand(gen);
+
+            start = nodes[r];
+            Plan::Step step(start->action->action, start->action->assignment);
+            step.state = start->state;
+            step.other = start->params;
+            states.emplace_back(step);
+        }
     }
 
     return states;
@@ -363,6 +383,7 @@ bool AStarPlanner::solve(Plan &plan, unsigned int timeout)
         if (top->goal_checked)
         {
             data.buildPlan(plan, top);
+            plan.setTimeTaken("solve", io::getElapsedMilliseconds(timer) / 1000.);
             return plan.validate();
         }
 
@@ -479,7 +500,8 @@ void AStarPlanner::generateGraphML(const std::string &filename) const
             if (not existing)
                 existing = data.addState(next, options.start_param, &grounded, top, 1.);
 
-            out << "<edge id=\"e" << top->id << "_" << existing->id << "\" source=\"n" << top->id << "\" target=\"n" << existing->id << "\">";
+            out << "<edge id=\"e" << top->id << "_" << existing->id << "\" source=\"n" << top->id
+                << "\" target=\"n" << existing->id << "\">";
             out << "<data key=\"d1\">";
             out << grounded.action->toStepID(grounded.assignment);
             out << "</data>"

@@ -75,6 +75,14 @@ bool io::isExtension(const std::string &path_string, const std::string &extensio
     return isSuffix(extension, last);
 }
 
+std::string io::concatenatePaths(const std::string &first, const std::string &second)
+{
+    boost::filesystem::path f1(first), f2(second);
+    f1 /= f2;
+
+    return boost::filesystem::canonical(boost::filesystem::absolute(f1)).string();
+}
+
 std::string io::resolvePath(const std::string &path)
 {
     boost::filesystem::path file(path);

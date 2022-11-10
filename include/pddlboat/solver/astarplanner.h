@@ -236,9 +236,18 @@ namespace pddlboat
          */
         AStarPlanner(const ProblemPtr &problem, const Options &options = Options());
 
+        /** \brief Get the set of states that are adjacent to the starting state in the problem.
+         *  \return The set of adjacent states (as steps, which include the action taken).
+         */
         std::vector<Plan::Step> getStartNeighbors();
 
-        std::vector<Plan::Step> randomWalk(std::size_t steps);
+        /** \brief Take a random walk in the domain for \a steps.
+         *  \param[in] steps Number of steps to randomly walk.
+         *  \param[in] seed Random seed to set. If 0, will randomly seed.
+         *  \param[in] weighted Weight randomness by cost of node (bias towards goal).
+         *  \return The random sequence of steps visited.
+         */
+        std::vector<Plan::Step> randomWalk(std::size_t steps, std::size_t seed = 0, bool weighted = true);
 
         /** \brief Initialize planner.
          */

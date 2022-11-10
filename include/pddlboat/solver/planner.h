@@ -189,11 +189,24 @@ namespace pddlboat
          */
         const ProblemPtr &getProblem() const;
 
+        /** \brief Get the total time taken to compute a plan property.
+         *  \param[in] key Parameter name.
+         *  \return The time taken to compute this plan.
+         */
+        double getTimeTaken(const std::string &key) const;
+
+        /** \brief Set the amount of time taken to compute a plan property.
+         *  \param[in] key Parameter name.
+         *  \param[in] time Time taken.
+         */
+        void setTimeTaken(const std::string &key, double time);
+
     private:
         std::pair<ActionPtr, Assignment> getAction(const std::string &action_name,
                                                    const std::vector<std::string> &objects) const;
 
         std::vector<std::vector<Step>> steps_;  ///< The steps of the plan.
+        std::map<std::string, double> times_;   ///< Time taken to compute plan.
         const ProblemPtr problem_;              ///< Problem this plan is for.
     };
 

@@ -175,6 +175,11 @@ namespace pddlboat
          */
         Assignment(const Assignment &other);
 
+        /** \brief Assignment operator. Copies the assignment.
+         *  \param[in] other The assignment to copy.
+         */
+        Assignment &operator=(const Assignment &other);
+
         /** \brief Take in and add another assignments contents to this assignment.
          *  \param[in] other The assignment to add.
          */
@@ -268,6 +273,8 @@ namespace pddlboat
          */
         PredicatePtr bind(const std::vector<std::string> &bound, const ProblemPtr &problem = nullptr,
                           const DomainPtr &domain = nullptr) const;
+        PredicatePtr bind(const std::vector<std::string> &bound, const Problem *problem,
+                          const Domain *domain = nullptr) const;
 
         /** \brief Bind this n-ary predicate to an evaluatable Predicate.
          *  \param[in] values The values to bind to this predicate.
@@ -1509,9 +1516,10 @@ namespace pddlboat
         /** \brief Constructor. Sets up hash and equality functions.
          */
         StateMap()
-          : _StateMapImpl<T>(0,                                                //
-                             [](const StatePtr &key) { return key->hash(); },  //
-                             [](const StatePtr &a, const StatePtr &b) { return a->isEqual(b); })
+          : _StateMapImpl<T>(
+                0,                                                //
+                [](const StatePtr &key) { return key->hash(); },  //
+                [](const StatePtr &a, const StatePtr &b) { return a->isEqual(b); })
         {
         }
     };

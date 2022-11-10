@@ -65,7 +65,9 @@ Also, note that `pddlboat::*` classes typically have a `toPDDL()` function to ou
 There are three planners provided in _PDDLboat_, which implement a simple abstract interface: `plan()`, which returns a `pddlboat::Plan` given a `pddlboat::Problem`.
 The planners are:
 - A Z3-based SAT plan approach.
+- An implementation that uses Fast Forward.
 - An implementation that uses Fast Downward.
+- An implementation that uses SymK.
 - A simple implementation of A*/Dijkstra for search.
 
 Both of these implement different options, but the defaults generally work well.

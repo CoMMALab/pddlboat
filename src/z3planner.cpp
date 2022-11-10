@@ -611,8 +611,18 @@ bool Z3PlannerInternal::solve(Plan &plan, unsigned int timeout)
         std::cout << getSolverStats() << std::endl;
     }
 
+    plan.setTimeTaken("action_implications",
+                      io::getElapsedMilliseconds(action_implications_.totaltime) / 1000.);
+    plan.setTimeTaken("frame_axioms",
+                      io::getElapsedMilliseconds(frame_axioms_.totaltime) / 1000.);
+    plan.setTimeTaken("mutual_exclusion",
+                      io::getElapsedMilliseconds(mutual_exclusions_.totaltime) / 1000.);
+
     if (solved_)
+    {
+        plan.setTimeTaken("solve", io::getElapsedMilliseconds(t) / 1000.);
         return buildPlan(plan, current_step_);
+    }
 
     return false;
 }
