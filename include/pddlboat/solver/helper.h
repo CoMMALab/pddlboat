@@ -416,7 +416,7 @@ namespace pddlboat
                     {
                         ++count;
                     }
-                } while (plans.plannerRunning() && count < 500);
+                } while (plans.plannerRunning() and count < 500);
                 if (output.time)
                 {
                     t.stop();

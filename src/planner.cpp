@@ -305,16 +305,18 @@ const ProblemPtr &PlanSet::getProblem() const
 }
 
 PlanWatcher::PlanWatcher(const std::filesystem::path &output_dir, const std::string &filename_prefix,
-                         const ProblemPtr &problem, const std::string &cmd, unsigned int timeout,
-                         bool start_immediately)
+                         const ProblemPtr &problem, const std::string &cmd, bool start_immediately,
+                         unsigned int timeout, unsigned int backlog_size)
   : plans(problem)
-  , output_dir_(output_dir)
-  , filename_prefix_(filename_prefix)
-  , cmd_(cmd)
-  , timeout_(timeout)
-  // NOTE: Heuristic guess for size of events assuming that most closed written files are
-  // plans. +4 for .X and a bit of slack
-  , buf_len_(128 * (EVENT_SIZE + filename_prefix.size() + 4))
+  , output_dir_{output_dir}
+  , filename_prefix_{filename_prefix}
+  , cmd_{cmd}
+  , timeout_{timeout}
+
+  // NOTE: Heuristic guess for size of events assuming that most closed written
+  // files are plans. +4 for .X and a bit of slack
+  , buf_len_{128 * (EVENT_SIZE + filename_prefix.size() + 4)}
+  , backlog_max_{backlog_size}
 {
     inot_fd_ = inotify_init();
     if (inot_fd_ < 0)
@@ -349,7 +351,7 @@ PlanWatcher::~PlanWatcher()
 
 void PlanWatcher::start()
 {
-    if (planner_is_running_)
+    if (planner_is_started_)
     {
         return;
     }
@@ -364,42 +366,68 @@ void PlanWatcher::start()
     auto flags = fcntl(planner_proc_fd, F_GETFL, 0);
     flags |= O_NONBLOCK;
     fcntl(planner_proc_fd, F_SETFL, flags);
+    planner_is_started_ = true;
     planner_is_running_ = true;
 }
 
 void PlanWatcher::stop()
 {
-    if (not planner_is_running_ or planner_proc_file_ == nullptr)
+    if (not planner_is_started_ or planner_proc_file_ == nullptr)
     {
         return;
     }
 
+    // NOTE: Right now, this doesn't wait for the planner to exit, which can result in a few extra
+    // plan files being created after the FDPlanner dtor (which deletes plan files) gets called.
+    // This shouldn't cause any real problems other than a bit of /tmp clutter, but we could also
+    // try waiting here and see how much time it costs. I (Wil) chose this approach because I'd
+    // rather have it be as cheap as possible to get rid of one planner and switch to another
     kill(planner_pid_, SIGTERM);
     close(fileno(planner_proc_file_));
 }
 
-auto PlanWatcher::getNextPlanIdx() -> std::optional<std::size_t>
+void PlanWatcher::resume()
 {
-    if (plan_idx >= plans.count())
+    if (planner_is_running_)
     {
-        if (not readPlans())
-        {
-            return std::nullopt;
-        }
+        return;
     }
 
-    return plan_idx++;
+    if (not planner_is_started_)
+    {
+        start();
+        return;
+    }
+
+    if (kill(planner_pid_, SIGCONT) == 0)
+    {
+        planner_is_running_ = true;
+    }
+}
+
+void PlanWatcher::pause()
+{
+    if (not planner_is_started_ or not planner_is_running_)
+    {
+        return;
+    }
+
+    if (kill(planner_pid_, SIGTSTP) == 0)
+    {
+        planner_is_running_ = false;
+    }
 }
 
 auto PlanWatcher::plannerRunning() -> bool
 {
-    if (not planner_is_running_)
+    if (not planner_is_started_)
     {
         return false;
     }
 
     if (feof(planner_proc_file_))
     {
+        planner_is_started_ = false;
         planner_is_running_ = false;
         return false;
     }
@@ -411,44 +439,94 @@ auto PlanWatcher::plannerRunning() -> bool
     return true;
 }
 
+auto PlanWatcher::getNextPlanIdx() -> std::optional<std::size_t>
+{
+    if (not planner_is_started_)
+    {
+        start();
+    }
+
+    if (plan_idx >= plans.count())
+    {
+        if (not readPlans())
+        {
+            return std::nullopt;
+        }
+    }
+
+    return plan_idx++;
+}
+
 auto PlanWatcher::readPlans() -> bool
 {
     bool added_a_plan = false;
-    auto poll_ret = poll(&pfd_, 1, timeout_);
-    if (poll_ret > 0)
+    bool keep_polling = true;
+    int poll_ret = 0;
+    // HACK: This whole loop is a bit of a hack - if we really wanted fine-grained as-needed plan
+    // retrieval, we'd want to persist the list of plan filenames, keep the pause/resume logic, and
+    // addPlan the next plan from the next plan filename as requested.
+    // This version will pay a slight bit of overhead in reading more plans than strictly requested,
+    // and may be sloppy with pausing at the right backlog size
+    do
     {
-        const auto read_len = read(inot_fd_, event_buf_, buf_len_);
-        if (read_len < 0)
+        poll_ret = poll(&pfd_, 1, timeout_);
+        if (poll_ret > 0)
         {
-            if (errno != EINTR)
+            keep_polling = false;
+            const auto read_len = read(inot_fd_, event_buf_, buf_len_);
+            if (read_len < 0)
             {
-                throw std::runtime_error("Failed to read inotify events!");
-            }
-        }
-
-        int i = 0;
-        while (i < read_len)
-        {
-            const auto *event = reinterpret_cast<inotify_event *>(&event_buf_[i]);
-            if (event->len > 0)
-            {
-                std::string_view name(event->name);
-                if (name.compare(0, filename_prefix_.size(), filename_prefix_.c_str()) == 0)
+                if (errno != EINTR)
                 {
-                    if (not addPlan(name))
-                    {
-                        return false;
-                    }
-                    else
-                    {
-                        added_a_plan = true;
-                    }
+                    throw std::runtime_error("Failed to read inotify events!");
                 }
             }
 
-            i += EVENT_SIZE + event->len;
+            // NOTE: We take this two-pass approach because parsing may be slow and we don't want to
+            // let the planner keep spewing out solutions while waiting for parsing
+            unsigned int event_bytes = 0;
+            unsigned int new_plans = 0;
+            while (event_bytes < read_len)
+            {
+                const auto *event = reinterpret_cast<inotify_event *>(&event_buf_[event_bytes]);
+                if (event->len > 0)
+                {
+                    std::string_view name(event->name);
+                    if (name.compare(0, filename_prefix_.size(), filename_prefix_.c_str()) == 0)
+                    {
+                        plan_filename_backlog_[new_plans] = name;
+                        ++new_plans;
+                    }
+                }
+
+                event_bytes += EVENT_SIZE + event->len;
+            }
+
+            const auto new_total_plans = plans.count() + new_plans;
+            if (planner_is_running_ and new_total_plans > plan_idx and
+                new_total_plans - plan_idx >= backlog_max_)
+            {
+                pause();
+            }
+
+            for (unsigned int i = 0; i < new_plans; ++i)
+            {
+                if (not addPlan(plan_filename_backlog_[i]))
+                {
+                    return false;
+                }
+                else
+                {
+                    added_a_plan = true;
+                }
+            }
         }
-    }
+        else if (poll_ret == 0 and keep_polling and not planner_is_running_)
+        {
+            resume();
+        }
+    } while (keep_polling or
+             (poll_ret > 0 and (plans.count() > plan_idx and plans.count() - plan_idx < backlog_max_)));
 
     return added_a_plan;
 }

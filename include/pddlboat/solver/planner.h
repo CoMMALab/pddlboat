@@ -319,8 +319,8 @@ namespace pddlboat
     {
     public:
         PlanWatcher(const std::filesystem::path &output_dir, const std::string &filename_prefix,
-                    const ProblemPtr &problem, const std::string &cmd, unsigned int timeout = 50,
-                    bool start_immediately = true);
+                    const ProblemPtr &problem, const std::string &cmd, bool start_immediately = true,
+                    unsigned int timeout = 50, unsigned int backlog_size = 50);
         ~PlanWatcher();
         void start();
         void stop();
@@ -333,6 +333,8 @@ namespace pddlboat
         auto readPlans() -> bool;
         auto addPlan(std::string_view filename) -> bool;
         auto startPlanner() -> std::pair<FILE *, pid_t>;
+        void pause();
+        void resume();
 
         static constexpr std::size_t EVENT_SIZE = sizeof(inotify_event);
 
@@ -341,15 +343,20 @@ namespace pddlboat
         const std::string cmd_;
         const unsigned int timeout_;
         const std::size_t buf_len_;
+        const unsigned int backlog_max_;
 
         FILE *planner_proc_file_ = nullptr;
         pid_t planner_pid_;
+        bool planner_is_started_ = false;
         bool planner_is_running_ = false;
         int inot_fd_ = -1;
         int watch_fd_ = -1;
         char *event_buf_;
         pollfd pfd_;
         std::array<char, 128> planner_buf_;
+        // 128 because we heuristically make space for 128 events at a time in event_buf_, which means there
+        // are at most 128 names to store at any  time
+        std::array<std::string_view, 128> plan_filename_backlog_;
     };
 
     /** \brief Output stream operator for a step in the plan.
