@@ -1368,9 +1368,10 @@ namespace pddlboat
         /** \brief Serializes this state to PDDL.
          *  \param[in,out] out Output stream to use.
          *  \param[in] indent Amount of indentation to use.
+         *  \param[in] negatives If true, will also print out negative values.
          *  \return The output stream.
          */
-        std::ostream &toPDDL(std::ostream &out = std::cout, unsigned int indent = 0) const;
+        std::ostream &toPDDL(std::ostream &out = std::cout, unsigned int indent = 0, bool negatives = false) const;
 
         /** \brief Get the problem this state is for.
          *  \return The problem this state is for.

@@ -98,19 +98,19 @@ namespace pddlboat
         /// Actions
         ///
 
-        struct ExpressionOperator : x3::variant<std::string, Operators::Keyword>
-        {
-            using base_type::base_type;
-            using base_type::operator=;
+        // struct ExpressionOperator : x3::variant<std::string, Operators::Keyword>
+        // {
+        //     using base_type::base_type;
+        //     using base_type::operator=;
 
-            std::string toString() const;
-            Operators::Keyword toOp() const;
-        };
+        //     std::string toString() const;
+        //     Operators::Keyword toOp() const;
+        // };
 
         class Expression : x3::position_tagged
         {
         public:
-            Expression() : op(Operators::NONE)
+            Expression() : op("")
             {
             }
 
@@ -118,23 +118,24 @@ namespace pddlboat
             {
             }
 
-            Expression(const ExpressionOperator &op, const std::vector<Expression> &terms)
+            Expression(const std::string &op, const std::vector<Expression> &terms)
               : op(op), terms(terms)
             {
             }
 
-            Expression(const ExpressionOperator &op, const std::vector<TypedList> &parameters,
+            Expression(const std::string &op, const std::vector<TypedList> &parameters,
                        const std::vector<Expression> &terms)
               : op(op), parameters(parameters), terms(terms)
             {
             }
 
-            ExpressionOperator op;
+            std::string op;
             std::vector<TypedList> parameters{};
             std::vector<Expression> terms{};
             double number{0.};
 
             std::ostream &toString(std::ostream &out, bool literal = false) const;
+            Operators::Keyword getKeyword() const;
         };
 
         class Action : x3::position_tagged

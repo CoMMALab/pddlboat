@@ -160,6 +160,7 @@ namespace pddlboat
             bool planning_heuristic;
         } astar;
 
+        std::string config_filename;
         std::string name;
         po::options_description description;
 
@@ -172,41 +173,48 @@ namespace pddlboat
          */
         void setupArguments()
         {
-            description.add_options()                                                                 //
-                ("help,h", "Produces this help message")                                              //
-                ("folder,f", po::value<std::string>(&relative_path)->default_value("."),              //
-                 "Relative folder that domain and problem are specified in.")                         //
-                ("domain,d", po::value<std::string>(&domain_file)->required(),                        //
-                 "PDDL file that describes the problem domain")                                       //
-                ("problem,p", po::value<std::string>(&problem_file)->required(),                      //
-                 "PDDL file that describes the problem")                                              //
-                ("planner,s", po::value<PlannerType>(&planner_type)->default_value(PlannerType::FD),  //
-                 "Planner to use. Either `astar`, `z3`, `ff`, `fd`, or `symk`")                       //
-                ("od", po::bool_switch(&output.domain),                                               //
-                 "Print the domain as PDDL")                                                          //
-                ("op", po::bool_switch(&output.problem),                                              //
-                 "Print the problem as PDDL")                                                         //
-                ("oa", po::bool_switch(&output.plan),                                                 //
-                 "Print the steps of a plan as PDDL")                                                 //
-                ("os", po::bool_switch(&output.steps),                                                //
-                 "Print the steps of a plan as a sequence of states")                                 //
-                ("ot", po::bool_switch(&output.time),                                                 //
-                 "Print the planning time")                                                           //
-                ("og", po::bool_switch(&output.graph),                                                //
-                 "Print the dependency graph of the plan")                                            //
-                ("ogf", po::value<std::string>(&graph_file)->default_value(""),                       //
-                 "Output file for dependency graph")                                                  //
-                ("step_index", po::bool_switch(&output.step_index),                                   //
-                 "Output index of step for simultaneous action plans")                                //
-                ("timeout", po::value<unsigned int>(&timeout)->default_value(0),                      //
-                 "Internal planning timeout in milliseconds.")                                        //
-                ("leafdist", po::bool_switch(&dependency.leaf_dist),                                  //
-                 "Print the dependency graph out based on leaf distance and not makespan")            //
-                ("tooltips", po::bool_switch(&dependency.tooltips),                                   //
-                 "Add tooltip information to dependency graph output")                                //
-                ("startgoal", po::bool_switch(&dependency.start_goal),                                //
-                 "Add start/goal to dependency graph output")                                         //
+            description.add_options()                                                                //
+                ("help,h", "Produces this help message")                                             //
+                ("config,i", po::value<std::string>(&config_filename),                               //
+                 "If specified, load arguments from configuration file specified.")                  //
+                ("folder,f", po::value<std::string>(&relative_path)->default_value("."),             //
+                 "Relative folder that domain and problem are specified in.")                        //
+                ("domain,d", po::value<std::string>(&domain_file)->required(),                       //
+                 "PDDL file that describes the problem domain")                                      //
+                ("problem,p", po::value<std::string>(&problem_file)->required(),                     //
+                 "PDDL file that describes the problem")                                             //
+                ("solver,s", po::value<PlannerType>(&planner_type)->default_value(PlannerType::FD),  //
+                 "Planner to use. Either `astar`, `z3`, `ff`, `fd`, or `symk`")                      //
+                ("od", po::bool_switch(&output.domain),                                              //
+                 "Print the domain as PDDL")                                                         //
+                ("op", po::bool_switch(&output.problem),                                             //
+                 "Print the problem as PDDL")                                                        //
+                ("oa", po::bool_switch(&output.plan),                                                //
+                 "Print the steps of a plan as PDDL")                                                //
+                ("os", po::bool_switch(&output.steps),                                               //
+                 "Print the steps of a plan as a sequence of states")                                //
+                ("ot", po::bool_switch(&output.time),                                                //
+                 "Print the planning time")                                                          //
+                ("step_index", po::bool_switch(&output.step_index),                                  //
+                 "Output index of step for simultaneous action plans")                               //
+                ("timeout", po::value<unsigned int>(&timeout)->default_value(0),                     //
+                 "Internal planning timeout in milliseconds.")                                       //
                 ;
+
+            po::options_description dgopt("Dependency Graph Options");
+            dgopt.add_options()
+                ("og", po::bool_switch(&output.graph),                                               //
+                 "Print the dependency graph of the plan")                                           //
+                ("ogf", po::value<std::string>(&graph_file)->default_value(""),                      //
+                 "Output file for dependency graph")                                                 //
+                ("leafdist", po::bool_switch(&dependency.leaf_dist),                                 //
+                 "Print the dependency graph out based on leaf distance and not makespan")           //
+                ("tooltips", po::bool_switch(&dependency.tooltips),                                  //
+                 "Add tooltip information to dependency graph output")                               //
+                ("startgoal", po::bool_switch(&dependency.start_goal),                               //
+                 "Add start/goal to dependency graph output")                                        //
+                ;
+            description.add(dgopt);
 
             po::options_description z3opt("Z3 Planner Options");
             z3opt.add_options()                                                                        //
@@ -236,7 +244,7 @@ namespace pddlboat
 
             po::options_description fdopt("Fast Downward Planner Options");
             fdopt.add_options()  //
-                ("fdsearch,y",
+                ("fd_search,y",
                  po::value<FastDownwardPlanner::Search>(&fd.options.search)
                      ->default_value(FastDownwardPlanner::Search::ASTAR),               //
                  "Search algorithm for FD. Can be `astar`, `greedy`, `fd`, or `lama`")  //
@@ -279,6 +287,24 @@ namespace pddlboat
             {
                 std::cout << description << std::endl;
                 return false;
+            }
+
+            if (vm.count("config"))
+            {
+                config_filename = io::resolvePath(vm["config"].as<std::string>());
+
+                std::ifstream ifs(config_filename.c_str(), std::ios::in | std::ios::binary | std::ios::ate);
+
+                std::ifstream::pos_type size = ifs.tellg();
+                ifs.seekg(0, std::ios::beg);
+
+                if (ifs.fail())
+                {
+                    std::cerr << "Error opening config file: " << config_filename << std::endl;
+                    return false;
+                }
+
+                po::store(po::parse_config_file(ifs, description), vm);
             }
 
             po::notify(vm);

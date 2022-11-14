@@ -148,6 +148,9 @@ void Operators::initialize()
 
 Operators::Keyword Operators::getKeyword(const std::string &string)
 {
+    if (string.empty())
+        return Operators::NONE;
+
     auto result = Operators::getMap().left.find(boost::algorithm::to_lower_copy(string));
     if (result == Operators::getMap().left.end())
         return Operators::LITERAL;

@@ -50,10 +50,10 @@ namespace
     Value parseArgument(const ast::Expression &term, const std::vector<Variable> &variables,
                         const DomainPtr &domain, const ProblemPtr &problem)
     {
-        if (term.op.toOp() != Operators::LITERAL)
-            throw std::invalid_argument(log::format("Invalid op %1% in predicate!", term.op.toString()));
+        if (term.getKeyword() != Operators::LITERAL)
+            throw std::invalid_argument(log::format("Invalid op %1% in predicate!", term.op));
 
-        const auto &name = boost::algorithm::to_lower_copy(term.op.toString());
+        const auto &name = boost::algorithm::to_lower_copy(term.op);
         const Variable *var = isVariable(name, variables);
         if (domain->isFunction(name))
         {
@@ -93,11 +93,11 @@ pddlboat::ExpressionPtr pddlboat::toExpression(const ast::Expression &expression
                                                const std::vector<Variable> &variables,
                                                const DomainPtr &domain, const ProblemPtr &problem)
 {
-    switch (expression.op.toOp())
+    switch (expression.getKeyword())
     {
         case Operators::LITERAL:
         {
-            const auto &s = boost::algorithm::to_lower_copy(expression.op.toString());
+            const auto &s = boost::algorithm::to_lower_copy(expression.op);
 
             if (debug)
                 std::cout << "Translating Literal " << s << std::endl;
@@ -486,8 +486,7 @@ pddlboat::ExpressionPtr pddlboat::toExpression(const ast::Expression &expression
             return pddlboat::makeDecrease(lhs, rhs);
         }
         default:
-            throw std::invalid_argument(
-                log::format("Expression type %1% not supported!", expression.op.toString()));
+            throw std::invalid_argument(log::format("Expression type %1% not supported!", expression.op));
     };
 
     return nullptr;
@@ -497,10 +496,10 @@ pddlboat::ActionPtr pddlboat::toAction(const ast::Action &action, const DomainPt
 {
     const auto &variables = getVariables(action.parameters);
     return makeAction(action.name, variables,  //
-                      (action.precondition.op.toOp() != Operators::Keyword::NONE) ?
+                      (action.precondition.getKeyword() != Operators::Keyword::NONE) ?
                           toExpression(action.precondition, variables, domain) :
                           makeAnd({}),
-                      (action.effect.op.toOp() != Operators::Keyword::NONE) ?
+                      (action.effect.getKeyword() != Operators::Keyword::NONE) ?
                           toExpression(action.effect, variables, domain) :
                           makeAnd({}));
 }
@@ -511,7 +510,7 @@ pddlboat::DerivedPredicateDefinitionPtr pddlboat::toDerived(const ast::Action &a
     const auto &variables = getVariables(action.parameters);
     auto pred = makeDerivedPred(action.name, variables, nullptr);
     domain->addDerivedPredicate(pred);
-    pred->expression = (action.precondition.op.toOp() != Operators::Keyword::NONE) ?
+    pred->expression = (action.precondition.getKeyword() != Operators::Keyword::NONE) ?
                            toExpression(action.precondition, variables, domain) :
                            makeOr({});
 

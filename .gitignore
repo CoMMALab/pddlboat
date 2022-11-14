@@ -50,3 +50,4 @@ compile_commands.json
 /submodules/ff/scan-ops_pddl.tab.c
 *.sas
 submodules/ff/ff
+/output/*.txt

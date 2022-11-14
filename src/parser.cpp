@@ -228,8 +228,8 @@ namespace parser
 
     struct boolean_operator_class;
     const x3::rule<boolean_operator_class, ast::Expression> boolean_operator = "boolean_operator";
-    const auto boolean_operator_def =                                                                //
-        '(' >> ast::OperatorsKeywords >> -('(' >> +typedlist_variable >> ')') >> *expression >> ')'  //
+    const auto boolean_operator_def =                                              //
+        '(' >> name >> -('(' >> +typedlist_variable >> ')') >> *expression >> ')'  //
         ;
     PARSE(boolean_operator)
 

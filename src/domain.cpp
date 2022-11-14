@@ -1773,6 +1773,7 @@ void State::clean()
         assignments.erase(key);
 }
 
+
 std::size_t State::hash() const
 {
     std::size_t seed = 0;
@@ -1856,19 +1857,64 @@ void State::assignN(const std::string &predicate, const std::vector<std::string>
         it->second = value;
 }
 
-std::ostream &State::toPDDL(std::ostream &out, unsigned int indent) const
+std::ostream &State::toPDDL(std::ostream &out, unsigned int indent, bool negatives) const
 {
     const std::string SPACE = std::string(indent, ' ');
+
+    // if (negatives)
+    // {
+    //     for (const auto &[name, preddef] : problem_->domain->predicates)
+    //     {
+    //         for (const auto &assignment : problem_->getGroundings(preddef->variables))
+    //         {
+    //             std::vector<std::string> objects;
+    //             for (const auto &var : preddef->variables)
+    //                 objects.emplace_back(assignment.assigned(var.name)->name);
+
+    //             bool sv = isTrue(name, objects);
+
+    //             out << SPACE;
+    //             if (not sv)
+    //                 out << "(not ";
+    //             out << "(" << assignment.first.first;
+    //             for (const auto &obj : assignment.first.second)
+    //                 out << " " << obj;
+    //             out << ")";
+    //             if (not sv)
+    //                 out << ")";
+    //             out << std::endl;
+    //         }
+    //     }
+    // }
+    // else
+    // {
     for (const auto &assignment : assignments)
     {
-        if (assignment.second)
+        if (not negatives)
         {
-            out << SPACE << "(" << assignment.first.first;
+            if (assignment.second)
+            {
+                out << SPACE << "(" << assignment.first.first;
+                for (const auto &obj : assignment.first.second)
+                    out << " " << obj;
+                out << ")" << std::endl;
+            }
+        }
+        else
+        {
+            out << SPACE;
+            if (not assignment.second)
+                out << "(not ";
+            out << "(" << assignment.first.first;
             for (const auto &obj : assignment.first.second)
                 out << " " << obj;
-            out << ")" << std::endl;
+            out << ")";
+            if (not assignment.second)
+                out << ")";
+            out << std::endl;
         }
     }
+    // }
 
     for (const auto &assignment : numeric)
     {

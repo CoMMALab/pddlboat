@@ -852,12 +852,12 @@ Bool do_best_first_search( void )
     if ( LESS( first->h, min ) ) {
       min = first->h;
       if ( start ) {
-	printf("\nadvancing to distance : %4d", min);
-	fflush(stdout);
+	/* printf("\nadvancing to distance : %4d", min); */
+	/* fflush(stdout); */
 	start = FALSE;
       } else {
-	printf("\n                        %4d", min);
-	fflush(stdout);
+	/* printf("\n                        %4d", min); */
+	/* fflush(stdout); */
       }
     }
 

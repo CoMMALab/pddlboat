@@ -83,7 +83,6 @@ bool FastForwardPlanner::solve(Plan &plan, unsigned int timeout)
     if (output == std::nullopt)
         return false;
 
-    // std::cout << *output << std::endl;
 
     // Parse output file
     ast::Plan parsed;
@@ -102,6 +101,10 @@ bool FastForwardPlanner::solve(Plan &plan, unsigned int timeout)
 
         plan.setTimeTaken("solve", io::getElapsedMilliseconds(timer) / 1000.);
         return plan.validate();
+    }
+    else
+    {
+        std::cout << *output << std::endl;
     }
 
     return false;

@@ -41,7 +41,7 @@ BOOST_FUSION_ADAPT_STRUCT(                                 //
 
 BOOST_FUSION_ADAPT_STRUCT(                               //
     pddlboat::ast::Expression,                           //
-    (pddlboat::ast::ExpressionOperator, op)              //
+    (std::string, op)              //
     (std::vector<pddlboat::ast::TypedList>, parameters)  //
     (std::vector<pddlboat::ast::Expression>, terms)      //
 );

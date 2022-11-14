@@ -67,54 +67,60 @@ std::ostream &AtomicFormulaList::toString(std::ostream &out) const
     return out;
 }
 
-std::string ExpressionOperator::toString() const
+// std::string ExpressionOperator::toString() const
+// {
+//     struct StringVisitor
+//     {
+//         std::string operator()(const Operators::Keyword &v) const
+//         {
+//             if (v == Operators::NONE)
+//                 return "";
+//             return Operators::toString(v);
+//         }
+
+//         std::string operator()(const std::string &v) const
+//         {
+//             return v;
+//         }
+//     };
+
+//     StringVisitor v;
+//     return boost::apply_visitor(v, *this);
+// }
+
+// pddlboat::Operators::Keyword ExpressionOperator::toOp() const
+// {
+//     struct OperatorVisitor
+//     {
+//         Operators::Keyword operator()(const Operators::Keyword &v) const
+//         {
+//             return v;
+//         }
+
+//         Operators::Keyword operator()(const std::string &v) const
+//         {
+//             return Operators::getKeyword(v);
+//         }
+//     };
+
+//     OperatorVisitor v;
+//     return boost::apply_visitor(v, *this);
+// }
+
+
+pddlboat::Operators::Keyword Expression::getKeyword() const
 {
-    struct StringVisitor
-    {
-        std::string operator()(const Operators::Keyword &v) const
-        {
-            if (v == Operators::NONE)
-                return "";
-            return Operators::toString(v);
-        }
-
-        std::string operator()(const std::string &v) const
-        {
-            return v;
-        }
-    };
-
-    StringVisitor v;
-    return boost::apply_visitor(v, *this);
-}
-
-pddlboat::Operators::Keyword ExpressionOperator::toOp() const
-{
-    struct OperatorVisitor
-    {
-        Operators::Keyword operator()(const Operators::Keyword &v) const
-        {
-            return v;
-        }
-
-        Operators::Keyword operator()(const std::string &v) const
-        {
-            return Operators::getKeyword(v);
-        }
-    };
-
-    OperatorVisitor v;
-    return boost::apply_visitor(v, *this);
+    return Operators::getKeyword(op);
 }
 
 std::ostream &Expression::toString(std::ostream &out, bool literal) const
 {
     bool brace = not literal;
-    bool isLiteral = op.toOp() == Operators::LITERAL;
+    bool isLiteral = getKeyword() == Operators::LITERAL;
     if (brace)
         out << "(";
 
-    out << ((literal && isLiteral) ? "?" : "") << op.toString();
+    out << ((literal && isLiteral) ? "?" : "") << op;
 
     if (not parameters.empty())
     {
