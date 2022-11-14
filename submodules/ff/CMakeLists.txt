@@ -45,4 +45,3 @@ list(
 
 add_executable(ff ${SOURCES} ${PARSER_SOURCES})
 target_link_libraries(ff m)
-add_dependencies(ff ff-fct-lexer ff-ops-lexer)
