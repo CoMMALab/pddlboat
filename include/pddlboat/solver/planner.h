@@ -50,16 +50,10 @@ namespace pddlboat
         class Step
         {
         public:
-            PDDLBOAT_CLASS_FORWARD(Extra)
-            class Extra
-            {
-            };
-
             ActionPtr action;       ///< Action taken in this step.
             Assignment assignment;  ///< Assignment to this action for this step.
             StatePtr prior;         ///< State of the world before this action.
             StatePtr state;         ///< State of the world after this action.
-            ExtraPtr other;
 
             /** \brief Constructor.
              *  \param[in] action Action to take.

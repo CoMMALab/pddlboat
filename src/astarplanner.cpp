@@ -6,44 +6,10 @@
 using namespace pddlboat;
 
 //
-// AStarPlanner::ParameterSpace
-//
-
-bool AStarPlanner::ParameterSpace::Params::isEqual(const Params &other) const
-{
-    return true;
-}
-
-std::vector<AStarPlanner::ParameterSpace::ParamsPtr> AStarPlanner::ParameterSpace::getNeighbors(
-    const StatePtr &state, const ParamsPtr &params, const StatePtr &next, const GroundedAction &action)
-{
-    return std::vector<ParamsPtr>{std::make_shared<Params>()};
-}
-
-//
-// PlanData::Node::Key
-//
-
-AStarPlanner::PlanData::Node::Key::Key(const Node *node) : state(node->state), params(node->params)
-{
-}
-
-AStarPlanner::PlanData::Node::Key::Key(const StatePtr &state, const ParameterSpace::ParamsPtr &params)
-  : state(state), params(params)
-{
-}
-
-bool AStarPlanner::PlanData::Node::Key::operator==(const Key &other) const
-{
-    return state->isEqual(other.state) and params->isEqual(*other.params);
-}
-
-//
 //
 //
 
-AStarPlanner::PlanData::Node::Node(const StatePtr &state, const ParameterSpace::ParamsPtr &params)
-  : state(state), params(params)
+AStarPlanner::PlanData::Node::Node(const StatePtr &state) : state(state)
 {
 }
 
@@ -52,12 +18,10 @@ AStarPlanner::PlanData::Node::Node(const StatePtr &state, const ParameterSpace::
 //
 
 const AStarPlanner::PlanData::TransitionDistance AStarPlanner::PlanData::DEFAULT_TRANSITION_DISTANCE =
-    [](const Node *node, const GroundedAction &action, const StatePtr &next,
-       const ParameterSpace::ParamsPtr &params) -> double { return 1.; };
+    [](const Node *node, const GroundedAction &action, const StatePtr &next) -> double { return 1.; };
 
 const AStarPlanner::PlanData::TransitionDistance AStarPlanner::PlanData::TOTAL_COST_TRANSITION_DISTANCE =
-    [](const Node *node, const GroundedAction &action, const StatePtr &next,
-       const ParameterSpace::ParamsPtr &params) -> double {
+    [](const Node *node, const GroundedAction &action, const StatePtr &next) -> double {
     double previous = node->state->getValue("total-cost", {});
     double current = next->getValue("total-cost", {});
     return current - previous;
@@ -67,10 +31,9 @@ const AStarPlanner::PlanData::Heuristic AStarPlanner::PlanData::NULL_HEURISTIC =
     [](const Node *node) -> double { return 0.; };
 
 AStarPlanner::PlanData::PlanData(const AStarPlanner *planner)
-  : planner_(planner)
-  , frontier_(
-        [](const Node *a, const Node *b) { return (a->cost + a->heuristic) > (b->cost + b->heuristic); })
-  , nodes_(0, [](const Node::Key &key) { return key.state->hash(); })
+  : planner_(planner), frontier_([](const Node *a, const Node *b) {
+      return (a->cost + a->heuristic) > (b->cost + b->heuristic);
+  })
 {
 }
 
@@ -81,7 +44,6 @@ AStarPlanner::PlanData::~PlanData()
 }
 
 AStarPlanner::PlanData::Node *AStarPlanner::PlanData::addState(const StatePtr &state,
-                                                               const ParameterSpace::ParamsPtr &params,
                                                                const GroundedAction *action,
                                                                const Node *prior, double distance)
 {
@@ -101,11 +63,10 @@ AStarPlanner::PlanData::Node *AStarPlanner::PlanData::addState(const StatePtr &s
         state->toPDDL(std::cout, 4);
     }
 
-    Node::Key key(state, params);
     Node *node;
 
     // If node already exists in map, update information rather than create new information
-    auto it = nodes_.find(key);
+    auto it = nodes_.find(state);
     if (it != nodes_.end())
     {
         node = it->second;
@@ -115,8 +76,8 @@ AStarPlanner::PlanData::Node *AStarPlanner::PlanData::addState(const StatePtr &s
     }
     else
     {
-        node = new Node(state, params);
-        nodes_.emplace(key, node);
+        node = new Node(state);
+        nodes_.emplace(state, node);
         node->id = id_++;
     }
 
@@ -158,10 +119,9 @@ AStarPlanner::PlanData::Node *AStarPlanner::PlanData::getCurrentBest() const
     return best_;
 }
 
-AStarPlanner::PlanData::Node *AStarPlanner::PlanData::findNode(const StatePtr &state,
-                                                               const ParameterSpace::ParamsPtr &params) const
+AStarPlanner::PlanData::Node *AStarPlanner::PlanData::findNode(const StatePtr &state) const
 {
-    auto existing = nodes_.find(Node::Key(state, params));
+    auto existing = nodes_.find(state);
     if (existing == nodes_.end())
         return nullptr;
 
@@ -182,10 +142,7 @@ void AStarPlanner::PlanData::buildPlan(Plan &plan, const Node *goal) const
     std::reverse(node_list.begin(), node_list.end());
 
     for (const auto &node : node_list)
-    {
-        auto &step = plan.addStep(node->action->action, node->action->assignment);
-        step.other = node->params;
-    }
+        plan.addStep(node->action->action, node->action->assignment);
 }
 
 //
@@ -206,7 +163,7 @@ std::vector<Plan::Step> AStarPlanner::randomWalk(std::size_t steps, std::size_t 
     PlanData data(this);         // Search data
     Assignment empty(problem_);  // Empty assignment for goal evaluation
 
-    data.addState(problem_->start->cleanClone(), options.start_param);
+    data.addState(problem_->start->cleanClone());
     PlanData::Node *start = data.popFrontier();
 
     std::vector<Plan::Step> states;
@@ -228,13 +185,8 @@ std::vector<Plan::Step> AStarPlanner::randomWalk(std::size_t steps, std::size_t 
                 throw std::runtime_error("Failed to apply action to state in planning.");
 
             next->clean();
-            const auto &nbrs = options.param_space->getNeighbors(state, start->params, next, grounded);
-
-            for (std::size_t k = 0; k < nbrs.size(); ++k)
-            {
-                double distance = options.transition_distance(start, grounded, next, nbrs[k]);
-                data.addState(next, nbrs[k], &grounded, start, distance);
-            }
+            double distance = options.transition_distance(start, grounded, next);
+            data.addState(next, &grounded, start, distance);
         }
 
         double mc = 0;
@@ -269,7 +221,6 @@ std::vector<Plan::Step> AStarPlanner::randomWalk(std::size_t steps, std::size_t 
                     start = nodes[j];
                     Plan::Step step(start->action->action, start->action->assignment);
                     step.state = start->state;
-                    step.other = start->params;
                     states.emplace_back(step);
                     break;
                 }
@@ -282,7 +233,6 @@ std::vector<Plan::Step> AStarPlanner::randomWalk(std::size_t steps, std::size_t 
             start = nodes[r];
             Plan::Step step(start->action->action, start->action->assignment);
             step.state = start->state;
-            step.other = start->params;
             states.emplace_back(step);
         }
     }
@@ -295,7 +245,7 @@ std::vector<Plan::Step> AStarPlanner::getStartNeighbors()
     PlanData data(this);         // Search data
     Assignment empty(problem_);  // Empty assignment for goal evaluation
 
-    data.addState(problem_->start->cleanClone(), options.start_param);
+    data.addState(problem_->start->cleanClone());
     PlanData::Node *start = data.popFrontier();
     auto state = start->state;
 
@@ -322,9 +272,7 @@ std::vector<Plan::Step> AStarPlanner::getStartNeighbors()
             throw std::runtime_error("Failed to apply action to state in planning.");
         next->clean();
 
-        // Check all possible parameter transitions from this state
-        for (const auto &params : options.param_space->getNeighbors(state, start->params, next, grounded))
-            data.addState(next, params, &grounded, start);
+        data.addState(next, &grounded, start);
     }
 
     std::vector<Plan::Step> states;
@@ -333,7 +281,6 @@ std::vector<Plan::Step> AStarPlanner::getStartNeighbors()
     {
         Plan::Step step(node->action->action, node->action->assignment);
         step.state = node->state;
-        step.other = node->params;
         states.emplace_back(step);
     }
 
@@ -354,7 +301,7 @@ bool AStarPlanner::solve(Plan &plan, unsigned int timeout)
     Assignment empty(problem_);  // Empty assignment for goal evaluation
 
     // Add start to frontier
-    data.addState(problem_->start->cleanClone(), options.start_param);
+    data.addState(problem_->start->cleanClone());
 
     PlanData::Node *top;
     while ((top = data.popFrontier()))
@@ -418,22 +365,18 @@ bool AStarPlanner::solve(Plan &plan, unsigned int timeout)
                 throw std::runtime_error("Failed to apply action to state in planning.");
             next->clean();
 
-            // Check all possible parameter transitions from this state
-            for (const auto &params : options.param_space->getNeighbors(state, top->params, next, grounded))
+            // Compute distance to next node
+            double distance = options.transition_distance(top, grounded, next);
+
+            // If node already has been explored, only re-expand if cost is better
+            auto existing = data.findNode(next);
+            if (not existing or existing->cost > top->cost + distance)
             {
-                // Compute distance to next node
-                double distance = options.transition_distance(top, grounded, next, params);
-
-                // If node already has been explored, only re-expand if cost is better
-                auto existing = data.findNode(next, params);
-                if (not existing or existing->cost > top->cost + distance)
-                {
-                    data.addState(next, params, &grounded, top, distance);
-                    expanded++;
-                }
-
-                neighbors++;
+                data.addState(next, &grounded, top, distance);
+                expanded++;
             }
+
+            neighbors++;
         }
 
         if (options.verbose)
@@ -467,7 +410,7 @@ void AStarPlanner::generateGraphML(const std::string &filename) const
     Assignment empty(problem_);  // Empty assignment for goal evaluation
 
     // Add start to frontier
-    data.addState(problem_->start->cleanClone(), options.start_param);
+    data.addState(problem_->start->cleanClone());
 
     PlanData::Node *top;
     while ((top = data.popFrontier()))
@@ -496,9 +439,9 @@ void AStarPlanner::generateGraphML(const std::string &filename) const
             next->clean();
 
             // If node already has been explored
-            auto existing = data.findNode(next, options.start_param);
+            auto existing = data.findNode(next);
             if (not existing)
-                existing = data.addState(next, options.start_param, &grounded, top, 1.);
+                existing = data.addState(next, &grounded, top, 1.);
 
             out << "<edge id=\"e" << top->id << "_" << existing->id << "\" source=\"n" << top->id
                 << "\" target=\"n" << existing->id << "\">";

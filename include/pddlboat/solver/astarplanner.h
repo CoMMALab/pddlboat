@@ -20,58 +20,6 @@ namespace pddlboat
     class AStarPlanner : public Planner
     {
     public:
-        /** \cond IGNORE */
-        PDDLBOAT_CLASS_FORWARD(ParameterSpace)
-        /** \endcond */
-
-        /** \class pddlboat::AStarPlanner::ParameterSpacePtr
-            \brief A shared pointer wrapper for pddlboat::AStarPlanner::ParameterSpace. */
-
-        /** \class pddlboat::AStarPlanner::ParameterSpaceConstPtr
-            \brief A const shared pointer wrapper for pddlboat::AStarPlanner::ParameterSpace. */
-
-        /** \brief Abstract base class of additional state data that can be accessed by the A* planner. To
-         * implement a custom parameter space, inherit from this class and implement the `getNeighbors()`
-         * method that returns, given a symbolic transition, the set of valid parameters (which are instances
-         * of a class that inherits from ParameterSpace::Params). Note that you should also implement a new
-         * transition distance function that takes into account your parameters.
-         */
-        class ParameterSpace
-        {
-        public:
-            /** \cond IGNORE */
-            PDDLBOAT_CLASS_FORWARD(Params)
-            /** \endcond */
-
-            /** \class pddlboat::AStarPlanner::ParameterSpace::ParamsPtr
-                \brief A shared pointer wrapper for pddlboat::AStarPlanner::ParameterSpace::Params. */
-
-            /** \class pddlboat::AStarPlanner::ParameterSpace::ParamsConstPtr
-                \brief A const shared pointer wrapper for pddlboat::AStarPlanner::ParameterSpace::Params. */
-
-            /** \brief Parameters from the parameter space.
-             */
-            class Params : public Plan::Step::Extra
-            {
-            public:
-                /** \brief Comparator. Returns true if these are equal parameters.
-                 *  \param[in] other Other parameter to compare against.
-                 *  \return True if these are equivalent parameters.
-                 */
-                virtual bool isEqual(const Params &other) const;
-            };
-
-            /** \brief Get the neighboring parameters given a symbolic transition.
-             *  \param[in] state The source state.
-             *  \param[in] params The source params.
-             *  \param[in] next The destination state.
-             *  \param[in] action The transitioning action.
-             *  \return The set of parameters for a composite state with next.
-             */
-            virtual std::vector<ParamsPtr> getNeighbors(const StatePtr &state, const ParamsPtr &params,
-                                                        const StatePtr &next, const GroundedAction &action);
-        };
-
         /** \brief Data structures used in A* search.
          */
         class PlanData
@@ -82,33 +30,8 @@ namespace pddlboat
             class Node
             {
             public:
-                /** \brief Key in the unordered node map.
-                 */
-                struct Key
-                {
-                    StatePtr state;                    ///< Symbolic state.
-                    ParameterSpace::ParamsPtr params;  ///< State parameters.
-
-                    /** \brief Constructor.
-                     *  \param[in] node Node to key on.
-                     */
-                    Key(const Node *node);
-
-                    /** \brief Constructor.
-                     *  \param[in] state State to key on.
-                     *  \param[in] params Parameters to key on.
-                     */
-                    Key(const StatePtr &state, const ParameterSpace::ParamsPtr &params);
-
-                    /** \brief Equality operator. Compares state and parameters.
-                     *  \param[in] other Key to compare against.
-                     */
-                    bool operator==(const Key &other) const;
-                };
-
                 unsigned int id;                        ///< Unique ID.
                 StatePtr state;                         ///< Symbolic state.
-                ParameterSpace::ParamsPtr params;       ///< State parameters.
                 const Node *prior{nullptr};             ///< Prior node in search.
                 const GroundedAction *action{nullptr};  ///< Action that transitioned into this state.
                 bool goal_checked{false};  ///< Has this state already been evaluated for goal satisfaction?
@@ -116,11 +39,7 @@ namespace pddlboat
                 double cost{0};            ///< Cost of node so far.
                 double heuristic{0};       ///< Heuristic value of node.
 
-                /** \brief Constructor.
-                 *  \param[in] state Symbolic state.
-                 *  \param[in] params State parameters.
-                 */
-                Node(const StatePtr &state, const ParameterSpace::ParamsPtr &params);
+                Node(const StatePtr &state);
             };
 
             /** \brief Constructor.
@@ -134,16 +53,14 @@ namespace pddlboat
 
             /** \brief Add a state to the search graph.
              *  \param[in] state Symbolic state to add to graph.
-             *  \param[in] params State parameters.
              *  \param[in] action Action that transitioned into this state.
              *  \param[in] prior Prior node in the search tree.
              *  \param[in] distance Distance of transition to this new node.
              *  \return The newly created (or updated) search node.
              */
-            Node *addState(const StatePtr &state,                    //
-                           const ParameterSpace::ParamsPtr &params,  //
-                           const GroundedAction *action = nullptr,   //
-                           const Node *prior = nullptr,              //
+            Node *addState(const StatePtr &state,                   //
+                           const GroundedAction *action = nullptr,  //
+                           const Node *prior = nullptr,             //
                            double distance = 0);
 
             /** \brief Pop the best cost node from the front of the search frontier.
@@ -158,10 +75,9 @@ namespace pddlboat
 
             /** \brief Find a node in the set of explored nodes.
              *  \param[in] state State to search for.
-             *  \param[in] params Params to search for.
              *  \return Node if found, nullptr otherwise.
              */
-            Node *findNode(const StatePtr &state, const ParameterSpace::ParamsPtr &params) const;
+            Node *findNode(const StatePtr &state) const;
 
             /** \brief Build the resulting plan that reaches the provided goal node.
              *  \param[out] plan Plan to build.
@@ -173,13 +89,11 @@ namespace pddlboat
              *  \param[in] node Source node.
              *  \param[in] action Transition action.
              *  \param[in] next Next state reached by action.
-             *  \param[in] params Next state params.
              *  \return Distance from node to next state.
              */
             using TransitionDistance = std::function<double(const Node *node,              //
                                                             const GroundedAction &action,  //
-                                                            const StatePtr &next,          //
-                                                            const ParameterSpace::ParamsPtr &params)>;
+                                                            const StatePtr &next)>;
 
             /** \brief Heuristic computation function.
              *  \param[in] node Node to compute heuristic for.
@@ -204,10 +118,7 @@ namespace pddlboat
                                 std::function<bool(const Node *, const Node *)>>
                 frontier_;  ///< Frontier set of states, ordered by cost.
 
-            std::unordered_map<Node::Key,  //
-                               Node *,     //
-                               std::function<std::size_t(const Node::Key &key)>>
-                nodes_;  ///< Map of explored nodes.
+            StateMap<Node *> nodes_;  ///< Map of explored nodes.
 
             Node *best_{nullptr};  ///< Current node with highest cost.
             unsigned int id_{0};   ///< Current node ID to allocate.
@@ -223,9 +134,6 @@ namespace pddlboat
 
             bool verbose{false};  ///< Verbose output.
 
-            ParameterSpacePtr param_space = std::make_shared<ParameterSpace>();  ///< Parameter space to use.
-            ParameterSpace::ParamsPtr start_param =
-                std::make_shared<ParameterSpace::Params>();  ///< Start state parameters.
             PlanData::TransitionDistance transition_distance;
             PlanData::Heuristic heuristic;
         };
@@ -287,7 +195,7 @@ namespace pddlboat
     private:
         std::vector<GroundedAction> ground_actions_;          ///< Set of grounded actions.
         StateMap<std::vector<std::size_t>> blocked_actions_;  ///< Map of states to disallowed actions.
-    };
+    };                                                        // namespace pddlboat
 
     /** \brief Factory class that creates a heuristic function that uses another pddlboat::Planner to evaluate
      * node cost-to-go.
