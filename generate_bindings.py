@@ -110,10 +110,15 @@ def generate_function_pointer_signature(
     class_node: Optional[Cursor] = None
 ) -> str:
   signature = f'{function_node.type.get_result().spelling} ({qualified_name + "::*" if class_node and not is_static else "*"})('
+  arg_types = function_node.type.argument_types()
   for typ in function_node.type.argument_types():
     signature += f'{typ.get_canonical().spelling}, '
 
-  signature = signature[:-2] + ')'
+  if len(arg_types) > 0:
+    signature = signature[:-2]
+
+  signature += ')'
+
   if function_node.is_const_method():
     signature += ' const'
 
