@@ -1,7 +1,7 @@
 #!/bin/bash
 python3 generate_bindings.py \
         -m pddlboat \
-        -o pypddl \
+        -o pddlboat.cpp \
         -c build \
         include/pddlboat/parser/parser.h \
         include/pddlboat/solver/astarplanner.h \

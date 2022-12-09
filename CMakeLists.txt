@@ -71,7 +71,7 @@ add_library(pddlboat ${SOURCES})
 add_dependencies(pddlboat libz3)
 
 set_target_properties(pddlboat PROPERTIES VERSION 0.0.1)
-target_link_libraries(pddlboat ${LIBRARIES})
+target_link_libraries(pddlboat PUBLIC ${LIBRARIES})
 
 add_executable(pddlboat_building scripts/test_building.cpp)
 add_executable(pddlboat_parsing scripts/test_parsing.cpp)
@@ -79,8 +79,7 @@ add_executable(pddlboat_smt scripts/test_smt.cpp)
 add_executable(pddlboat_planning scripts/test_planning.cpp)
 add_executable(pddlboat_anytime scripts/test_anytime.cpp)
 add_executable(pddlboat_blocking scripts/test_blocking.cpp)
-add_executable(pddlboat_state_action_blocking
-               scripts/state_action_blocker_test.cpp)
+add_executable(pddlboat_state_action_blocking scripts/state_action_blocker_test.cpp)
 add_executable(pddlboat_graphml scripts/graphml.cpp)
 
 target_link_libraries(pddlboat_building pddlboat ${LIBRARIES})
@@ -91,6 +90,14 @@ target_link_libraries(pddlboat_anytime pddlboat ${LIBRARIES})
 target_link_libraries(pddlboat_blocking pddlboat ${LIBRARIES})
 target_link_libraries(pddlboat_state_action_blocking pddlboat ${LIBRARIES})
 target_link_libraries(pddlboat_graphml pddlboat ${LIBRARIES})
+
+find_package(pybind11 CONFIG QUIET)
+if(pybind11_FOUND)
+  find_package(Eigen3 REQUIRED)
+  include_directories(BEFORE SYSTEM ${EIGEN3_INCLUDE_DIRS})
+  pybind11_add_module(pypddlboat py/pddlboat.cpp)
+  target_link_libraries(pypddlboat PUBLIC pddlboat ${EIGEN3_LIBRARIES})
+endif()
 
 feature_summary(DESCRIPTION INCLUDE_QUIET_PACKAGES WHAT ALL)
 
