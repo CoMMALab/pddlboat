@@ -110,10 +110,15 @@ def generate_function_pointer_signature(
     class_node: Optional[Cursor] = None
 ) -> str:
   signature = f'{function_node.type.get_result().spelling} ({qualified_name + "::*" if class_node and not is_static else "*"})('
+  arg_types = function_node.type.argument_types()
   for typ in function_node.type.argument_types():
     signature += f'{typ.get_canonical().spelling}, '
 
-  signature = signature[:-2] + ')'
+  if len(arg_types) > 0:
+    signature = signature[:-2]
+
+  signature += ')'
+
   if function_node.is_const_method():
     signature += ' const'
 
@@ -383,7 +388,6 @@ def generate_class(
       nested_output.extend(generate_class(nested_type_node, ns_name, pointer_names, qualified_name))
 
     if nested_output:
-      print(class_output)
       class_output[
           1
       ] = f'py::class_<{qualified_name}{superclass_string}{pointer_string}> py_{qualified_name.replace("::", "_")}({parent_object}, "{class_node.spelling}");'
@@ -432,7 +436,6 @@ def bind_classes(top_level_node: Cursor) -> List[Binding]:
             CursorKind.CLASS_DECL,  # type: ignore
             CursorKind.STRUCT_DECL  # type: ignore
         ]):
-      print(class_node.spelling, class_node.access_specifier)
       output.extend(generate_class(class_node, qualified_name, pointer_names))
   return output
 

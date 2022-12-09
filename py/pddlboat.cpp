@@ -189,9 +189,9 @@ py::class_<pddlboat::PlanSet, std::shared_ptr<pddlboat::PlanSet>>(m, "PlanSet")
 py::class_<pddlboat::Plan, std::shared_ptr<pddlboat::Plan>> py_pddlboat_Plan(m, "Plan");
 py_pddlboat_Plan.def(py::init<const std::shared_ptr<pddlboat::Problem> &>())
 .def(py::init<const pddlboat::Plan &>())
-.def("add_step", static_cast<pddlboat::Plan::Step & (pddlboat::Plan::*)(const std::basic_string<char> &, const int &)>(&pddlboat::Plan::addStep))
+.def("add_step", static_cast<pddlboat::Plan::Step & (pddlboat::Plan::*)(const std::basic_string<char> &, const std::vector<std::basic_string<char>> &)>(&pddlboat::Plan::addStep))
 .def("add_step", static_cast<pddlboat::Plan::Step & (pddlboat::Plan::*)(const std::shared_ptr<pddlboat::Action> &, const pddlboat::Assignment &)>(&pddlboat::Plan::addStep))
-.def("insert_step", static_cast<pddlboat::Plan::Step & (pddlboat::Plan::*)(const std::basic_string<char> &, const int &, unsigned long)>(&pddlboat::Plan::insertStep))
+.def("insert_step", static_cast<pddlboat::Plan::Step & (pddlboat::Plan::*)(const std::basic_string<char> &, const std::vector<std::basic_string<char>> &, unsigned long)>(&pddlboat::Plan::insertStep))
 .def("insert_step", static_cast<pddlboat::Plan::Step & (pddlboat::Plan::*)(const std::shared_ptr<pddlboat::Action> &, const pddlboat::Assignment &, unsigned long)>(&pddlboat::Plan::insertStep))
 .def("get_step", &pddlboat::Plan::getStep)
 .def("get_step_const", &pddlboat::Plan::getStepConst)
@@ -323,7 +323,6 @@ py::class_<pddlboat::Equals, pddlboat::Expression, std::shared_ptr<pddlboat::Equ
 ;
 // Bindings for class pddlboat::QuantifierExpression
 py::class_<pddlboat::QuantifierExpression, pddlboat::Expression, std::shared_ptr<pddlboat::QuantifierExpression>>(m, "QuantifierExpression")
-.def(py::init<const pddlboat::VariableSet &, const std::shared_ptr<pddlboat::Expression> &>())
 .def("get_domain", &pddlboat::QuantifierExpression::getDomain)
 .def("get_formula", &pddlboat::QuantifierExpression::getFormula)
 .def("type", &pddlboat::QuantifierExpression::type)
@@ -403,8 +402,6 @@ py::class_<pddlboat::Not, pddlboat::Expression, std::shared_ptr<pddlboat::Not>>(
 ;
 // Bindings for class pddlboat::VariadicExpression
 py::class_<pddlboat::VariadicExpression, pddlboat::Expression, std::shared_ptr<pddlboat::VariadicExpression>>(m, "VariadicExpression")
-.def(py::init())
-.def(py::init<const int &>())
 .def("add_term", &pddlboat::VariadicExpression::addTerm)
 .def("get_terms", &pddlboat::VariadicExpression::getTerms)
 .def("type", &pddlboat::VariadicExpression::type)
@@ -419,14 +416,14 @@ py::class_<pddlboat::VariadicExpression, pddlboat::Expression, std::shared_ptr<p
 ;
 // Bindings for class pddlboat::Or
 py::class_<pddlboat::Or, pddlboat::VariadicExpression, std::shared_ptr<pddlboat::Or>>(m, "Or")
-.def(py::init<const int &>())
+.def(py::init<const std::vector<std::shared_ptr<pddlboat::Expression>> &>())
 .def("evaluate", &pddlboat::Or::evaluate)
 .def("type", &pddlboat::Or::type)
 .def("to_pddl", &pddlboat::Or::toPDDL)
 ;
 // Bindings for class pddlboat::And
 py::class_<pddlboat::And, pddlboat::VariadicExpression, std::shared_ptr<pddlboat::And>>(m, "And")
-.def(py::init<const int &>())
+.def(py::init<const std::vector<std::shared_ptr<pddlboat::Expression>> &>())
 .def("evaluate", &pddlboat::And::evaluate)
 .def("assign", &pddlboat::And::assign)
 .def("type", &pddlboat::And::type)
@@ -499,7 +496,7 @@ py::class_<pddlboat::GreaterThan, pddlboat::BinaryExpression, std::shared_ptr<pd
 ;
 // Bindings for class pddlboat::NumericFunction
 py::class_<pddlboat::NumericFunction, pddlboat::NumericExpression, std::shared_ptr<pddlboat::NumericFunction>>(m, "NumericFunction")
-.def(py::init<const pddlboat::NumericFunctionDefinition *, const int &>())
+.def(py::init<const pddlboat::NumericFunctionDefinition *, const std::vector<pddlboat::Value> &>())
 .def("get_name", &pddlboat::NumericFunction::getName)
 .def("get_value", &pddlboat::NumericFunction::getValue)
 .def("type", &pddlboat::NumericFunction::type)
@@ -523,7 +520,7 @@ py::class_<pddlboat::Expression::Effect, std::shared_ptr<pddlboat::Expression::E
 ;
 // Bindings for class pddlboat::ObjectFunction
 py::class_<pddlboat::ObjectFunction, pddlboat::Expression, std::shared_ptr<pddlboat::ObjectFunction>>(m, "ObjectFunction")
-.def(py::init<const pddlboat::ObjectFunctionDefinition *, const int &>())
+.def(py::init<const pddlboat::ObjectFunctionDefinition *, const std::vector<pddlboat::Value> &>())
 .def("get_name", &pddlboat::ObjectFunction::getName)
 .def("get_return_type", &pddlboat::ObjectFunction::getReturnType)
 .def("get_object", &pddlboat::ObjectFunction::getObject)
@@ -540,7 +537,7 @@ py::class_<pddlboat::ObjectFunction, pddlboat::Expression, std::shared_ptr<pddlb
 ;
 // Bindings for class pddlboat::DerivedPredicate
 py::class_<pddlboat::DerivedPredicate, pddlboat::Expression, std::shared_ptr<pddlboat::DerivedPredicate>>(m, "DerivedPredicate")
-.def(py::init<const pddlboat::DerivedPredicateDefinition *, const int &>())
+.def(py::init<const pddlboat::DerivedPredicateDefinition *, const std::vector<pddlboat::Value> &>())
 .def("arguments", &pddlboat::DerivedPredicate::arguments)
 .def("evaluate", &pddlboat::DerivedPredicate::evaluate)
 .def("type", &pddlboat::DerivedPredicate::type)
@@ -556,7 +553,7 @@ py::class_<pddlboat::DerivedPredicate, pddlboat::Expression, std::shared_ptr<pdd
 ;
 // Bindings for class pddlboat::Predicate
 py::class_<pddlboat::Predicate, pddlboat::Expression, std::shared_ptr<pddlboat::Predicate>>(m, "Predicate")
-.def(py::init<const pddlboat::PredicateDefinition *, const int &>())
+.def(py::init<const pddlboat::PredicateDefinition *, const std::vector<pddlboat::Value> &>())
 .def("arguments", &pddlboat::Predicate::arguments)
 .def("evaluate", &pddlboat::Predicate::evaluate)
 .def("assign", &pddlboat::Predicate::assign)
@@ -642,9 +639,9 @@ py::class_<pddlboat::State, std::shared_ptr<pddlboat::State>>(m, "State")
 .def("assign1", static_cast<void (pddlboat::State::*)(const std::basic_string<char> &, const std::basic_string<char> &, bool)>(&pddlboat::State::assign1))
 .def("assign1", static_cast<void (pddlboat::State::*)(const std::basic_string<char> &, const std::basic_string<char> &, double)>(&pddlboat::State::assign1))
 .def("assign1", static_cast<void (pddlboat::State::*)(const std::basic_string<char> &, const std::basic_string<char> &, const std::basic_string<char> &)>(&pddlboat::State::assign1))
-.def("assign_n", static_cast<void (pddlboat::State::*)(const std::basic_string<char> &, const int &, bool)>(&pddlboat::State::assignN))
-.def("assign_n", static_cast<void (pddlboat::State::*)(const std::basic_string<char> &, const int &, double)>(&pddlboat::State::assignN))
-.def("assign_n", static_cast<void (pddlboat::State::*)(const std::basic_string<char> &, const int &, const std::basic_string<char> &)>(&pddlboat::State::assignN))
+.def("assign_n", static_cast<void (pddlboat::State::*)(const std::basic_string<char> &, const std::vector<std::basic_string<char>> &, bool)>(&pddlboat::State::assignN))
+.def("assign_n", static_cast<void (pddlboat::State::*)(const std::basic_string<char> &, const std::vector<std::basic_string<char>> &, double)>(&pddlboat::State::assignN))
+.def("assign_n", static_cast<void (pddlboat::State::*)(const std::basic_string<char> &, const std::vector<std::basic_string<char>> &, const std::basic_string<char> &)>(&pddlboat::State::assignN))
 .def("is_true", &pddlboat::State::isTrue)
 .def("get_value", &pddlboat::State::getValue)
 .def("get_object", &pddlboat::State::getObject)
@@ -720,7 +717,7 @@ py::class_<pddlboat::Domain, std::shared_ptr<pddlboat::Domain>>(m, "Domain")
 ;
 // Bindings for class pddlboat::Action
 py::class_<pddlboat::Action, std::shared_ptr<pddlboat::Action>>(m, "Action")
-.def(py::init<const std::basic_string<char> &, const int &, const std::shared_ptr<pddlboat::Expression> &, const std::shared_ptr<pddlboat::Expression> &>())
+.def(py::init<const std::basic_string<char> &, const std::vector<pddlboat::Variable> &, const std::shared_ptr<pddlboat::Expression> &, const std::shared_ptr<pddlboat::Expression> &>())
 .def("arity", &pddlboat::Action::arity)
 .def("holds", &pddlboat::Action::holds)
 .def("effected", &pddlboat::Action::effected)
@@ -735,7 +732,7 @@ py::class_<pddlboat::Action, std::shared_ptr<pddlboat::Action>>(m, "Action")
 ;
 // Bindings for class pddlboat::FunctionDefinition
 py::class_<pddlboat::FunctionDefinition, std::shared_ptr<pddlboat::FunctionDefinition>>(m, "FunctionDefinition")
-.def(py::init<const std::basic_string<char> &, const int &, const std::basic_string<char> &>())
+.def(py::init<const std::basic_string<char> &, const std::vector<pddlboat::Variable> &, const std::basic_string<char> &>())
 .def("is_valid_assignment", &pddlboat::FunctionDefinition::isValidAssignment)
 .def("arity", &pddlboat::FunctionDefinition::arity)
 .def("to_pddl", &pddlboat::FunctionDefinition::toPDDL)
@@ -746,24 +743,24 @@ py::class_<pddlboat::FunctionDefinition, std::shared_ptr<pddlboat::FunctionDefin
 ;
 // Bindings for class pddlboat::ObjectFunctionDefinition
 py::class_<pddlboat::ObjectFunctionDefinition, pddlboat::FunctionDefinition, std::shared_ptr<pddlboat::ObjectFunctionDefinition>>(m, "ObjectFunctionDefinition")
-.def(py::init<const std::basic_string<char> &, const int &, const std::basic_string<char> &>())
-.def("bind", static_cast<pddlboat::ObjectFunctionPtr (pddlboat::ObjectFunctionDefinition::*) const>(&pddlboat::ObjectFunctionDefinition::bind))
-.def("bind", static_cast<pddlboat::ObjectFunctionPtr (pddlboat::ObjectFunctionDefinition::*)(const int &, const std::shared_ptr<pddlboat::Problem> &, const std::shared_ptr<pddlboat::Domain> &) const>(&pddlboat::ObjectFunctionDefinition::bind))
+.def(py::init<const std::basic_string<char> &, const std::vector<pddlboat::Variable> &, const std::basic_string<char> &>())
+.def("bind", static_cast<pddlboat::ObjectFunctionPtr (pddlboat::ObjectFunctionDefinition::*)() const>(&pddlboat::ObjectFunctionDefinition::bind))
+.def("bind", static_cast<pddlboat::ObjectFunctionPtr (pddlboat::ObjectFunctionDefinition::*)(const std::vector<std::basic_string<char>> &, const std::shared_ptr<pddlboat::Problem> &, const std::shared_ptr<pddlboat::Domain> &) const>(&pddlboat::ObjectFunctionDefinition::bind))
 .def("bind_values", &pddlboat::ObjectFunctionDefinition::bindValues)
 ;
 // Bindings for class pddlboat::NumericFunctionDefinition
 py::class_<pddlboat::NumericFunctionDefinition, pddlboat::FunctionDefinition, std::shared_ptr<pddlboat::NumericFunctionDefinition>>(m, "NumericFunctionDefinition")
-.def(py::init<const std::basic_string<char> &, const int &>())
-.def("bind", static_cast<pddlboat::NumericFunctionPtr (pddlboat::NumericFunctionDefinition::*) const>(&pddlboat::NumericFunctionDefinition::bind))
-.def("bind", static_cast<pddlboat::NumericFunctionPtr (pddlboat::NumericFunctionDefinition::*)(const int &, const std::shared_ptr<pddlboat::Problem> &, const std::shared_ptr<pddlboat::Domain> &) const>(&pddlboat::NumericFunctionDefinition::bind))
+.def(py::init<const std::basic_string<char> &, const std::vector<pddlboat::Variable> &>())
+.def("bind", static_cast<pddlboat::NumericFunctionPtr (pddlboat::NumericFunctionDefinition::*)() const>(&pddlboat::NumericFunctionDefinition::bind))
+.def("bind", static_cast<pddlboat::NumericFunctionPtr (pddlboat::NumericFunctionDefinition::*)(const std::vector<std::basic_string<char>> &, const std::shared_ptr<pddlboat::Problem> &, const std::shared_ptr<pddlboat::Domain> &) const>(&pddlboat::NumericFunctionDefinition::bind))
 .def("bind_values", &pddlboat::NumericFunctionDefinition::bindValues)
 ;
 // Bindings for class pddlboat::DerivedPredicateDefinition
 py::class_<pddlboat::DerivedPredicateDefinition, std::shared_ptr<pddlboat::DerivedPredicateDefinition>>(m, "DerivedPredicateDefinition")
-.def(py::init<const std::basic_string<char> &, const int &, const std::shared_ptr<pddlboat::Expression> &>())
+.def(py::init<const std::basic_string<char> &, const std::vector<pddlboat::Variable> &, const std::shared_ptr<pddlboat::Expression> &>())
 .def("set_formula", &pddlboat::DerivedPredicateDefinition::setFormula)
-.def("bind", static_cast<pddlboat::DerivedPredicatePtr (pddlboat::DerivedPredicateDefinition::*) const>(&pddlboat::DerivedPredicateDefinition::bind))
-.def("bind", static_cast<pddlboat::DerivedPredicatePtr (pddlboat::DerivedPredicateDefinition::*)(const int &, const std::shared_ptr<pddlboat::Problem> &, const std::shared_ptr<pddlboat::Domain> &) const>(&pddlboat::DerivedPredicateDefinition::bind))
+.def("bind", static_cast<pddlboat::DerivedPredicatePtr (pddlboat::DerivedPredicateDefinition::*)() const>(&pddlboat::DerivedPredicateDefinition::bind))
+.def("bind", static_cast<pddlboat::DerivedPredicatePtr (pddlboat::DerivedPredicateDefinition::*)(const std::vector<std::basic_string<char>> &, const std::shared_ptr<pddlboat::Problem> &, const std::shared_ptr<pddlboat::Domain> &) const>(&pddlboat::DerivedPredicateDefinition::bind))
 .def("bind_values", &pddlboat::DerivedPredicateDefinition::bindValues)
 .def("is_valid_assignment", &pddlboat::DerivedPredicateDefinition::isValidAssignment)
 .def("arity", &pddlboat::DerivedPredicateDefinition::arity)
@@ -775,10 +772,10 @@ py::class_<pddlboat::DerivedPredicateDefinition, std::shared_ptr<pddlboat::Deriv
 ;
 // Bindings for class pddlboat::PredicateDefinition
 py::class_<pddlboat::PredicateDefinition, std::shared_ptr<pddlboat::PredicateDefinition>>(m, "PredicateDefinition")
-.def(py::init<const std::basic_string<char> &, const int &>())
-.def("bind", static_cast<pddlboat::PredicatePtr (pddlboat::PredicateDefinition::*) const>(&pddlboat::PredicateDefinition::bind))
-.def("bind", static_cast<pddlboat::PredicatePtr (pddlboat::PredicateDefinition::*)(const int &, const std::shared_ptr<pddlboat::Problem> &, const std::shared_ptr<pddlboat::Domain> &) const>(&pddlboat::PredicateDefinition::bind))
-.def("bind", static_cast<pddlboat::PredicatePtr (pddlboat::PredicateDefinition::*)(const int &, const pddlboat::Problem *, const pddlboat::Domain *) const>(&pddlboat::PredicateDefinition::bind))
+.def(py::init<const std::basic_string<char> &, const std::vector<pddlboat::Variable> &>())
+.def("bind", static_cast<pddlboat::PredicatePtr (pddlboat::PredicateDefinition::*)() const>(&pddlboat::PredicateDefinition::bind))
+.def("bind", static_cast<pddlboat::PredicatePtr (pddlboat::PredicateDefinition::*)(const std::vector<std::basic_string<char>> &, const std::shared_ptr<pddlboat::Problem> &, const std::shared_ptr<pddlboat::Domain> &) const>(&pddlboat::PredicateDefinition::bind))
+.def("bind", static_cast<pddlboat::PredicatePtr (pddlboat::PredicateDefinition::*)(const std::vector<std::basic_string<char>> &, const pddlboat::Problem *, const pddlboat::Domain *) const>(&pddlboat::PredicateDefinition::bind))
 .def("bind_values", &pddlboat::PredicateDefinition::bindValues)
 .def("is_valid_assignment", &pddlboat::PredicateDefinition::isValidAssignment)
 .def("arity", &pddlboat::PredicateDefinition::arity)
@@ -883,7 +880,7 @@ m
 .def("parse_string", static_cast<bool (*)(const std::basic_string<char> &, pddlboat::ast::Problem &)>(&pddlboat::parseString))
 .def("parse_string", static_cast<bool (*)(const std::basic_string<char> &, pddlboat::ast::Plan &)>(&pddlboat::parseString))
 .def("parse_string", static_cast<bool (*)(const std::basic_string<char> &, pddlboat::ast::Expression &)>(&pddlboat::parseString))
-.def("parse_string", static_cast<bool (*)(const std::basic_string<char> &, int &)>(&pddlboat::parseString))
+.def("parse_string", static_cast<bool (*)(const std::basic_string<char> &, std::vector<pddlboat::ast::TypedList> &)>(&pddlboat::parseString))
 ;
 m.def("parse_z3_action", &pddlboat::parseZ3Action);
 m.def("parse_z3_predicate", &pddlboat::parseZ3Predicate);
@@ -900,8 +897,8 @@ m.def("is_in", &pddlboat::isIn);
 m.def("get_value_objects", &pddlboat::getValueObjects);
 m.def("get_value", &pddlboat::getValue);
 m
-.def("get_values", static_cast<int (*)(const int &, const int &, const std::shared_ptr<pddlboat::Problem> &, const std::shared_ptr<pddlboat::Domain> &)>(&pddlboat::getValues))
-.def("get_values", static_cast<int (*)(const int &, const int &, const pddlboat::Problem *, const pddlboat::Domain *)>(&pddlboat::getValues))
+.def("get_values", static_cast<std::vector<pddlboat::Value> (*)(const std::vector<std::basic_string<char>> &, const std::vector<pddlboat::Variable> &, const std::shared_ptr<pddlboat::Problem> &, const std::shared_ptr<pddlboat::Domain> &)>(&pddlboat::getValues))
+.def("get_values", static_cast<std::vector<pddlboat::Value> (*)(const std::vector<std::basic_string<char>> &, const std::vector<pddlboat::Variable> &, const pddlboat::Problem *, const pddlboat::Domain *)>(&pddlboat::getValues))
 ;
 m.def("make_and", &pddlboat::makeAnd);
 m.def("make_or", &pddlboat::makeOr);
@@ -941,7 +938,7 @@ m
 .def("make_decrease", static_cast<pddlboat::DecreasePtr (*)(const std::shared_ptr<pddlboat::NumericFunction> &, double)>(&pddlboat::makeDecrease))
 ;
 m
-.def("operator<<", static_cast<std::ostream & (*)(int &, const pddlboat::Plan::Step &)>(&pddlboat::operator<<))
-.def("operator<<", static_cast<std::ostream & (*)(int &, const pddlboat::Plan &)>(&pddlboat::operator<<))
+.def("operator<<", static_cast<std::ostream & (*)(std::basic_ostream<char> &, const pddlboat::Plan::Step &)>(&pddlboat::operator<<))
+.def("operator<<", static_cast<std::ostream & (*)(std::basic_ostream<char> &, const pddlboat::Plan &)>(&pddlboat::operator<<))
 ;
 }

@@ -2,6 +2,7 @@
 #define PDDLBOAT_HELPER_
 
 #include <boost/timer/timer.hpp>
+#include <fstream>
 #include <iostream>
 
 #include <boost/program_options.hpp>
@@ -202,17 +203,16 @@ namespace pddlboat
                 ;
 
             po::options_description dgopt("Dependency Graph Options");
-            dgopt.add_options()
-                ("og", po::bool_switch(&output.graph),                                               //
-                 "Print the dependency graph of the plan")                                           //
-                ("ogf", po::value<std::string>(&graph_file)->default_value(""),                      //
-                 "Output file for dependency graph")                                                 //
-                ("leafdist", po::bool_switch(&dependency.leaf_dist),                                 //
-                 "Print the dependency graph out based on leaf distance and not makespan")           //
-                ("tooltips", po::bool_switch(&dependency.tooltips),                                  //
-                 "Add tooltip information to dependency graph output")                               //
-                ("startgoal", po::bool_switch(&dependency.start_goal),                               //
-                 "Add start/goal to dependency graph output")                                        //
+            dgopt.add_options()("og", po::bool_switch(&output.graph),                       //
+                                "Print the dependency graph of the plan")                   //
+                ("ogf", po::value<std::string>(&graph_file)->default_value(""),             //
+                 "Output file for dependency graph")                                        //
+                ("leafdist", po::bool_switch(&dependency.leaf_dist),                        //
+                 "Print the dependency graph out based on leaf distance and not makespan")  //
+                ("tooltips", po::bool_switch(&dependency.tooltips),                         //
+                 "Add tooltip information to dependency graph output")                      //
+                ("startgoal", po::bool_switch(&dependency.start_goal),                      //
+                 "Add start/goal to dependency graph output")                               //
                 ;
             description.add(dgopt);
 
@@ -371,10 +371,9 @@ namespace pddlboat
             if (astar.planning_heuristic)
             {
                 auto copy = fd.options;
-                astar.options.heuristic =
-                    PlannerHeuristicFactory::make(problem, [copy](const ProblemPtr &problem) {
-                        return std::make_shared<FastDownwardPlanner>(problem, copy);
-                    });
+                astar.options.heuristic = PlannerHeuristicFactory::make(
+                    problem, [copy](const ProblemPtr &problem)
+                    { return std::make_shared<FastDownwardPlanner>(problem, copy); });
             }
 
             // setup planner
