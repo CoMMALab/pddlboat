@@ -365,13 +365,13 @@ namespace parser
     struct problem_class;
     const x3::rule<problem_class, ast::Problem> problem = "problem";
     const auto problem_def =                                            //
-        '(' > (x3::lit("DEFINE") | x3::lit("define")) >                 //
-        '(' > (x3::lit("PROBLEM") | x3::lit("problem")) > name > ')' >  //
-        '(' > (x3::lit(":DOMAIN") | x3::lit(":domain")) > name > ')' >  //
-        -objects >                                                      //
-        -initial >                                                      //
-        -goal >                                                         //
-        -metric > ')'                                                   //
+        '(' >> (x3::lit("DEFINE") | x3::lit("define")) >>                 //
+        '(' >> (x3::lit("PROBLEM") | x3::lit("problem")) >> name >> ')' >>  //
+        '(' >> (x3::lit(":DOMAIN") | x3::lit(":domain")) >> name >> ')' >>  //
+        -objects >>                                                      //
+        -initial >>                                                      //
+        -goal >>                                                         //
+        -metric >> ')'                                                   //
         ;
     PARSE(problem);
     struct problem_class : error_handler
