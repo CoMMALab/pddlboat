@@ -1,6 +1,7 @@
 /* Author: Zachary Kingston */
 
 #include <random>
+#include <fstream>
 #include <pddlboat/solver/astarplanner.h>
 
 using namespace pddlboat;

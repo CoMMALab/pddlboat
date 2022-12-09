@@ -2,6 +2,7 @@
 #define PDDLBOAT_HELPER_
 
 #include <boost/timer/timer.hpp>
+#include <fstream>
 #include <iostream>
 
 #include <boost/program_options.hpp>

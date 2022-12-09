@@ -1,5 +1,6 @@
 /* Author: Zachary Kingston */
 
+#include <fstream>
 #include <sstream>
 #include <iostream>
 
