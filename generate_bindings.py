@@ -30,7 +30,7 @@ def fix_paths(comp_db_dir: Path, exec_dir: Path, arg: str) -> str:
   # TODO: Make this less brittle
   if arg[:2] != '-I' and (arg[0] == '-' or arg == 'c++-header'):
     return arg
-  elif arg[:3] == '-I/':
+  elif arg[:3] == '-I/' or Path(arg).is_absolute():
     return arg
 
   if arg[:2] == '-I':
