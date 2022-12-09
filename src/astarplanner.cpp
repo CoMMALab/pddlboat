@@ -142,7 +142,7 @@ void AStarPlanner::PlanData::buildPlan(Plan &plan, const Node *goal) const
     std::reverse(node_list.begin(), node_list.end());
 
     for (const auto &node : node_list)
-        plan.addStep(node->action->action, node->action->assignment);
+        plan.addStepAction(node->action->action, node->action->assignment);
 }
 
 //

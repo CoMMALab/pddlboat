@@ -31,12 +31,8 @@ namespace pddlboat
          */
         struct Options
         {
-            struct
-            {
-                Time max{20};  ///< Maximum planning horizon.
-                Time min{0};   ///< Minimum planning horizon for incremental solving.
-            } horizon;         ///< Planning horizons.
-
+            Time horizon_max{20};      ///< Maximum planning horizon.
+            Time horizon_min{0};       ///< Minimum planning horizon for incremental solving.
             bool parallel{true};       ///< Parallel solve through Z3.
             bool diagnostics{false};   ///< Print diagnostics.
             bool dump_clauses{false};  ///< Dump generated Z3 clauses.

@@ -103,7 +103,7 @@ Plan::Step &Plan::addStep(const std::string &action_name, const std::vector<std:
     return insertStep(action_name, objects, getMakespan());
 }
 
-Plan::Step &Plan::addStep(const ActionPtr &action, const Assignment &assignment)
+Plan::Step &Plan::addStepAction(const ActionPtr &action, const Assignment &assignment)
 {
     return insertStep(action, assignment, getMakespan());
 }

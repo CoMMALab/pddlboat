@@ -218,9 +218,9 @@ namespace pddlboat
 
             po::options_description z3opt("Z3 Planner Options");
             z3opt.add_options()                                                                        //
-                ("max_horizon,z", po::value<std::size_t>(&z3.options.horizon.max)->default_value(20),  //
+                ("max_horizon,z", po::value<std::size_t>(&z3.options.horizon_max)->default_value(20),  //
                  "Maximum planning horizon to use")                                                    //
-                ("min_horizon,l", po::value<std::size_t>(&z3.options.horizon.min)->default_value(0),   //
+                ("min_horizon,l", po::value<std::size_t>(&z3.options.horizon_min)->default_value(0),   //
                  "Minimum planning horizon to use")                                                    //
                 ("diagnostics,w", po::bool_switch(&z3.options.diagnostics),                            //
                  "Print debugging statistics")                                                         //

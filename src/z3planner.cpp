@@ -500,10 +500,10 @@ void Z3PlannerInternal::reset()
     solverPush();
 
     // add all predicates up to the minimum horizon to consider
-    for (Time step = 0; step < options_.horizon.min; ++step)
+    for (Time step = 0; step < options_.horizon_min; ++step)
         addStep(step, false);
 
-    current_step_ = options_.horizon.min;
+    current_step_ = options_.horizon_min;
     solved_ = false;
 }
 
@@ -555,7 +555,7 @@ bool Z3PlannerInternal::solve(Plan &plan, unsigned int timeout)
             solverPop();  // remove goal
     }
 
-    for (; current_step_ < options_.horizon.max and not solved_; ++current_step_)
+    for (; current_step_ < options_.horizon_max and not solved_; ++current_step_)
     {
         boost::timer::cpu_timer tl;
 
