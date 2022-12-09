@@ -34,8 +34,8 @@ std::string Value::getObject(const StatePtr &state, const Assignment &vars) cons
         return name;
 }
 
-std::vector<std::string> pddlboat::getValueObjects(const std::vector<Value> &values, const StatePtr &state,
-                                                   const Assignment &assignment)
+std::vector<std::string> pddlboat::getValueObjects(const std::vector<pddlboat::Value> &values,
+                                                   const StatePtr &state, const Assignment &assignment)
 {
     std::vector<std::string> objects;
     for (const auto &value : values)
@@ -82,19 +82,19 @@ Value pddlboat::getValue(const std::string &term, const Variable *variable, cons
     return Value(isVar, b, type);
 }
 
-std::vector<Value> pddlboat::getValues(const std::vector<std::string> &terms,
-                                       const std::vector<Variable> &variables, const ProblemPtr &problem,
-                                       const DomainPtr &domain)
+std::vector<pddlboat::Value> pddlboat::getValues(const std::vector<std::string> &terms,
+                                                 const std::vector<pddlboat::Variable> &variables,
+                                                 const ProblemPtr &problem, const DomainPtr &domain)
 {
     return getValues(terms, variables, (problem) ? problem.get() : nullptr,
                      (domain) ? domain.get() : nullptr);
 }
 
-std::vector<Value> pddlboat::getValues(const std::vector<std::string> &terms,
-                                       const std::vector<Variable> &variables, const Problem *problem,
-                                       const Domain *domain)
+std::vector<pddlboat::Value> pddlboat::getValues(const std::vector<std::string> &terms,
+                                                 const std::vector<pddlboat::Variable> &variables,
+                                                 const Problem *problem, const Domain *domain)
 {
-    std::vector<Value> toUse;
+    std::vector<pddlboat::Value> toUse;
     for (unsigned int i = 0; i < terms.size(); ++i)
         toUse.emplace_back(getValue(terms[i], &variables[i], problem, domain));
 
@@ -292,7 +292,7 @@ double NumericExpression::getValue(const StatePtr &state, const Assignment &vars
 
 VariadicExpression::VariadicExpression() = default;
 
-VariadicExpression::VariadicExpression(const std::vector<ExpressionPtr> &terms)
+VariadicExpression::VariadicExpression(const std::vector<pddlboat::ExpressionPtr> &terms)
 {
     for (const auto &term : terms)
         addTerm(term);
@@ -303,7 +303,7 @@ void VariadicExpression::addTerm(const ExpressionPtr &expression)
     terms_.emplace_back(expression);
 }
 
-std::vector<ExpressionPtr> VariadicExpression::getTerms() const
+std::vector<pddlboat::ExpressionPtr> VariadicExpression::getTerms() const
 {
     return terms_;
 }
@@ -376,7 +376,7 @@ void VariadicExpression::renameVariable(const std::string &old, const std::strin
 /// And
 ///
 
-And::And(const std::vector<ExpressionPtr> &terms) : VariadicExpression(terms)
+And::And(const std::vector<pddlboat::ExpressionPtr> &terms) : VariadicExpression(terms)
 {
 }
 
@@ -428,7 +428,7 @@ std::ostream &And::toPDDL(std::ostream &out, unsigned int indent, unsigned int l
     return out;
 }
 
-AndPtr pddlboat::makeAnd(const std::vector<ExpressionPtr> &terms)
+AndPtr pddlboat::makeAnd(const std::vector<pddlboat::ExpressionPtr> &terms)
 {
     return std::make_shared<And>(std::forward<const std::vector<ExpressionPtr>>(terms));
 }
@@ -437,7 +437,7 @@ AndPtr pddlboat::makeAnd(const std::vector<ExpressionPtr> &terms)
 /// Or
 ///
 
-Or::Or(const std::vector<ExpressionPtr> &terms) : VariadicExpression(terms)
+Or::Or(const std::vector<pddlboat::ExpressionPtr> &terms) : VariadicExpression(terms)
 {
 }
 
@@ -484,7 +484,7 @@ std::ostream &Or::toPDDL(std::ostream &out, unsigned int indent, unsigned int le
     return out;
 }
 
-OrPtr pddlboat::makeOr(const std::vector<ExpressionPtr> &terms)
+OrPtr pddlboat::makeOr(const std::vector<pddlboat::ExpressionPtr> &terms)
 {
     return std::make_shared<Or>(std::forward<const std::vector<ExpressionPtr>>(terms));
 }
