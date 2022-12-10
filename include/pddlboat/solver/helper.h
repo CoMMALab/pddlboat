@@ -157,8 +157,6 @@ namespace pddlboat
         struct
         {
             AStarPlanner::Options options;
-
-            bool planning_heuristic;
         } astar;
 
         std::string config_filename;
@@ -268,8 +266,6 @@ namespace pddlboat
 
             po::options_description asopt("A* Planner Options");
             asopt.add_options()                                                     //
-                ("planning_heuristic", po::bool_switch(&astar.planning_heuristic),  //
-                 "Use the planner heuristic for A* search")                         //
                 ("astar_verbose", po::bool_switch(&astar.options.verbose),          //
                  "Verbose output for A* planner")                                   //
                 ;
@@ -365,15 +361,6 @@ namespace pddlboat
             {
                 problem->toPDDL(std::cout);
                 std::cout << std::endl;
-            }
-
-            // Use special heuristic if requested
-            if (astar.planning_heuristic)
-            {
-                auto copy = fd.options;
-                astar.options.heuristic = PlannerHeuristicFactory::make(
-                    problem, [copy](const ProblemPtr &problem)
-                    { return std::make_shared<FastDownwardPlanner>(problem, copy); });
             }
 
             // setup planner

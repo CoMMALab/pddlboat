@@ -172,15 +172,7 @@ bool VariableSet::contains(const VariableSet &other) const
 /// Assignment
 ///
 
-Assignment::Assignment(const Problem *problem) : problem(problem)
-{
-}
-
-Assignment::Assignment(const ProblemPtr &problem) : problem(problem.get())
-{
-}
-
-Assignment::Assignment(const Assignment &other) : problem(other.problem), varToObj(other.varToObj)
+Assignment::Assignment(const Assignment &other) : varToObj(other.varToObj)
 {
 }
 
@@ -188,7 +180,6 @@ Assignment &Assignment::operator=(const Assignment &other)
 {
     if (this != &other)
     {
-        problem = other.problem;
         varToObj = other.varToObj;
         varToType = other.varToType;
     }
@@ -199,7 +190,7 @@ Assignment &Assignment::operator=(const Assignment &other)
 void Assignment::fold(const Assignment &other)
 {
     for (const auto &[name, obj] : other.varToObj)
-        assign(name, obj->name);
+        varToObj[name] = obj;
 }
 
 unsigned int Assignment::arity() const
@@ -207,9 +198,9 @@ unsigned int Assignment::arity() const
     return varToObj.size();
 }
 
-void Assignment::assign(const std::string &var, const std::string &obj)
+void Assignment::assign(const Problem &problem, const std::string &var, const std::string &obj)
 {
-    auto object = problem->getObject(obj);
+    auto object = problem.getObject(obj);
     if (not object)
         throw std::invalid_argument(log::format("Cannot assign %1% to %2%, %1% does not exist!", obj, var));
 
@@ -631,11 +622,11 @@ DerivedPredicate::DerivedPredicate(const DerivedPredicateDefinition *predicate,
 
 Assignment DerivedPredicate::getBinding(const StatePtr &state, const Assignment &vars) const
 {
-    Assignment derived(vars.problem);
+    Assignment derived;
     auto objects = getValueObjects(bindings, state, vars);
 
     for (std::size_t i = 0; i < predicate->parameters.size(); ++i)
-        derived.assign(predicate->parameters[i].name, objects[i]);
+        derived.assign(*state->getProblem(), predicate->parameters[i].name, objects[i]);
 
     return derived;
 }
@@ -1185,17 +1176,19 @@ std::vector<std::string> Domain::getTypes() const
     for (const auto &pair : types)
         ret.emplace_back(pair.first);
 
-    std::sort(ret.begin(), ret.end(), [&](const auto &a, const auto &b) {
-        if (isTypeOf(a, b))
-            return false;
-        if (isTypeOf(b, a))
-            return true;
+    std::sort(ret.begin(), ret.end(),
+              [&](const auto &a, const auto &b)
+              {
+                  if (isTypeOf(a, b))
+                      return false;
+                  if (isTypeOf(b, a))
+                      return true;
 
-        if (getParent(a) == getParent(b))
-            return a < b;
+                  if (getParent(a) == getParent(b))
+                      return a < b;
 
-        return getParent(a) > getParent(b);
-    });
+                  return getParent(a) > getParent(b);
+              });
 
     return ret;
 }
@@ -1613,7 +1606,7 @@ std::vector<Assignment> Problem::getGroundings(const VariableList &vars, unsigne
     unsigned int remaining = vars.size() - index;
     if (not remaining)
     {
-        Assignment toAdd(this);
+        Assignment toAdd;
         assignments.emplace_back(toAdd);
         return assignments;
     }
@@ -1626,7 +1619,7 @@ std::vector<Assignment> Problem::getGroundings(const VariableList &vars, unsigne
         for (const auto &assignment : recurse)
         {
             Assignment toAdd = assignment;
-            toAdd.assign(car.name, object);
+            toAdd.assign(*this, car.name, object);
             assignments.emplace_back(toAdd);
         }
     }
@@ -1772,7 +1765,6 @@ void State::clean()
     for (const auto &key : keys)
         assignments.erase(key);
 }
-
 
 std::size_t State::hash() const
 {

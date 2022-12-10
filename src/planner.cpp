@@ -72,7 +72,7 @@ std::pair<ActionPtr, Assignment> Plan::getAction(const std::string &action_name,
             log::format("Action %1% has arity %2%, not %3%!", action_name, action->arity(), objects.size()));
 
     // Validate that assignment objects match parameter types
-    Assignment assignment(problem_.get());
+    Assignment assignment;
     for (unsigned int i = 0; i < objects.size(); ++i)
     {
         const auto &object_name = objects[i];
@@ -92,7 +92,7 @@ std::pair<ActionPtr, Assignment> Plan::getAction(const std::string &action_name,
                 log::format("Cannot do action with object %1%, is type %2%, not %3%!", object_name, obj->type,
                             action->parameters[i].type));
 
-        assignment.assign(action->parameters[i].name, objects[i]);
+        assignment.assign(*problem_, action->parameters[i].name, objects[i]);
     }
 
     return {action, assignment};
@@ -105,17 +105,17 @@ Plan::Step &Plan::addStep(const std::string &action_name, const std::vector<std:
 
 Plan::Step &Plan::addStepAction(const ActionPtr &action, const Assignment &assignment)
 {
-    return insertStep(action, assignment, getMakespan());
+    return insertStepAction(action, assignment, getMakespan());
 }
 
 Plan::Step &Plan::insertStep(const std::string &action_name, const std::vector<std::string> &objects,
                              std::size_t index)
 {
     const auto &[action, assignment] = getAction(action_name, objects);
-    return insertStep(action, assignment, index);
+    return insertStepAction(action, assignment, index);
 }
 
-Plan::Step &Plan::insertStep(const ActionPtr &action, const Assignment &assignment, std::size_t index)
+Plan::Step &Plan::insertStepAction(const ActionPtr &action, const Assignment &assignment, std::size_t index)
 {
     if (index >= getMakespan())
         steps_.resize(index + 1);
@@ -143,9 +143,9 @@ bool Plan::validate()
     }
 
     if (i == 0)
-        return problem_->goal->evaluate(problem_->start, Assignment(problem_));
+        return problem_->goal->evaluate(problem_->start, {});
     else
-        return problem_->goal->evaluate(getStepConst(i - 1).state, Assignment(problem_));
+        return problem_->goal->evaluate(getStepConst(i - 1).state, {});
 }
 
 std::ostream &Plan::toString(std::ostream &out, bool steps) const
@@ -249,9 +249,9 @@ PlanSet::PlanSet(const PlanSet &plans) : problem_{plans.problem_}, plans_(plans.
 {
 }
 
-void PlanSet::addPlan(Plan &&plan)
+void PlanSet::addPlan(const Plan &plan)
 {
-    plans_.emplace_back(std::move(plan));
+    plans_.emplace_back(plan);
 }
 
 Plan &PlanSet::newPlan()

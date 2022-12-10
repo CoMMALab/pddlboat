@@ -64,20 +64,16 @@ py_pddlboat_Z3Planner.def(py::init<const std::shared_ptr<pddlboat::Problem> &, c
 .def("print_smt2", &pddlboat::Z3Planner::printSMT2)
 ;
 // Bindings for class pddlboat::Z3Planner::Options
-py::class_<pddlboat::Z3Planner::Options, std::shared_ptr<pddlboat::Z3Planner::Options>> py_pddlboat_Z3Planner_Options(py_pddlboat_Z3Planner, "Options");
-py_pddlboat_Z3Planner_Options.def(py::init())
-.def_readwrite("horizon", &pddlboat::Z3Planner::Options::horizon)
+py::class_<pddlboat::Z3Planner::Options, std::shared_ptr<pddlboat::Z3Planner::Options>>(py_pddlboat_Z3Planner, "Options")
+.def(py::init())
+.def_readwrite("horizon_max", &pddlboat::Z3Planner::Options::horizon_max)
+.def_readwrite("horizon_min", &pddlboat::Z3Planner::Options::horizon_min)
 .def_readwrite("parallel", &pddlboat::Z3Planner::Options::parallel)
 .def_readwrite("diagnostics", &pddlboat::Z3Planner::Options::diagnostics)
 .def_readwrite("dump_clauses", &pddlboat::Z3Planner::Options::dump_clauses)
 .def_readwrite("incremental", &pddlboat::Z3Planner::Options::incremental)
 .def_readwrite("simultaneous", &pddlboat::Z3Planner::Options::simultaneous)
 .def_readwrite("optimize", &pddlboat::Z3Planner::Options::optimize)
-;
-// Bindings for class pddlboat::Z3Planner::Options::
-py::class_<pddlboat::Z3Planner::Options::, std::shared_ptr<pddlboat::Z3Planner::Options::>>(py_pddlboat_Z3Planner_Options, "")
-.def_readwrite("max", &pddlboat::Z3Planner::Options::::max)
-.def_readwrite("min", &pddlboat::Z3Planner::Options::::min)
 ;
 // Bindings for class pddlboat::FastForwardPlanner
 py::class_<pddlboat::FastForwardPlanner, pddlboat::Planner, std::shared_ptr<pddlboat::FastForwardPlanner>> py_pddlboat_FastForwardPlanner(m, "FastForwardPlanner");
@@ -126,6 +122,9 @@ py_pddlboat_AStarPlanner.def(py::init<const std::shared_ptr<pddlboat::Problem> &
 .def("generate_graph_ml", &pddlboat::AStarPlanner::generateGraphML)
 .def("get_supported_requirements", &pddlboat::AStarPlanner::getSupportedRequirements)
 .def_readwrite("options", &pddlboat::AStarPlanner::options)
+.def_readonly_static("default_transition_distance", &pddlboat::AStarPlanner::DEFAULT_TRANSITION_DISTANCE)
+.def_readonly_static("total_cost_transition_distance", &pddlboat::AStarPlanner::TOTAL_COST_TRANSITION_DISTANCE)
+.def_readonly_static("null_heuristic", &pddlboat::AStarPlanner::NULL_HEURISTIC)
 ;
 // Bindings for class pddlboat::AStarPlanner::Options
 py::class_<pddlboat::AStarPlanner::Options, std::shared_ptr<pddlboat::AStarPlanner::Options>>(py_pddlboat_AStarPlanner, "Options")
@@ -133,30 +132,6 @@ py::class_<pddlboat::AStarPlanner::Options, std::shared_ptr<pddlboat::AStarPlann
 .def_readwrite("verbose", &pddlboat::AStarPlanner::Options::verbose)
 .def_readwrite("transition_distance", &pddlboat::AStarPlanner::Options::transition_distance)
 .def_readwrite("heuristic", &pddlboat::AStarPlanner::Options::heuristic)
-;
-// Bindings for class pddlboat::AStarPlanner::PlanData
-py::class_<pddlboat::AStarPlanner::PlanData, std::shared_ptr<pddlboat::AStarPlanner::PlanData>> py_pddlboat_AStarPlanner_PlanData(py_pddlboat_AStarPlanner, "PlanData");
-py_pddlboat_AStarPlanner_PlanData.def(py::init<const pddlboat::AStarPlanner *>())
-.def("add_state", &pddlboat::AStarPlanner::PlanData::addState)
-.def("pop_frontier", &pddlboat::AStarPlanner::PlanData::popFrontier)
-.def("get_current_best", &pddlboat::AStarPlanner::PlanData::getCurrentBest)
-.def("find_node", &pddlboat::AStarPlanner::PlanData::findNode)
-.def("build_plan", &pddlboat::AStarPlanner::PlanData::buildPlan)
-.def_readonly_static("default_transition_distance", &pddlboat::AStarPlanner::PlanData::DEFAULT_TRANSITION_DISTANCE)
-.def_readonly_static("total_cost_transition_distance", &pddlboat::AStarPlanner::PlanData::TOTAL_COST_TRANSITION_DISTANCE)
-.def_readonly_static("null_heuristic", &pddlboat::AStarPlanner::PlanData::NULL_HEURISTIC)
-;
-// Bindings for class pddlboat::AStarPlanner::PlanData::Node
-py::class_<pddlboat::AStarPlanner::PlanData::Node, std::shared_ptr<pddlboat::AStarPlanner::PlanData::Node>>(py_pddlboat_AStarPlanner_PlanData, "Node")
-.def(py::init<const std::shared_ptr<pddlboat::State> &>())
-.def_readwrite("id", &pddlboat::AStarPlanner::PlanData::Node::id)
-.def_readwrite("state", &pddlboat::AStarPlanner::PlanData::Node::state)
-.def_readwrite("prior", &pddlboat::AStarPlanner::PlanData::Node::prior)
-.def_readwrite("action", &pddlboat::AStarPlanner::PlanData::Node::action)
-.def_readwrite("goal_checked", &pddlboat::AStarPlanner::PlanData::Node::goal_checked)
-.def_readwrite("distance", &pddlboat::AStarPlanner::PlanData::Node::distance)
-.def_readwrite("cost", &pddlboat::AStarPlanner::PlanData::Node::cost)
-.def_readwrite("heuristic", &pddlboat::AStarPlanner::PlanData::Node::heuristic)
 ;
 // Bindings for class pddlboat::PlanWatcher
 py::class_<pddlboat::PlanWatcher, std::shared_ptr<pddlboat::PlanWatcher>>(m, "PlanWatcher")
@@ -176,7 +151,7 @@ py::class_<pddlboat::PlanSet, std::shared_ptr<pddlboat::PlanSet>>(m, "PlanSet")
 .def("new_plan", &pddlboat::PlanSet::newPlan)
 .def("clear", &pddlboat::PlanSet::clear)
 .def("get_plan", &pddlboat::PlanSet::getPlan)
-.def(py::self [] std::size_t())
+.def("__getitem__", [](const pddlboat::PlanSet &s, std::size_t i) { return s[i]; })
 .def("get_plan_const", &pddlboat::PlanSet::getPlanConst)
 .def("begin", &pddlboat::PlanSet::begin)
 .def("end", &pddlboat::PlanSet::end)
@@ -189,10 +164,10 @@ py::class_<pddlboat::PlanSet, std::shared_ptr<pddlboat::PlanSet>>(m, "PlanSet")
 py::class_<pddlboat::Plan, std::shared_ptr<pddlboat::Plan>> py_pddlboat_Plan(m, "Plan");
 py_pddlboat_Plan.def(py::init<const std::shared_ptr<pddlboat::Problem> &>())
 .def(py::init<const pddlboat::Plan &>())
-.def("add_step", static_cast<pddlboat::Plan::Step & (pddlboat::Plan::*)(const std::basic_string<char> &, const std::vector<std::basic_string<char>> &)>(&pddlboat::Plan::addStep))
-.def("add_step", static_cast<pddlboat::Plan::Step & (pddlboat::Plan::*)(const std::shared_ptr<pddlboat::Action> &, const pddlboat::Assignment &)>(&pddlboat::Plan::addStep))
-.def("insert_step", static_cast<pddlboat::Plan::Step & (pddlboat::Plan::*)(const std::basic_string<char> &, const std::vector<std::basic_string<char>> &, unsigned long)>(&pddlboat::Plan::insertStep))
-.def("insert_step", static_cast<pddlboat::Plan::Step & (pddlboat::Plan::*)(const std::shared_ptr<pddlboat::Action> &, const pddlboat::Assignment &, unsigned long)>(&pddlboat::Plan::insertStep))
+.def("add_step", &pddlboat::Plan::addStep)
+.def("insert_step", &pddlboat::Plan::insertStep)
+.def("add_step_action", &pddlboat::Plan::addStepAction)
+.def("insert_step_action", &pddlboat::Plan::insertStepAction)
 .def("get_step", &pddlboat::Plan::getStep)
 .def("get_step_const", &pddlboat::Plan::getStepConst)
 .def("get_steps", &pddlboat::Plan::getSteps)
@@ -210,7 +185,7 @@ py_pddlboat_Plan.def(py::init<const std::shared_ptr<pddlboat::Problem> &>())
 py::class_<pddlboat::Plan::Step, std::shared_ptr<pddlboat::Plan::Step>>(py_pddlboat_Plan, "Step")
 .def(py::init<const std::shared_ptr<pddlboat::Action> &, const pddlboat::Assignment &>())
 .def("to_string", &pddlboat::Plan::Step::toString)
-.def(py::self < pddlboat::Plan::Step())
+.def(py::self < py::self)
 .def_readwrite("action", &pddlboat::Plan::Step::action)
 .def_readwrite("assignment", &pddlboat::Plan::Step::assignment)
 .def_readwrite("prior", &pddlboat::Plan::Step::prior)
@@ -615,7 +590,7 @@ py::class_<pddlboat::GroundedPredicate, std::shared_ptr<pddlboat::GroundedPredic
 // Bindings for class pddlboat::GroundedAction
 py::class_<pddlboat::GroundedAction, std::shared_ptr<pddlboat::GroundedAction>>(m, "GroundedAction")
 .def(py::init<const std::shared_ptr<pddlboat::Action> &, const pddlboat::Assignment &>())
-.def(py::self == pddlboat::GroundedAction())
+.def(py::self == py::self)
 .def_readonly("action", &pddlboat::GroundedAction::action)
 .def_readonly("assignment", &pddlboat::GroundedAction::assignment)
 .def_readonly("string", &pddlboat::GroundedAction::string)
@@ -786,8 +761,7 @@ py::class_<pddlboat::PredicateDefinition, std::shared_ptr<pddlboat::PredicateDef
 ;
 // Bindings for class pddlboat::Assignment
 py::class_<pddlboat::Assignment, std::shared_ptr<pddlboat::Assignment>>(m, "Assignment")
-.def(py::init<const pddlboat::Problem *>())
-.def(py::init<const std::shared_ptr<pddlboat::Problem> &>())
+.def(py::init())
 .def(py::init<const pddlboat::Assignment &>())
 .def("fold", &pddlboat::Assignment::fold)
 .def("arity", &pddlboat::Assignment::arity)
@@ -799,7 +773,6 @@ py::class_<pddlboat::Assignment, std::shared_ptr<pddlboat::Assignment>>(m, "Assi
 .def("is_assigned", &pddlboat::Assignment::isAssigned)
 .def("get_variables", &pddlboat::Assignment::getVariables)
 .def("to_string", &pddlboat::Assignment::toString)
-.def_readwrite("problem", &pddlboat::Assignment::problem)
 .def_readwrite("var_to_obj", &pddlboat::Assignment::varToObj)
 .def_readwrite("var_to_type", &pddlboat::Assignment::varToType)
 ;
@@ -863,12 +836,6 @@ py::class_<pddlboat::PlanDependencyGraph::ActionNode, std::shared_ptr<pddlboat::
 .def_readwrite("makespan", &pddlboat::PlanDependencyGraph::ActionNode::makespan)
 .def_readwrite("leafdist", &pddlboat::PlanDependencyGraph::ActionNode::leafdist)
 ;
-// Bindings for class pddlboat::PlannerHeuristicFactory
-py::class_<pddlboat::PlannerHeuristicFactory, std::shared_ptr<pddlboat::PlannerHeuristicFactory>>(m, "PlannerHeuristicFactory")
-.def(py::init<const std::shared_ptr<pddlboat::Problem> &, const std::function<std::shared_ptr<pddlboat::Planner> (const std::shared_ptr<pddlboat::Problem> &)> &>())
-.def_static("make", &pddlboat::PlannerHeuristicFactory::make)
-.def("value", &pddlboat::PlannerHeuristicFactory::value)
-;
 m
 .def("parse_file", static_cast<bool (*)(const std::basic_string<char> &, pddlboat::ast::Domain &)>(&pddlboat::parseFile))
 .def("parse_file", static_cast<bool (*)(const std::basic_string<char> &, pddlboat::ast::Problem &)>(&pddlboat::parseFile))
@@ -891,8 +858,6 @@ m.def("make_object_function", &pddlboat::makeObjectFunction);
 m.def("make_action", &pddlboat::makeAction);
 m.def("make_no_op_action", &pddlboat::makeNoOpAction);
 m.def("hash_value", &pddlboat::hash_value);
-m.def("operator|", &pddlboat::operator|);
-m.def("operator&", &pddlboat::operator&);
 m.def("is_in", &pddlboat::isIn);
 m.def("get_value_objects", &pddlboat::getValueObjects);
 m.def("get_value", &pddlboat::getValue);
@@ -936,9 +901,5 @@ m
 m
 .def("make_decrease", static_cast<pddlboat::DecreasePtr (*)(const std::shared_ptr<pddlboat::NumericFunction> &, const std::shared_ptr<pddlboat::NumericExpression> &)>(&pddlboat::makeDecrease))
 .def("make_decrease", static_cast<pddlboat::DecreasePtr (*)(const std::shared_ptr<pddlboat::NumericFunction> &, double)>(&pddlboat::makeDecrease))
-;
-m
-.def("operator<<", static_cast<std::ostream & (*)(std::basic_ostream<char> &, const pddlboat::Plan::Step &)>(&pddlboat::operator<<))
-.def("operator<<", static_cast<std::ostream & (*)(std::basic_ostream<char> &, const pddlboat::Plan &)>(&pddlboat::operator<<))
 ;
 }

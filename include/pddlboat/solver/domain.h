@@ -156,19 +156,10 @@ namespace pddlboat
     class Assignment
     {
     public:
-        const Problem *problem;                          ///< The problem this assignment is from.
         std::map<std::string, ObjectPtr> varToObj{};     ///< Mapping of variable name to objects.
         std::map<std::string, std::string> varToType{};  ///< Mapping of unassigned variable name to type.
 
-        /** \brief Constructor. Creates an empty assignment.
-         *  \param[in] problem Problem to create assignment for.
-         */
-        Assignment(const Problem *problem);
-
-        /** \brief Constructor. Creates an empty assignment.
-         *  \param[in] problem Problem to create assignment for.
-         */
-        Assignment(const ProblemPtr &problem);
+        Assignment() = default;
 
         /** \brief Copy constructor. Copies the assignment.
          *  \param[in] other The assignment to copy.
@@ -195,7 +186,7 @@ namespace pddlboat
          *  \param[in] obj Object to assign to variable.
          *  \throw std::invalid_argument if object \a obj does not exist.
          */
-        void assign(const std::string &var, const std::string &obj);
+        void assign(const Problem &problem, const std::string &var, const std::string &obj);
 
         /** \brief Assign a variable \a var to a type \a type.
          *  \param[in] var Variable to assign.
@@ -618,6 +609,12 @@ namespace pddlboat
         const VariableList parameters;  ///< Parameters this function has.
         const std::string type;         /// Return type of this function.
 
+        /** \brief Constructor.
+         *  \param[in] name Name of function.
+         *  \param[in] variables Argument list of function.
+         *  \param[in] type Type of the function.
+         */
+        FunctionDefinition(const std::string &name, const VariableList &parameters, const std::string &type);
         virtual ~FunctionDefinition() = default;
 
         /** \brief Checks if the set of object names is a valid assignment to this predicate. That is, do
@@ -639,14 +636,6 @@ namespace pddlboat
          */
         std::ostream &toPDDL(std::ostream &out = std::cout) const;
         std::string toID(const Assignment &vars) const;
-
-    protected:
-        /** \brief Constructor.
-         *  \param[in] name Name of function.
-         *  \param[in] variables Argument list of function.
-         *  \param[in] type Type of the function.
-         */
-        FunctionDefinition(const std::string &name, const VariableList &parameters, const std::string &type);
     };
 
     /** \brief Definition of a PDDL numeric fluent.
@@ -696,8 +685,8 @@ namespace pddlboat
 
         Type type() const override;
         void getVariables(VariableSet &vars) const override;
-        bool containsVariable(const std::string &variable) const;
-        void renameVariable(const std::string &old, const std::string &name);
+        bool containsVariable(const std::string &variable) const override;
+        void renameVariable(const std::string &old, const std::string &name) override;
 
         void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
                                const Assignment &vars) const override;
@@ -705,7 +694,7 @@ namespace pddlboat
                                    const Assignment &vars) const override;
 
         std::string toID(const StatePtr &state, const Assignment &vars) const;
-        std::ostream &toPDDL(std::ostream &out, unsigned int indent = 0, unsigned int level = 0) const;
+        std::ostream &toPDDL(std::ostream &out, unsigned int indent = 0, unsigned int level = 0) const override;
 
     private:
         const NumericFunctionDefinition *function;
@@ -762,8 +751,8 @@ namespace pddlboat
 
         Type type() const override;
         void getVariables(VariableSet &vars) const override;
-        bool containsVariable(const std::string &variable) const;
-        void renameVariable(const std::string &old, const std::string &name);
+        bool containsVariable(const std::string &variable) const override;
+        void renameVariable(const std::string &old, const std::string &name) override;
 
         void getUsedPredicates(std::set<std::string> &predicates, const StatePtr &state,
                                const Assignment &vars) const override;
@@ -773,7 +762,7 @@ namespace pddlboat
         void getEffects(Effect &effect, const StatePtr &state, const Assignment &vars) const override;
 
         std::string toID(const StatePtr &state, const Assignment &vars) const;
-        std::ostream &toPDDL(std::ostream &out, unsigned int indent = 0, unsigned int level = 0) const;
+        std::ostream &toPDDL(std::ostream &out, unsigned int indent = 0, unsigned int level = 0) const override;
 
     private:
         const ObjectFunctionDefinition *function;

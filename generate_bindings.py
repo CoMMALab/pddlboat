@@ -59,6 +59,11 @@ def load_data(compilation_database_dir: Path,
     file_args = list(map(lambda arg: fix_paths(compilation_database_dir, cwd, arg), file_args))
     # NOTE: Not sure why this needs to be manually included, but we don't find stddef otherwise
     file_args.append('-I/usr/lib/clang/14.0.6/include')
+
+    for invalid in ['-fext-numeric-literals', '-fconcepts']:
+      if invalid in file_args:
+        file_args.remove(invalid)
+
     # mq_idx = file_args.index('-MQ')
     # mf_idx = file_args.index('-MF')
     # file_args = file_args[:mq_idx] + file_args[mq_idx + 2:mf_idx] + file_args[mf_idx + 2:]
@@ -157,18 +162,25 @@ def get_base_type_name(typ: Type) -> str:
                  ).strip()
 
 
-def generate_operator_methods(operator: str, nodes: Iterable[Cursor]) -> List[str]:
+def generate_operator_methods(operator: str, nodes: Iterable[Cursor],
+                              qualified_name: str) -> List[str]:
   methods = []
   for method_node in nodes:
     argument_type_names = [get_base_type_name(typ) for typ in method_node.type.argument_types()]
     if len(argument_type_names) >= 2:
       print(method_node.spelling, argument_type_names)
 
+    print("______", operator, "______")
+
     assert (len(argument_type_names) < 2)
     if len(argument_type_names) == 0:
       methods.append(f'.def({operator}py::self)')
+    elif operator == '[]':
+      methods.append(
+          f'.def("__getitem__", [](const {qualified_name} &s, {argument_type_names[0]} i) {{ return s[i]; }})'
+      )
     else:
-      methods.append(f'.def(py::self {operator} {argument_type_names[0]}())')
+      methods.append(f'.def(py::self {operator} {"py::self" if argument_type_names[0] == qualified_name else argument_type_names[0] + "()"})')
 
   return methods
 
@@ -286,12 +298,14 @@ def generate_methods(class_node: Cursor, qualified_name: str) -> List[str]:
   methods = []
   for method_name, method_nodes in class_method_nodes.items():
     # Handle operators
+    # if 'operator' in method_name:
+    #   print(method_name)
     if method_name[:8] == 'operator':
       operator = method_name[8:].strip()
       if operator[:3] == 'new' or operator[:6] == 'delete' or operator == '=':
         continue
 
-      methods.extend(generate_operator_methods(operator, method_nodes))
+      methods.extend(generate_operator_methods(operator, method_nodes, qualified_name))
     elif len(method_nodes) > 1:
       methods.extend(generate_overloads(method_name, method_nodes, qualified_name, class_node))
     else:
@@ -456,6 +470,9 @@ def bind_functions(top_level_node: Cursor) -> List[Binding]:
       ns_functions[to_snake_case(function_node.spelling)].append(function_node)
 
     for function_name, function_nodes in ns_functions.items():
+      if function_name[:8] == 'operator':
+        continue
+
       if len(function_nodes) > 1:
         function_body = ['m']
         function_body.extend(generate_overloads(function_name, function_nodes, qualified_name))

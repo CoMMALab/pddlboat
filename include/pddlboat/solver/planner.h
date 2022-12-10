@@ -106,14 +106,14 @@ namespace pddlboat
          *  \param[in] action Action to take.
          *  \param[in] assignment Assignment to the action.
          */
-        Step &addStep(const ActionPtr &action, const Assignment &assignment);
+        Step &addStepAction(const ActionPtr &action, const Assignment &assignment);
 
         /** \brief Insert a step in the middle of an existing plan.
          *  \param[in] action Action to take.
          *  \param[in] assignment Assignment to the action.
          *  \param[in] index Desired index of insertion.
          */
-        Step &insertStep(const ActionPtr &action, const Assignment &assignment, std::size_t index);
+        Step &insertStepAction(const ActionPtr &action, const Assignment &assignment, std::size_t index);
 
         /** \} */
 
@@ -235,7 +235,7 @@ namespace pddlboat
         /** \brief Add a plan to the collection
          *  \param[in] plan Plan the plan to add
          */
-        void addPlan(Plan &&plan);
+        void addPlan(const Plan &plan);
 
         /** \brief Create a new plan in the collection
          *  \return A mutable reference to an empty plan in the collection

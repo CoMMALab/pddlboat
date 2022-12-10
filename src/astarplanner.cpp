@@ -6,149 +6,221 @@
 
 using namespace pddlboat;
 
-//
-//
-//
-
-AStarPlanner::PlanData::Node::Node(const StatePtr &state) : state(state)
+namespace
 {
-}
-
-//
-// PlanData
-//
-
-const AStarPlanner::PlanData::TransitionDistance AStarPlanner::PlanData::DEFAULT_TRANSITION_DISTANCE =
-    [](const Node *node, const GroundedAction &action, const StatePtr &next) -> double { return 1.; };
-
-const AStarPlanner::PlanData::TransitionDistance AStarPlanner::PlanData::TOTAL_COST_TRANSITION_DISTANCE =
-    [](const Node *node, const GroundedAction &action, const StatePtr &next) -> double {
-    double previous = node->state->getValue("total-cost", {});
-    double current = next->getValue("total-cost", {});
-    return current - previous;
-};
-
-const AStarPlanner::PlanData::Heuristic AStarPlanner::PlanData::NULL_HEURISTIC =
-    [](const Node *node) -> double { return 0.; };
-
-AStarPlanner::PlanData::PlanData(const AStarPlanner *planner)
-  : planner_(planner), frontier_([](const Node *a, const Node *b) {
-      return (a->cost + a->heuristic) > (b->cost + b->heuristic);
-  })
-{
-}
-
-AStarPlanner::PlanData::~PlanData()
-{
-    for (const auto &pair : nodes_)
-        delete pair.second;
-}
-
-AStarPlanner::PlanData::Node *AStarPlanner::PlanData::addState(const StatePtr &state,
-                                                               const GroundedAction *action,
-                                                               const Node *prior, double distance)
-{
-    if (planner_->options.verbose)
+    /** \brief Data structures used in A* search.
+     */
+    class PlanData
     {
-        std::cout << "    EXPANDING to " << state->hash();
-        if (action)
+    public:
+        /** \brief Node in the A* search tree.
+         */
+        class Node
         {
-            std::cout << " ";
-            std::cout << "(" << action->action->name;
-            for (const auto &parameter : action->action->parameters)
-                std::cout << " " << action->assignment.assigned(parameter.name)->name;
-            std::cout << ")";
+        public:
+            unsigned int id;                        ///< Unique ID.
+            StatePtr state;                         ///< Symbolic state.
+            const Node *prior{nullptr};             ///< Prior node in search.
+            const GroundedAction *action{nullptr};  ///< Action that transitioned into this state.
+            bool goal_checked{false};  ///< Has this state already been evaluated for goal satisfaction?
+            std::size_t distance{0};   ///< Distance (in terms of node hops) from start.
+            double cost{0};            ///< Cost of node so far.
+            double heuristic{0};       ///< Heuristic value of node.
+
+            Node(const StatePtr &state);
+        };
+
+        /** \brief Constructor.
+         *  \param[in] planner Planner that is using this data structure.
+         */
+        PlanData(const AStarPlanner *planner);
+
+        /** \brief Deconstructor.
+         */
+        ~PlanData();
+
+        /** \brief Add a state to the search graph.
+         *  \param[in] state Symbolic state to add to graph.
+         *  \param[in] action Action that transitioned into this state.
+         *  \param[in] prior Prior node in the search tree.
+         *  \param[in] distance Distance of transition to this new node.
+         *  \return The newly created (or updated) search node.
+         */
+        Node *addState(const StatePtr &state,                   //
+                       const GroundedAction *action = nullptr,  //
+                       const Node *prior = nullptr,             //
+                       double distance = 0);
+
+        /** \brief Pop the best cost node from the front of the search frontier.
+         *  \return The best cost node from the search frontier.
+         */
+        Node *popFrontier();
+
+        /** \brief Get the current `best` node (highest cost).
+         *  \return The highest cost node explored so far.
+         */
+        Node *getCurrentBest() const;
+
+        /** \brief Find a node in the set of explored nodes.
+         *  \param[in] state State to search for.
+         *  \return Node if found, nullptr otherwise.
+         */
+        Node *findNode(const StatePtr &state) const;
+
+        /** \brief Build the resulting plan that reaches the provided goal node.
+         *  \param[out] plan Plan to build.
+         *  \param[in] goal Goal to build plant to.
+         */
+        void buildPlan(Plan &plan, const Node *goal) const;
+
+    private:
+        const AStarPlanner *planner_;  ///< Associated planner.
+
+        std::priority_queue<Node *,               //
+                            std::vector<Node *>,  //
+                            std::function<bool(const Node *, const Node *)>>
+            frontier_;  ///< Frontier set of states, ordered by cost.
+
+        StateMap<Node *> nodes_;  ///< Map of explored nodes.
+
+        Node *best_{nullptr};  ///< Current node with highest cost.
+        unsigned int id_{0};   ///< Current node ID to allocate.
+    };
+
+    PlanData::Node::Node(const StatePtr &state) : state(state)
+    {
+    }
+
+    PlanData::PlanData(const AStarPlanner *planner)
+      : planner_(planner)
+      , frontier_([](const Node *a, const Node *b)
+                  { return (a->cost + a->heuristic) > (b->cost + b->heuristic); })
+    {
+    }
+
+    PlanData::~PlanData()
+    {
+        for (const auto &pair : nodes_)
+            delete pair.second;
+    }
+
+    PlanData::Node *PlanData::addState(const StatePtr &state, const GroundedAction *action, const Node *prior,
+                                       double distance)
+    {
+        if (planner_->options.verbose)
+        {
+            std::cout << "    EXPANDING to " << state->hash();
+            if (action)
+            {
+                std::cout << " ";
+                std::cout << "(" << action->action->name;
+                for (const auto &parameter : action->action->parameters)
+                    std::cout << " " << action->assignment.assigned(parameter.name)->name;
+                std::cout << ")";
+            }
+            std::cout << std::endl;
+
+            state->toPDDL(std::cout, 4);
         }
-        std::cout << std::endl;
 
-        state->toPDDL(std::cout, 4);
+        Node *node;
+
+        // If node already exists in map, update information rather than create new information
+        auto it = nodes_.find(state);
+        if (it != nodes_.end())
+        {
+            node = it->second;
+
+            if (planner_->options.verbose)
+                std::cout << "    NODE EXISTED: OLD SCORE: " << node->cost << std::endl;
+        }
+        else
+        {
+            node = new Node(state);
+            nodes_.emplace(state, node);
+            node->id = id_++;
+        }
+
+        // If prior state (all except start), propagate information
+        if (prior)
+        {
+            node->prior = prior;
+            node->action = action;
+            node->distance = prior->distance + 1;
+            node->cost = prior->cost + distance;
+            node->heuristic = planner_->options.heuristic(node->state);
+
+            if (planner_->options.verbose)
+                std::cout << "    NEW SCORE: " << node->cost << std::endl;
+        }
+
+        frontier_.emplace(node);
+
+        // Track current best node.
+        if (not best_ or best_->cost < node->cost)
+            best_ = node;
+
+        return node;
     }
 
-    Node *node;
-
-    // If node already exists in map, update information rather than create new information
-    auto it = nodes_.find(state);
-    if (it != nodes_.end())
+    PlanData::Node *PlanData::popFrontier()
     {
-        node = it->second;
+        if (frontier_.empty())
+            return nullptr;
 
-        if (planner_->options.verbose)
-            std::cout << "    NODE EXISTED: OLD SCORE: " << node->cost << std::endl;
+        Node *node = frontier_.top();
+        frontier_.pop();
+
+        return node;
     }
-    else
+
+    PlanData::Node *PlanData::getCurrentBest() const
     {
-        node = new Node(state);
-        nodes_.emplace(state, node);
-        node->id = id_++;
+        return best_;
     }
 
-    // If prior state (all except start), propagate information
-    if (prior)
+    PlanData::Node *PlanData::findNode(const StatePtr &state) const
     {
-        node->prior = prior;
-        node->action = action;
-        node->distance = prior->distance + 1;
-        node->cost = prior->cost + distance;
-        node->heuristic = planner_->options.heuristic(node);
+        auto existing = nodes_.find(state);
+        if (existing == nodes_.end())
+            return nullptr;
 
-        if (planner_->options.verbose)
-            std::cout << "    NEW SCORE: " << node->cost << std::endl;
+        return existing->second;
     }
 
-    frontier_.emplace(node);
-
-    // Track current best node.
-    if (not best_ or best_->cost < node->cost)
-        best_ = node;
-
-    return node;
-}
-
-AStarPlanner::PlanData::Node *AStarPlanner::PlanData::popFrontier()
-{
-    if (frontier_.empty())
-        return nullptr;
-
-    Node *node = frontier_.top();
-    frontier_.pop();
-
-    return node;
-}
-
-AStarPlanner::PlanData::Node *AStarPlanner::PlanData::getCurrentBest() const
-{
-    return best_;
-}
-
-AStarPlanner::PlanData::Node *AStarPlanner::PlanData::findNode(const StatePtr &state) const
-{
-    auto existing = nodes_.find(state);
-    if (existing == nodes_.end())
-        return nullptr;
-
-    return existing->second;
-}
-
-void AStarPlanner::PlanData::buildPlan(Plan &plan, const Node *goal) const
-{
-    std::vector<const Node *> node_list;
-
-    const Node *it = goal;
-    while (it->prior)
+    void PlanData::buildPlan(Plan &plan, const Node *goal) const
     {
-        node_list.emplace_back(it);
-        it = it->prior;
+        std::vector<const Node *> node_list;
+
+        const Node *it = goal;
+        while (it->prior)
+        {
+            node_list.emplace_back(it);
+            it = it->prior;
+        }
+
+        std::reverse(node_list.begin(), node_list.end());
+
+        for (const auto &node : node_list)
+            plan.addStepAction(node->action->action, node->action->assignment);
     }
-
-    std::reverse(node_list.begin(), node_list.end());
-
-    for (const auto &node : node_list)
-        plan.addStepAction(node->action->action, node->action->assignment);
-}
+}  // namespace
 
 //
 // AStarPlanner
 //
+
+const AStarPlanner::TransitionDistance AStarPlanner::DEFAULT_TRANSITION_DISTANCE =
+    [](const StatePtr &current, const GroundedAction &action, const StatePtr &next) -> double { return 1.; };
+
+const AStarPlanner::TransitionDistance AStarPlanner::TOTAL_COST_TRANSITION_DISTANCE =
+    [](const StatePtr &current, const GroundedAction &action, const StatePtr &next) -> double
+{
+    return next->getValue("total-cost", {}) - current->getValue("total-cost", {});
+};
+
+const AStarPlanner::Heuristic AStarPlanner::NULL_HEURISTIC = [](const StatePtr &node) -> double
+{ return 0.; };
 
 AStarPlanner::AStarPlanner(const ProblemPtr &problem, const Options &options)
   : Planner(problem), options(options)
@@ -162,7 +234,6 @@ std::vector<Plan::Step> AStarPlanner::randomWalk(std::size_t steps, std::size_t 
     std::mt19937 gen((seed) ? seed : rd());  // If seed == 0, then use random seed.
 
     PlanData data(this);         // Search data
-    Assignment empty(problem_);  // Empty assignment for goal evaluation
 
     data.addState(problem_->start->cleanClone());
     PlanData::Node *start = data.popFrontier();
@@ -186,7 +257,7 @@ std::vector<Plan::Step> AStarPlanner::randomWalk(std::size_t steps, std::size_t 
                 throw std::runtime_error("Failed to apply action to state in planning.");
 
             next->clean();
-            double distance = options.transition_distance(start, grounded, next);
+            double distance = options.transition_distance(start->state, grounded, next);
             data.addState(next, &grounded, start, distance);
         }
 
@@ -244,7 +315,6 @@ std::vector<Plan::Step> AStarPlanner::randomWalk(std::size_t steps, std::size_t 
 std::vector<Plan::Step> AStarPlanner::getStartNeighbors()
 {
     PlanData data(this);         // Search data
-    Assignment empty(problem_);  // Empty assignment for goal evaluation
 
     data.addState(problem_->start->cleanClone());
     PlanData::Node *start = data.popFrontier();
@@ -299,7 +369,6 @@ bool AStarPlanner::solve(Plan &plan, unsigned int timeout)
     boost::timer::cpu_timer timer;
 
     PlanData data(this);         // Search data
-    Assignment empty(problem_);  // Empty assignment for goal evaluation
 
     // Add start to frontier
     data.addState(problem_->start->cleanClone());
@@ -326,7 +395,7 @@ bool AStarPlanner::solve(Plan &plan, unsigned int timeout)
 
         // Check if this state satisfies the goal
         if (not top->goal_checked)
-            top->goal_checked = problem_->goal->evaluate(state, empty);
+            top->goal_checked = problem_->goal->evaluate(state, {});
 
         if (top->goal_checked)
         {
@@ -367,7 +436,7 @@ bool AStarPlanner::solve(Plan &plan, unsigned int timeout)
             next->clean();
 
             // Compute distance to next node
-            double distance = options.transition_distance(top, grounded, next);
+            double distance = options.transition_distance(top->state, grounded, next);
 
             // If node already has been explored, only re-expand if cost is better
             auto existing = data.findNode(next);
@@ -408,7 +477,6 @@ void AStarPlanner::generateGraphML(const std::string &filename) const
     boost::timer::cpu_timer timer;
 
     PlanData data(this);         // Search data
-    Assignment empty(problem_);  // Empty assignment for goal evaluation
 
     // Add start to frontier
     data.addState(problem_->start->cleanClone());
@@ -493,13 +561,13 @@ void AStarPlanner::initialize()
     if (not options.transition_distance)
     {
         if (problem_->domain->isFunction("total-cost"))
-            options.transition_distance = PlanData::TOTAL_COST_TRANSITION_DISTANCE;
+            options.transition_distance = TOTAL_COST_TRANSITION_DISTANCE;
         else
-            options.transition_distance = PlanData::DEFAULT_TRANSITION_DISTANCE;
+            options.transition_distance = DEFAULT_TRANSITION_DISTANCE;
     }
 
     if (not options.heuristic)
-        options.heuristic = PlanData::NULL_HEURISTIC;
+        options.heuristic = NULL_HEURISTIC;
 
     for (const auto &pair : problem_->domain->actions)
     {
@@ -507,57 +575,4 @@ void AStarPlanner::initialize()
         for (const auto &assignment : assignments)
             ground_actions_.emplace_back(pair.second, assignment);
     }
-}
-
-//
-// PlannerHeuristic
-//
-
-PlannerHeuristicFactory::PlannerHeuristicFactory(const ProblemPtr &problem,
-                                                 const PlannerAllocator &planner_allocator)
-  : problem_(std::make_shared<Problem>(*problem)), planner_allocator_(planner_allocator)
-{
-}
-
-double PlannerHeuristicFactory::value(const AStarPlanner::PlanData::Node *node)
-{
-    std::unique_lock<std::mutex> lock(mutex_);
-
-    auto it = distance_cache_.find(node->state);
-    if (it == distance_cache_.end())
-    {
-        problem_->start = node->state;
-        auto planner = planner_allocator_(problem_);
-
-        Plan plan(problem_);
-        if (planner->solve(plan))
-        {
-            const std::size_t n = plan.getNumSteps();
-            addToCache(node->state, n);
-            for (std::size_t i = 0; i < n; ++i)
-                addToCache(plan.getStep(i).state, n - i - 1);
-
-            return n;
-        }
-
-        return 10000;  // Huge number, should functionally be infinite, but hey
-    }
-    else
-        return it->second;
-}
-
-void PlannerHeuristicFactory::addToCache(const StatePtr &state, std::size_t value)
-{
-    auto copy = problem_->makeState();
-    copy->fold(state);
-    copy->clean();
-
-    distance_cache_.emplace(copy, value);
-}
-
-AStarPlanner::PlanData::Heuristic PlannerHeuristicFactory::make(
-    const ProblemPtr &problem, const PlannerHeuristicFactory::PlannerAllocator &allocator)
-{
-    auto heuristic = std::make_shared<PlannerHeuristicFactory>(problem, allocator);
-    return [heuristic](const AStarPlanner::PlanData::Node *node) { return heuristic->value(node); };
 }

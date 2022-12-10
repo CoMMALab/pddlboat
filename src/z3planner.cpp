@@ -1493,8 +1493,7 @@ void Z3PlannerInternal::addEarlyTermination(Time step)
     }
 
     // Add the goal
-    Assignment empty_assgn(&*problem_);
-    z3::expr clause = z3::ite(getExpression(problem_->goal, empty_assgn, step), not actions, actions);
+    z3::expr clause = z3::ite(getExpression(problem_->goal, {}, step), not actions, actions);
     addClause(clause);
 
     if (options_.dump_clauses)
@@ -1516,8 +1515,7 @@ void Z3PlannerInternal::addGoalExpression(Time step)
     goal_expression_.start();
 
     // Add the goal
-    Assignment empty_assgn(&*problem_);
-    z3::expr clause = getExpression(problem_->goal, empty_assgn, step);
+    z3::expr clause = getExpression(problem_->goal, {}, step);
     addClause(clause);
 
     if (options_.dump_clauses)
@@ -1533,7 +1531,7 @@ void Z3PlannerInternal::addGoalExpression(Time step)
         if (options_.dump_clauses)
             std::cout << ";; Adding Optimization Criteria @ " << step << ":" << std::endl;
 
-        z3::expr metric = getExpression(problem_->metric, empty_assgn, step);
+        z3::expr metric = getExpression(problem_->metric, {}, step);
 
         if (problem_->minimize)
             optimizer_->minimize(metric);
@@ -1657,7 +1655,7 @@ void Z3PlannerInternal::addExpStateConstraint(const ExpressionPtr &exp, bool val
 
     constraint_clauses_.start();
 
-    z3::expr clause = getExpression(exp, Assignment(problem_), step) == ctx_->bool_val(value);
+    z3::expr clause = getExpression(exp, {}, step) == ctx_->bool_val(value);
     addClause(clause);
 
     constraint_clauses_.inc();
