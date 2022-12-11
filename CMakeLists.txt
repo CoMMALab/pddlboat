@@ -67,7 +67,8 @@ list(
 add_definitions(
   -DPDDLBOAT_RESOURCE_DIRECTORY="${CMAKE_CURRENT_LIST_DIR}/resources")
 
-add_library(pddlboat ${SOURCES})
+option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
+add_library(pddlboat SHARED ${SOURCES})
 add_dependencies(pddlboat libz3)
 
 set_target_properties(pddlboat PROPERTIES VERSION 0.0.1)
@@ -96,7 +97,7 @@ if(pybind11_FOUND)
   find_package(Eigen3 REQUIRED)
   include_directories(BEFORE SYSTEM ${EIGEN3_INCLUDE_DIRS})
   pybind11_add_module(pypddlboat py/pddlboat.cpp)
-  target_link_libraries(pypddlboat PUBLIC pddlboat ${EIGEN3_LIBRARIES})
+  target_link_libraries(pypddlboat PRIVATE pddlboat ${EIGEN3_LIBRARIES})
 endif()
 
 feature_summary(DESCRIPTION INCLUDE_QUIET_PACKAGES WHAT ALL)

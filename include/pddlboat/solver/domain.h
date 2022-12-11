@@ -1372,8 +1372,6 @@ namespace pddlboat
         Problem *problem_;  ///< The problem this state is for.
     };
 
-    std::size_t hash_value(const State &state);
-
     /** \brief A grounded action.
      */
     class GroundedAction

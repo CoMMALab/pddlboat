@@ -55,16 +55,6 @@ namespace pddlboat
          */
         PlanWatcher anytimeSolve(unsigned int timeout = 50, bool start_immediately = true);
 
-        /** \brief Set the number of desired plans
-         *  \param[in] k unsigned int number of solutions to find
-         */
-        void setK(unsigned int k);
-
-        /** \brief Set the plan quality bound
-         *  \param[in] q float quality bound on solutions. Ignored for top-k
-         */
-        void setQ(float q);
-
     protected:
         /** \brief Generate the command for calling sym-k's search
          *  \return The command to use.

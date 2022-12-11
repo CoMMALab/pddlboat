@@ -101,8 +101,6 @@ py::class_<pddlboat::SymKPlanner, pddlboat::FastDownwardPlanner, std::shared_ptr
 .def("get_supported_requirements", &pddlboat::SymKPlanner::getSupportedRequirements)
 .def("multi_solve", &pddlboat::SymKPlanner::multiSolve)
 .def("anytime_solve", &pddlboat::SymKPlanner::anytimeSolve)
-.def("set_k", &pddlboat::SymKPlanner::setK)
-.def("set_q", &pddlboat::SymKPlanner::setQ)
 ;
 // Bindings for class pddlboat::FastDownwardPlanner::Options
 py::class_<pddlboat::FastDownwardPlanner::Options, std::shared_ptr<pddlboat::FastDownwardPlanner::Options>>(py_pddlboat_FastDownwardPlanner, "Options")
@@ -857,7 +855,6 @@ m.def("make_function", &pddlboat::makeFunction);
 m.def("make_object_function", &pddlboat::makeObjectFunction);
 m.def("make_action", &pddlboat::makeAction);
 m.def("make_no_op_action", &pddlboat::makeNoOpAction);
-m.def("hash_value", &pddlboat::hash_value);
 m.def("is_in", &pddlboat::isIn);
 m.def("get_value_objects", &pddlboat::getValueObjects);
 m.def("get_value", &pddlboat::getValue);
