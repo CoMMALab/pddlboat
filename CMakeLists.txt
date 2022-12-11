@@ -5,12 +5,15 @@ cmake_policy(SET CMP0017 NEW)
 if(NOT ${CMAKE_VERSION} VERSION_LESS 3.0.0)
   cmake_policy(SET CMP0042 NEW)
 endif()
-project(pddlboat CXX)
+project(pddlboatCXX)
 
 
 
-set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" "${CMAKE_ROOT_DIR}/cmake/Modules"
-                      "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules")
+set(CMAKE_MODULE_PATH
+  "${CMAKE_MODULE_PATH}"
+  "${CMAKE_ROOT_DIR}/cmake/Modules"
+  "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules"
+)
 
 include(CompilerSettings)
 include(FeatureSummary)
@@ -22,31 +25,24 @@ include_directories(${CMAKE_CURRENT_LIST_DIR}/include)
 
 set(BOOST_MIN_VERSION "1.65.0")
 find_package(Boost ${BOOST_MIN_VERSION} REQUIRED
-             COMPONENTS system filesystem timer program_options regex)
+  COMPONENTS system filesystem timer program_options regex)
 if(CATKIN_DEVEL_PREFIX)
   find_package(catkin REQUIRED)
   catkin_package(LIBRARIES pddlboat CATKIN_DEPENDS DEPENDS INCLUDE_DIRS
-                 ${CMAKE_CURRENT_LIST_DIR}/include)
+    ${CMAKE_CURRENT_LIST_DIR}/include)
 endif(CATKIN_DEVEL_PREFIX)
 
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 list(APPEND LIBRARIES ${Boost_LIBRARIES})
 
-add_subdirectory(submodules)
-add_definitions(
-  -DPDDLBOAT_FASTFORWARD_LOCATION="${CMAKE_CURRENT_SOURCE_DIR}/submodules/ff"
-)
-add_definitions(
-  -DPDDLBOAT_FASTDOWNWARD_LOCATION="${CMAKE_CURRENT_BINARY_DIR}/submodules/downward/src/bin"
-)
-add_definitions(
-  -DPDDLBOAT_SYMK_LOCATION="${CMAKE_CURRENT_BINARY_DIR}/submodules/symk/src/bin"
-)
+find_package(Z3 REQUIRED)
+include_directories(SYSTEM ${Z3_CXX_INCLUDE_DIRS})
+list(APPEND LIBRARIES ${Z3_LIBRARIES})
 
-file(WRITE ${CMAKE_BINARY_DIR}/submodules/z3/Z3Targets.cmake "")
-find_package(Z3 PATHS ${Z3_BINARY_DIR} NO_DEFAULT_PATH)
-include_directories(BEFORE SYSTEM ${Z3_CXX_INCLUDE_DIRS})
-list(APPEND LIBRARIES libz3)
+add_subdirectory(submodules)
+add_definitions(-DPDDLBOAT_FASTFORWARD_LOCATION="${CMAKE_CURRENT_SOURCE_DIR}/submodules/ff")
+add_definitions(-DPDDLBOAT_FASTDOWNWARD_LOCATION="${CMAKE_CURRENT_BINARY_DIR}/submodules/downward/src/bin")
+add_definitions(-DPDDLBOAT_SYMK_LOCATION="${CMAKE_CURRENT_BINARY_DIR}/submodules/symk/src/bin")
 
 list(
   APPEND
@@ -66,8 +62,7 @@ list(
   src/z3planner.cpp
   src/astarplanner.cpp)
 
-add_definitions(
-  -DPDDLBOAT_RESOURCE_DIRECTORY="${CMAKE_CURRENT_LIST_DIR}/resources")
+add_definitions(-DPDDLBOAT_RESOURCE_DIRECTORY="${CMAKE_CURRENT_LIST_DIR}/resources")
 
 
 set(LIBRARY_NAME pddlboat-c++)
@@ -111,16 +106,7 @@ if(CATKIN_DEVEL_PREFIX)
     ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
-
   install(DIRECTORY include/${PROJECT_NAME}/
-          DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
+    DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
   install(DIRECTORY resources DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
-
-  install(
-    DIRECTORY submodules/z3/
-    DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}
-    FILES_MATCHING
-    PATTERN "*.h"
-    PATTERN "*.cmake")
-
 endif(CATKIN_DEVEL_PREFIX)
