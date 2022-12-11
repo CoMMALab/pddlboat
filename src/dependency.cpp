@@ -331,7 +331,7 @@ PlanDependencyGraph::ActionNodeList PlanDependencyGraph::getDescendants(const Ac
 PlanDependencyGraph::ActionNodeList PlanDependencyGraph::getParents(const ActionNodePtr &node) const
 {
     ActionNodeList nodes;
-    auto parents = getParents(node->vertex);
+    auto parents = getParentsVertex(node->vertex);
     for (const auto &other : parents)
         nodes.emplace_back(getActionNodeConst(other));
 
@@ -341,7 +341,7 @@ PlanDependencyGraph::ActionNodeList PlanDependencyGraph::getParents(const Action
 PlanDependencyGraph::ActionNodeList PlanDependencyGraph::getChildren(const ActionNodePtr &node) const
 {
     ActionNodeList nodes;
-    auto children = getChildren(node->vertex);
+    auto children = getChildrenVertex(node->vertex);
     for (const auto &other : children)
         nodes.emplace_back(getActionNodeConst(other));
 
@@ -494,7 +494,7 @@ bool PlanDependencyGraph::isEdge(Vertex src, Vertex dst) const
     return edge.second;
 }
 
-std::vector<PlanDependencyGraph::Vertex> PlanDependencyGraph::getChildren(Vertex src) const
+std::vector<PlanDependencyGraph::Vertex> PlanDependencyGraph::getChildrenVertex(Vertex src) const
 {
     std::vector<Vertex> children;
     auto [ei, end] = boost::out_edges(src, dag_);
@@ -503,7 +503,7 @@ std::vector<PlanDependencyGraph::Vertex> PlanDependencyGraph::getChildren(Vertex
     return children;
 }
 
-std::vector<PlanDependencyGraph::Vertex> PlanDependencyGraph::getParents(Vertex src) const
+std::vector<PlanDependencyGraph::Vertex> PlanDependencyGraph::getParentsVertex(Vertex src) const
 {
     std::vector<Vertex> parents;
     auto [ei, end] = boost::in_edges(src, dag_);

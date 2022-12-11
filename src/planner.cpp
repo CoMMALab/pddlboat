@@ -555,6 +555,16 @@ auto PlanWatcher::addPlan(std::string_view filename) -> bool
     return true;
 }
 
+std::size_t PlanWatcher::getPlanIdx() const
+{
+    return plan_idx;
+}
+
+PlanSet &PlanWatcher::getPlans()
+{
+    return plans;
+}
+
 ///
 /// Planner
 ///

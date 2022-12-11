@@ -146,8 +146,8 @@ namespace pddlboat
         bool isDependentOn(Vertex pre, Vertex eff) const;
         bool isEdge(Vertex src, Vertex dst) const;
 
-        std::vector<Vertex> getChildren(Vertex src) const;
-        std::vector<Vertex> getParents(Vertex src) const;
+        std::vector<Vertex> getChildrenVertex(Vertex src) const;
+        std::vector<Vertex> getParentsVertex(Vertex src) const;
 
         ActionNodePtr &getActionNode(Vertex vertex);
         const ActionNodePtr &getActionNodeConst(Vertex vertex) const;

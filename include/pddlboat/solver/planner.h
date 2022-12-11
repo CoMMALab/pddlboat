@@ -320,8 +320,9 @@ namespace pddlboat
         void stop();
         auto getNextPlanIdx() -> std::optional<std::size_t>;
         auto plannerRunning() -> bool;
-        PlanSet plans;
-        std::size_t plan_idx = 0;
+
+        std::size_t getPlanIdx() const;
+        PlanSet &getPlans();
 
     protected:
         auto readPlans() -> bool;
@@ -329,6 +330,9 @@ namespace pddlboat
         auto startPlanner() -> std::pair<FILE *, pid_t>;
         void pause();
         void resume();
+
+        PlanSet plans;
+        std::size_t plan_idx = 0;
 
         static constexpr std::size_t EVENT_SIZE = sizeof(inotify_event);
 

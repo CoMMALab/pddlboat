@@ -177,7 +177,7 @@ def generate_operator_methods(operator: str, nodes: Iterable[Cursor],
       methods.append(f'.def({operator}py::self)')
     elif operator == '[]':
       methods.append(
-          f'.def("__getitem__", [](const {qualified_name} &s, {argument_type_names[0]} i) {{ return s[i]; }})'
+          f'.def("__getitem__", []({qualified_name} &s, {argument_type_names[0]} i) {{ return s[i]; }})'
       )
     else:
       methods.append(f'.def(py::self {operator} {"py::self" if argument_type_names[0] == qualified_name else argument_type_names[0] + "()"})')
