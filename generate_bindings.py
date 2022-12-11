@@ -60,6 +60,11 @@ def load_data(compilation_database_dir: Path,
     # NOTE: Not sure why this needs to be manually included, but we don't find stddef otherwise
     file_args.append('-I/usr/lib/clang/14.0.6/include')
 
+    if 'build/c-header' in file_args:
+      file_args[file_args.index('build/c-header')] = 'build/c++-header'
+
+    # file_args = [arg for arg in file_args if '-I' == arg[:2] or '-std' == arg[:4]]
+    # file_args.append('-I/home/zak/code/pddlboat/include')
     for invalid in ['-fext-numeric-literals', '-fconcepts']:
       if invalid in file_args:
         file_args.remove(invalid)
@@ -180,7 +185,9 @@ def generate_operator_methods(operator: str, nodes: Iterable[Cursor],
           f'.def("__getitem__", []({qualified_name} &s, {argument_type_names[0]} i) {{ return s[i]; }})'
       )
     else:
-      methods.append(f'.def(py::self {operator} {"py::self" if argument_type_names[0] == qualified_name else argument_type_names[0] + "()"})')
+      methods.append(
+          f'.def(py::self {operator} {"py::self" if argument_type_names[0] == qualified_name else argument_type_names[0] + "()"})'
+      )
 
   return methods
 

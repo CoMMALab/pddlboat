@@ -3,6 +3,7 @@ python3 generate_bindings.py \
         -m pddlboat \
         -o py/pddlboat.cpp \
         -c build \
+        include/pddlboat/solver/variables.h \
         include/pddlboat/parser/translator.h \
         include/pddlboat/solver/astarplanner.h \
         include/pddlboat/solver/dependency.h \
@@ -15,6 +16,3 @@ python3 generate_bindings.py \
         include/pddlboat/solver/symkplanner.h \
         include/pddlboat/solver/z3planner.h
 
-# include/pddlboat/macros.h \
-# include/pddlboat/solver/variables.h \
-# include/pddlboat/solver/helper.h \

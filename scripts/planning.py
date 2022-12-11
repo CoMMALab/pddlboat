@@ -1,3 +1,6 @@
+import sys
+sys.path.append('.')
+
 import pddlboat as pd
 
 domain = pd.parse_domain("../resources/blocks/blockworld.pddl")
