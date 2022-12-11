@@ -3,8 +3,8 @@
 #ifndef PDDLBOAT_SOLVER_FDPLANNER_
 #define PDDLBOAT_SOLVER_FDPLANNER_
 
-#include <pddlboat/utility.h>
-#include <pddlboat/solver/planner.h>
+#include <pddlboat/utility.hpp>
+#include <pddlboat/solver/planner.hpp>
 #include <optional>
 
 namespace pddlboat

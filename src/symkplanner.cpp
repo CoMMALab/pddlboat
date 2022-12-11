@@ -5,9 +5,9 @@
 #include <iostream>
 #include "pddlboat/solver/fdplanner.h"
 
-#include <pddlboat/utility.h>
-#include <pddlboat/parser/parser.h>
-#include <pddlboat/solver/symkplanner.h>
+#include <pddlboat/utility.hpp>
+#include <pddlboat/parser/parser.hpp>
+#include <pddlboat/solver/symkplanner.hpp>
 
 using namespace pddlboat;
 

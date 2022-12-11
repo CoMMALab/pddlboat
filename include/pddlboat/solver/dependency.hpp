@@ -5,9 +5,9 @@
 
 #include <boost/graph/adjacency_list.hpp>
 
-#include <pddlboat/macros.h>
-#include <pddlboat/solver/domain.h>
-#include <pddlboat/solver/planner.h>
+#include <pddlboat/macros.hpp>
+#include <pddlboat/solver/domain.hpp>
+#include <pddlboat/solver/planner.hpp>
 
 #include <string>
 #include <sstream>

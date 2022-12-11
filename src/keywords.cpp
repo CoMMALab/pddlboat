@@ -1,7 +1,7 @@
 /* Author: Zachary Kingston */
 
 #include <boost/algorithm/string.hpp>
-#include <pddlboat/parser/keywords.h>
+#include <pddlboat/parser/keywords.hpp>
 
 using namespace pddlboat;
 

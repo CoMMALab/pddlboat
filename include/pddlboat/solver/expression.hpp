@@ -1,8 +1,8 @@
 #ifndef PDDLBOAT_EXPRESSION_
 #define PDDLBOAT_EXPRESSION_
 
-#include <pddlboat/macros.h>
-#include <pddlboat/solver/variables.h>
+#include <pddlboat/macros.hpp>
+#include <pddlboat/solver/variables.hpp>
 
 namespace pddlboat
 {

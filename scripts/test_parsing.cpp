@@ -5,10 +5,10 @@
 #include <boost/program_options.hpp>
 #include <boost/timer/timer.hpp>
 
-#include <pddlboat/utility.h>
-#include <pddlboat/parser/parser.h>
-#include <pddlboat/parser/translator.h>
-#include <pddlboat/solver/domain.h>
+#include <pddlboat/utility.hpp>
+#include <pddlboat/parser/parser.hpp>
+#include <pddlboat/parser/translator.hpp>
+#include <pddlboat/solver/domain.hpp>
 
 namespace po = boost::program_options;
 namespace pd = pddlboat;

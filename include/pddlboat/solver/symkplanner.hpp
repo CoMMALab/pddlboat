@@ -3,9 +3,9 @@
 #ifndef PDDLBOAT_SOLVER_SYMKPLANNER_
 #define PDDLBOAT_SOLVER_SYMKPLANNER_
 
-#include <pddlboat/utility.h>
-#include <pddlboat/solver/planner.h>
-#include <pddlboat/solver/fdplanner.h>
+#include <pddlboat/utility.hpp>
+#include <pddlboat/solver/planner.hpp>
+#include <pddlboat/solver/fdplanner.hpp>
 #include <limits>
 
 namespace pddlboat

@@ -9,7 +9,7 @@
 #include <boost/fusion/include/adapt_struct.hpp>
 #include <boost/fusion/include/io.hpp>
 
-#include <pddlboat/parser/keywords.h>
+#include <pddlboat/parser/keywords.hpp>
 
 namespace pddlboat
 {

@@ -8,17 +8,17 @@
 #include <boost/program_options.hpp>
 #include <limits>
 
-#include <pddlboat/utility.h>
-#include <pddlboat/parser/parser.h>
-#include <pddlboat/parser/translator.h>
-#include <pddlboat/solver/expressions.h>
-#include <pddlboat/solver/planner.h>
-#include <pddlboat/solver/ffplanner.h>
-#include <pddlboat/solver/fdplanner.h>
-#include <pddlboat/solver/symkplanner.h>
-#include <pddlboat/solver/z3planner.h>
-#include <pddlboat/solver/astarplanner.h>
-#include <pddlboat/solver/dependency.h>
+#include <pddlboat/utility.hpp>
+#include <pddlboat/parser/parser.hpp>
+#include <pddlboat/parser/translator.hpp>
+#include <pddlboat/solver/expressions.hpp>
+#include <pddlboat/solver/planner.hpp>
+#include <pddlboat/solver/ffplanner.hpp>
+#include <pddlboat/solver/fdplanner.hpp>
+#include <pddlboat/solver/symkplanner.hpp>
+#include <pddlboat/solver/z3planner.hpp>
+#include <pddlboat/solver/astarplanner.hpp>
+#include <pddlboat/solver/dependency.hpp>
 
 namespace pddlboat
 {

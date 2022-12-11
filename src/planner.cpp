@@ -1,8 +1,8 @@
 /* Author: Zachary Kingston */
 
-#include <pddlboat/utility.h>
-#include <pddlboat/solver/dependency.h>
-#include <pddlboat/solver/planner.h>
+#include <pddlboat/utility.hpp>
+#include <pddlboat/solver/dependency.hpp>
+#include <pddlboat/solver/planner.hpp>
 #include <sys/poll.h>
 #include <unistd.h>
 #include <csignal>

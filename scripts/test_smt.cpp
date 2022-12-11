@@ -1,5 +1,5 @@
 #include <iostream>
-#include <pddlboat/solver/expressions.h>
+#include <pddlboat/solver/expressions.hpp>
 #include <z3++.h>
 
 int main(int argc, char **argv)

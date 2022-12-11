@@ -21,17 +21,18 @@ std::vector<const char*> convertVec(const std::vector<std::string>& vec) {
 
   return result;
 }
-#include <pddlboat/parser/translator.h>
-#include <pddlboat/solver/astarplanner.h>
-#include <pddlboat/solver/dependency.h>
-#include <pddlboat/solver/domain.h>
-#include <pddlboat/solver/expression.h>
-#include <pddlboat/solver/expressions.h>
-#include <pddlboat/solver/fdplanner.h>
-#include <pddlboat/solver/ffplanner.h>
-#include <pddlboat/solver/planner.h>
-#include <pddlboat/solver/symkplanner.h>
-#include <pddlboat/solver/z3planner.h>
+#include <pddlboat/solver/variables.hpp>
+#include <pddlboat/parser/translator.hpp>
+#include <pddlboat/solver/astarplanner.hpp>
+#include <pddlboat/solver/dependency.hpp>
+#include <pddlboat/solver/domain.hpp>
+#include <pddlboat/solver/expression.hpp>
+#include <pddlboat/solver/expressions.hpp>
+#include <pddlboat/solver/fdplanner.hpp>
+#include <pddlboat/solver/ffplanner.hpp>
+#include <pddlboat/solver/planner.hpp>
+#include <pddlboat/solver/symkplanner.hpp>
+#include <pddlboat/solver/z3planner.hpp>
 namespace py = pybind11;
 PYBIND11_MODULE(pddlboat, m) {
 // Bindings for class pddlboat::Planner
@@ -82,6 +83,9 @@ py_pddlboat_FastForwardPlanner.def(py::init<const std::shared_ptr<pddlboat::Prob
 .def("update", &pddlboat::FastForwardPlanner::update)
 .def("solve", static_cast<bool (pddlboat::FastForwardPlanner::*)(pddlboat::Plan &)>(&pddlboat::FastForwardPlanner::solve))
 .def("solve", static_cast<bool (pddlboat::FastForwardPlanner::*)(pddlboat::Plan &, unsigned int)>(&pddlboat::FastForwardPlanner::solve))
+.def_readonly("temporary", &pddlboat::FastForwardPlanner::temporary)
+.def_readonly("domain_file_template", &pddlboat::FastForwardPlanner::domain_file_template)
+.def_readonly("problem_file_template", &pddlboat::FastForwardPlanner::problem_file_template)
 ;
 // Bindings for class pddlboat::FastForwardPlanner::Options
 py::class_<pddlboat::FastForwardPlanner::Options, std::shared_ptr<pddlboat::FastForwardPlanner::Options>>(py_pddlboat_FastForwardPlanner, "Options")
@@ -94,6 +98,11 @@ py_pddlboat_FastDownwardPlanner.def(py::init<const std::shared_ptr<pddlboat::Pro
 .def("update", &pddlboat::FastDownwardPlanner::update)
 .def("solve", static_cast<bool (pddlboat::FastDownwardPlanner::*)(pddlboat::Plan &)>(&pddlboat::FastDownwardPlanner::solve))
 .def("solve", static_cast<bool (pddlboat::FastDownwardPlanner::*)(pddlboat::Plan &, unsigned int)>(&pddlboat::FastDownwardPlanner::solve))
+.def_readonly("temporary", &pddlboat::FastDownwardPlanner::temporary)
+.def_readonly("domain_file_template", &pddlboat::FastDownwardPlanner::domain_file_template)
+.def_readonly("problem_file_template", &pddlboat::FastDownwardPlanner::problem_file_template)
+.def_readonly("sas_file_template", &pddlboat::FastDownwardPlanner::sas_file_template)
+.def_readonly("output_file_template", &pddlboat::FastDownwardPlanner::output_file_template)
 ;
 // Bindings for class pddlboat::SymKPlanner
 py::class_<pddlboat::SymKPlanner, pddlboat::FastDownwardPlanner, std::shared_ptr<pddlboat::SymKPlanner>>(m, "SymKPlanner")
@@ -834,6 +843,40 @@ py::class_<pddlboat::PlanDependencyGraph::ActionNode, std::shared_ptr<pddlboat::
 .def_readwrite("makespan", &pddlboat::PlanDependencyGraph::ActionNode::makespan)
 .def_readwrite("leafdist", &pddlboat::PlanDependencyGraph::ActionNode::leafdist)
 ;
+// Bindings for class pddlboat::VariableSet
+py::class_<pddlboat::VariableSet, std::shared_ptr<pddlboat::VariableSet>>(m, "VariableSet")
+.def(py::init())
+.def(py::init<const std::vector<pddlboat::Variable> &>())
+.def("merge", &pddlboat::VariableSet::merge)
+.def("remove", static_cast<void (pddlboat::VariableSet::*)(const pddlboat::VariableSet &)>(&pddlboat::VariableSet::remove))
+.def("remove", static_cast<void (pddlboat::VariableSet::*)(const std::vector<pddlboat::Variable> &)>(&pddlboat::VariableSet::remove))
+.def("add_variable", &pddlboat::VariableSet::addVariable)
+.def("remove_variable", &pddlboat::VariableSet::removeVariable)
+.def("get_names", &pddlboat::VariableSet::getNames)
+.def("get_variable", &pddlboat::VariableSet::getVariable)
+.def("to_pddl", &pddlboat::VariableSet::toPDDL)
+.def(py::self == py::self)
+.def(py::self != py::self)
+.def("contains", &pddlboat::VariableSet::contains)
+.def_readwrite("variables", &pddlboat::VariableSet::variables)
+;
+// Bindings for class pddlboat::Variable
+py::class_<pddlboat::Variable, std::shared_ptr<pddlboat::Variable>>(m, "Variable")
+.def(py::init<const std::pair<std::basic_string<char>, std::basic_string<char>> &>())
+.def(py::init<const std::basic_string<char> &, const std::basic_string<char> &>())
+.def(py::self < py::self)
+.def(py::self == py::self)
+.def(py::self != py::self)
+.def_readwrite("name", &pddlboat::Variable::name)
+.def_readwrite("type", &pddlboat::Variable::type)
+;
+// Bindings for class pddlboat::Object
+py::class_<pddlboat::Object, std::shared_ptr<pddlboat::Object>>(m, "Object")
+.def(py::init<const std::basic_string<char> &, const std::basic_string<char> &>())
+.def_readwrite("name", &pddlboat::Object::name)
+.def_readwrite("type", &pddlboat::Object::type)
+;
+m.def("make_obj", &pddlboat::makeObj);
 m.def("get_variables", &pddlboat::getVariables);
 m.def("to_expression", &pddlboat::toExpression);
 m.def("to_action", &pddlboat::toAction);

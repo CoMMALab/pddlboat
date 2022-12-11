@@ -4,9 +4,9 @@
 #include <sstream>
 #include <iostream>
 
-#include <pddlboat/utility.h>
-#include <pddlboat/parser/parser.h>
-#include <pddlboat/solver/fdplanner.h>
+#include <pddlboat/utility.hpp>
+#include <pddlboat/parser/parser.hpp>
+#include <pddlboat/solver/fdplanner.hpp>
 
 using namespace pddlboat;
 

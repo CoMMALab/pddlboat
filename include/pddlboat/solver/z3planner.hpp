@@ -6,11 +6,11 @@
 #include <iostream>
 #include <sstream>
 
-#include <pddlboat/utility.h>
-#include <pddlboat/parser/parser.h>
-#include <pddlboat/solver/domain.h>
-#include <pddlboat/solver/expressions.h>
-#include <pddlboat/solver/planner.h>
+#include <pddlboat/utility.hpp>
+#include <pddlboat/parser/parser.hpp>
+#include <pddlboat/solver/domain.hpp>
+#include <pddlboat/solver/expressions.hpp>
+#include <pddlboat/solver/planner.hpp>
 
 namespace pddlboat
 {

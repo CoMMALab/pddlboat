@@ -9,7 +9,7 @@
 #include <boost/fusion/container.hpp>
 #include <boost/fusion/adapted.hpp>
 
-#include <pddlboat/parser/ast.h>
+#include <pddlboat/parser/ast.hpp>
 
 ///
 /// Fusion Adaptation

@@ -7,9 +7,9 @@
 #include <sstream>
 #include <iostream>
 
-#include <pddlboat/utility.h>
-#include <pddlboat/parser/parser.h>
-#include <pddlboat/solver/ffplanner.h>
+#include <pddlboat/utility.hpp>
+#include <pddlboat/parser/parser.hpp>
+#include <pddlboat/solver/ffplanner.hpp>
 
 using namespace pddlboat;
 

@@ -8,9 +8,9 @@
 #include <unordered_map>
 #include <boost/functional/hash.hpp>
 
-#include <pddlboat/utility.h>
-#include <pddlboat/solver/planner.h>
-#include <pddlboat/solver/fdplanner.h>
+#include <pddlboat/utility.hpp>
+#include <pddlboat/solver/planner.hpp>
+#include <pddlboat/solver/fdplanner.hpp>
 
 namespace pddlboat
 {

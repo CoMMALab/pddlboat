@@ -7,9 +7,9 @@
 #include <boost/spirit/home/x3/support/utility/error_reporting.hpp>
 #include <boost/spirit/home/x3/support/utility/annotate_on_success.hpp>
 
-#include <pddlboat/utility.h>
-#include <pddlboat/parser/adapted.h>
-#include <pddlboat/parser/parser.h>
+#include <pddlboat/utility.hpp>
+#include <pddlboat/parser/adapted.hpp>
+#include <pddlboat/parser/parser.hpp>
 
 namespace x3 = boost::spirit::x3;
 namespace ascii = boost::spirit::x3::ascii;

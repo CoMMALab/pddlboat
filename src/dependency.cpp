@@ -3,8 +3,8 @@
 
 #include <boost/graph/dag_shortest_paths.hpp>
 
-#include <pddlboat/parser/parser.h>
-#include <pddlboat/solver/dependency.h>
+#include <pddlboat/parser/parser.hpp>
+#include <pddlboat/solver/dependency.hpp>
 
 using namespace pddlboat;
 

@@ -1,4 +1,4 @@
-#include <pddlboat/solver/helper.h>
+#include <pddlboat/solver/helper.hpp>
 
 int main(int argc, char **argv)
 {

@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-#include <pddlboat/parser/ast.h>
+#include <pddlboat/parser/ast.hpp>
 
 using namespace pddlboat::ast;
 

@@ -4,8 +4,8 @@
 #define PDDLBOAT_TRANSLATOR_
 
 #include <string>
-#include <pddlboat/macros.h>
-#include <pddlboat/parser/ast.h>
+#include <pddlboat/macros.hpp>
+#include <pddlboat/parser/ast.hpp>
 
 namespace pddlboat
 {

@@ -1,6 +1,6 @@
 /* Author: Zachary Kingston */
 
-#include <pddlboat/utility.h>
+#include <pddlboat/utility.hpp>
 
 #include <boost/regex.hpp>
 #include <boost/lexical_cast.hpp>

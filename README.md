@@ -46,7 +46,7 @@ Given a problem, a `pddlboat::Planner` can generate a `pddlboat::Plan`.
 
 Parsers for common PDDL structures are provided in:
 ```cpp
-#include <pddlboat/parser/parser.h>
+#include <pddlboat/parser/parser.hpp>
 ```
 
 These parsers will load the contents of a PDDL definition file (for a domain, problem, or plan) into an intermediate representation in the `pddlboat::ast` (for abstract syntax tree) namespace.
@@ -81,8 +81,8 @@ Some notes about each planner:
   
 An example of planning once a problem has been defined:
 ```cpp
-#include <pddlboat/solver/planner.h>
-#include <pddlboat/solver/fdplanner.h>
+#include <pddlboat/solver/planner.hpp>
+#include <pddlboat/solver/fdplanner.hpp>
 ...
 pddlboat::ProblemPtr problem;
 ...

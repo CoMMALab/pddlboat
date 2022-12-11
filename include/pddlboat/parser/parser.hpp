@@ -4,7 +4,7 @@
 #define PDDLBOAT_PARSER_
 
 #include <string>
-#include <pddlboat/parser/ast.h>
+#include <pddlboat/parser/ast.hpp>
 
 namespace pddlboat
 {

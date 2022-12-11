@@ -9,10 +9,10 @@
 #include <map>
 #include <type_traits>
 
-#include <pddlboat/utility.h>
-#include <pddlboat/parser/keywords.h>
-#include <pddlboat/solver/variables.h>
-#include <pddlboat/solver/expression.h>
+#include <pddlboat/utility.hpp>
+#include <pddlboat/parser/keywords.hpp>
+#include <pddlboat/solver/variables.hpp>
+#include <pddlboat/solver/expression.hpp>
 
 #define PDDLBOAT_NUMERIC_CLASS "number"
 

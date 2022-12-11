@@ -3,13 +3,13 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
 
-#include <pddlboat/utility.h>
+#include <pddlboat/utility.hpp>
 
-#include <pddlboat/parser/ast.h>
-#include <pddlboat/parser/parser.h>
-#include <pddlboat/parser/translator.h>
-#include <pddlboat/solver/domain.h>
-#include <pddlboat/solver/expressions.h>
+#include <pddlboat/parser/ast.hpp>
+#include <pddlboat/parser/parser.hpp>
+#include <pddlboat/parser/translator.hpp>
+#include <pddlboat/solver/domain.hpp>
+#include <pddlboat/solver/expressions.hpp>
 
 using namespace pddlboat;
 

@@ -2,8 +2,8 @@
 
 #include <boost/algorithm/string.hpp>
 
-#include <pddlboat/utility.h>
-#include <pddlboat/solver/expressions.h>
+#include <pddlboat/utility.hpp>
+#include <pddlboat/solver/expressions.hpp>
 
 using namespace pddlboat;
 

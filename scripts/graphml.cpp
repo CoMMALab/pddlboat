@@ -1,11 +1,11 @@
 #include <iostream>
-#include <pddlboat/parser/parser.h>
-#include <pddlboat/parser/translator.h>
-#include <pddlboat/parser/ast.h>
-#include <pddlboat/solver/expressions.h>
-#include <pddlboat/solver/domain.h>
-#include <pddlboat/solver/planner.h>
-#include <pddlboat/solver/astarplanner.h>
+#include <pddlboat/parser/parser.hpp>
+#include <pddlboat/parser/translator.hpp>
+#include <pddlboat/parser/ast.hpp>
+#include <pddlboat/solver/expressions.hpp>
+#include <pddlboat/solver/domain.hpp>
+#include <pddlboat/solver/planner.hpp>
+#include <pddlboat/solver/astarplanner.hpp>
 
 namespace pd = pddlboat;
 

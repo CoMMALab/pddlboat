@@ -3,14 +3,14 @@
 #ifndef PDDLBOAT_SOLVER_PLANNER_
 #define PDDLBOAT_SOLVER_PLANNER_
 
-#include <pddlboat/macros.h>
-#include <pddlboat/parser/keywords.h>
+#include <pddlboat/macros.hpp>
+#include <pddlboat/parser/keywords.hpp>
 #include <array>
 #include <cerrno>
 #include <cstdio>
 #include <fcntl.h>
 #include <filesystem>
-#include <pddlboat/solver/domain.h>
+#include <pddlboat/solver/domain.hpp>
 #include <memory>
 #include <poll.h>
 #include <optional>

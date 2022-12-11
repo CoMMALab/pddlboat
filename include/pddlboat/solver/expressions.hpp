@@ -9,9 +9,9 @@
 #include <map>
 #include <type_traits>
 
-#include <pddlboat/macros.h>
-#include <pddlboat/solver/expression.h>
-#include <pddlboat/solver/domain.h>
+#include <pddlboat/macros.hpp>
+#include <pddlboat/solver/expression.hpp>
+#include <pddlboat/solver/domain.hpp>
 
 namespace pddlboat
 {

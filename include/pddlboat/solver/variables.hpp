@@ -1,14 +1,12 @@
 #ifndef PDDLBOAT_VARIABLES_
 #define PDDLBOAT_VARIABLES_
 
-#define PDDLBOAT_OBJECT_CLASS "object"
-
-#include <pddlboat/macros.h>
 #include <iostream>
-#include <memory>
 #include <string>
 #include <set>
 #include <vector>
+
+#include <pddlboat/macros.hpp>
 
 namespace pddlboat
 {

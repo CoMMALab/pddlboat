@@ -1,7 +1,7 @@
 /* Author: Andrew Wells and Zachary Kingston */
 
 #include <z3++.h>
-#include <pddlboat/solver/z3planner.h>
+#include <pddlboat/solver/z3planner.hpp>
 
 //
 // Anonymous functions

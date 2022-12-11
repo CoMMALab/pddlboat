@@ -2,8 +2,8 @@
 
 #include <boost/program_options.hpp>
 
-#include <pddlboat/solver/expressions.h>
-#include <pddlboat/solver/domain.h>
+#include <pddlboat/solver/expressions.hpp>
+#include <pddlboat/solver/domain.hpp>
 
 namespace po = boost::program_options;
 namespace pd = pddlboat;

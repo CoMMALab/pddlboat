@@ -2,7 +2,7 @@
 
 #include <random>
 #include <fstream>
-#include <pddlboat/solver/astarplanner.h>
+#include <pddlboat/solver/astarplanner.hpp>
 
 using namespace pddlboat;
 

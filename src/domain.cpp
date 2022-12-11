@@ -4,9 +4,9 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/functional/hash.hpp>
 
-#include <pddlboat/utility.h>
-#include <pddlboat/solver/domain.h>
-#include <pddlboat/solver/expressions.h>
+#include <pddlboat/utility.hpp>
+#include <pddlboat/solver/domain.hpp>
+#include <pddlboat/solver/expressions.hpp>
 
 using namespace pddlboat;
 
