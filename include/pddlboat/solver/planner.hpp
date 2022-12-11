@@ -18,9 +18,9 @@
 #include <string>
 #include <sstream>
 #include <string_view>
-#include "pddlboat/parser/ast.h"
-#include "pddlboat/parser/parser.h"
-#include "pddlboat/solver/expression.h"
+#include <pddlboat/parser/ast.hpp>
+#include <pddlboat/parser/parser.hpp>
+#include <pddlboat/solver/expression.hpp>
 #include <sys/inotify.h>
 #include <unistd.h>
 

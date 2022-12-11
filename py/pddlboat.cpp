@@ -83,9 +83,6 @@ py_pddlboat_FastForwardPlanner.def(py::init<const std::shared_ptr<pddlboat::Prob
 .def("update", &pddlboat::FastForwardPlanner::update)
 .def("solve", static_cast<bool (pddlboat::FastForwardPlanner::*)(pddlboat::Plan &)>(&pddlboat::FastForwardPlanner::solve))
 .def("solve", static_cast<bool (pddlboat::FastForwardPlanner::*)(pddlboat::Plan &, unsigned int)>(&pddlboat::FastForwardPlanner::solve))
-.def_readonly("temporary", &pddlboat::FastForwardPlanner::temporary)
-.def_readonly("domain_file_template", &pddlboat::FastForwardPlanner::domain_file_template)
-.def_readonly("problem_file_template", &pddlboat::FastForwardPlanner::problem_file_template)
 ;
 // Bindings for class pddlboat::FastForwardPlanner::Options
 py::class_<pddlboat::FastForwardPlanner::Options, std::shared_ptr<pddlboat::FastForwardPlanner::Options>>(py_pddlboat_FastForwardPlanner, "Options")
@@ -98,11 +95,6 @@ py_pddlboat_FastDownwardPlanner.def(py::init<const std::shared_ptr<pddlboat::Pro
 .def("update", &pddlboat::FastDownwardPlanner::update)
 .def("solve", static_cast<bool (pddlboat::FastDownwardPlanner::*)(pddlboat::Plan &)>(&pddlboat::FastDownwardPlanner::solve))
 .def("solve", static_cast<bool (pddlboat::FastDownwardPlanner::*)(pddlboat::Plan &, unsigned int)>(&pddlboat::FastDownwardPlanner::solve))
-.def_readonly("temporary", &pddlboat::FastDownwardPlanner::temporary)
-.def_readonly("domain_file_template", &pddlboat::FastDownwardPlanner::domain_file_template)
-.def_readonly("problem_file_template", &pddlboat::FastDownwardPlanner::problem_file_template)
-.def_readonly("sas_file_template", &pddlboat::FastDownwardPlanner::sas_file_template)
-.def_readonly("output_file_template", &pddlboat::FastDownwardPlanner::output_file_template)
 ;
 // Bindings for class pddlboat::SymKPlanner
 py::class_<pddlboat::SymKPlanner, pddlboat::FastDownwardPlanner, std::shared_ptr<pddlboat::SymKPlanner>>(m, "SymKPlanner")

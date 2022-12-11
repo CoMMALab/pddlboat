@@ -3,7 +3,7 @@
 #include <limits>
 #include <sstream>
 #include <iostream>
-#include "pddlboat/solver/fdplanner.h"
+#include <pddlboat/solver/fdplanner.hpp>
 
 #include <pddlboat/utility.hpp>
 #include <pddlboat/parser/parser.hpp>
