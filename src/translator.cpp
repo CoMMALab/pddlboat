@@ -6,6 +6,7 @@
 #include <pddlboat/utility.h>
 
 #include <pddlboat/parser/ast.h>
+#include <pddlboat/parser/parser.h>
 #include <pddlboat/parser/translator.h>
 #include <pddlboat/solver/domain.h>
 #include <pddlboat/solver/expressions.h>
@@ -641,4 +642,56 @@ pddlboat::ProblemPtr pddlboat::toProblem(const ast::Problem &problem, const Doma
     }
 
     return r;
+}
+
+pddlboat::DomainPtr pddlboat::parseDomain(const std::string &domain_file)
+{
+    ast::Domain domain_ast;
+    DomainPtr domain;
+
+    // parse domain
+    if (not parseFile(domain_file, domain_ast))
+    {
+        std::cerr << log::format("Failed to parse domain file %1%.", domain_file) << std::endl;
+        return nullptr;
+    }
+
+    // translate domain
+    try
+    {
+        domain = toDomain(domain_ast);
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << log::format("Caught exception translating domain: %1%", e.what()) << std::endl;
+        return nullptr;
+    }
+
+    return domain;
+}
+
+pddlboat::ProblemPtr pddlboat::parseProblem(const DomainPtr &domain, const std::string &problem_file)
+{
+    ast::Problem problem_ast;
+    ProblemPtr problem;
+
+    // parse problem
+    if (not parseFile(problem_file, problem_ast))
+    {
+        std::cerr << log::format("Failed to parse problem file %1%.", problem_file) << std::endl;
+        return nullptr;
+    }
+
+    // translate problem
+    try
+    {
+        problem = toProblem(problem_ast, domain);
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << log::format("Caught exception translating problem: %1%", e.what()) << std::endl;
+        return nullptr;
+    }
+
+    return problem;
 }

@@ -9,50 +9,16 @@
 #include <boost/fusion/include/adapt_struct.hpp>
 #include <boost/fusion/include/io.hpp>
 
-#include <boost/spirit/home/x3.hpp>
-#include <boost/spirit/home/x3/support/ast/position_tagged.hpp>
-#include <boost/spirit/home/x3/support/utility/error_reporting.hpp>
-#include <boost/spirit/home/x3/support/utility/annotate_on_success.hpp>
-
 #include <pddlboat/parser/keywords.h>
 
 namespace pddlboat
 {
     namespace ast
     {
-        namespace x3 = boost::spirit::x3;
-
-        ///
-        /// Reserved Keywords
-        ///
-
-        struct Keywords_ : x3::symbols<x3::unused_type>
-        {
-            Keywords_();
-        } const Keywords;
-
-        ///
-        /// Requirements Flags
-        ///
-
-        struct RequirementsKeywords_ : x3::symbols<Requirements::Keyword>
-        {
-            RequirementsKeywords_();
-        } const RequirementsKeywords;
-
-        ///
-        /// Operators Flags
-        ///
-
-        struct OperatorsKeywords_ : x3::symbols<Operators::Keyword>
-        {
-            OperatorsKeywords_();
-        } const OperatorsKeywords;
-
         ///
         /// Terms
         ///
-        class Term : x3::position_tagged
+        class Term
         {
         public:
             std::string symbol;
@@ -63,7 +29,7 @@ namespace pddlboat
         /// TypedLists
         ///
 
-        class TypedList : x3::position_tagged
+        class TypedList
         {
         public:
             std::vector<std::string> types;
@@ -76,7 +42,7 @@ namespace pddlboat
         /// Atomic Formula
         ///
 
-        class AtomicFormula : x3::position_tagged
+        class AtomicFormula
         {
         public:
             std::string name;
@@ -85,7 +51,7 @@ namespace pddlboat
             std::ostream &toString(std::ostream &out) const;
         };
 
-        class AtomicFormulaList : x3::position_tagged
+        class AtomicFormulaList
         {
         public:
             std::vector<AtomicFormula> formulas;
@@ -98,16 +64,7 @@ namespace pddlboat
         /// Actions
         ///
 
-        // struct ExpressionOperator : x3::variant<std::string, Operators::Keyword>
-        // {
-        //     using base_type::base_type;
-        //     using base_type::operator=;
-
-        //     std::string toString() const;
-        //     Operators::Keyword toOp() const;
-        // };
-
-        class Expression : x3::position_tagged
+        class Expression
         {
         public:
             Expression() : op("")
@@ -118,8 +75,7 @@ namespace pddlboat
             {
             }
 
-            Expression(const std::string &op, const std::vector<Expression> &terms)
-              : op(op), terms(terms)
+            Expression(const std::string &op, const std::vector<Expression> &terms) : op(op), terms(terms)
             {
             }
 
@@ -138,7 +94,7 @@ namespace pddlboat
             Operators::Keyword getKeyword() const;
         };
 
-        class Action : x3::position_tagged
+        class Action
         {
         public:
             bool derived;
@@ -154,7 +110,7 @@ namespace pddlboat
         /// Domain
         ///
 
-        class Domain : x3::position_tagged
+        class Domain
         {
         public:
             std::string name;
@@ -172,7 +128,7 @@ namespace pddlboat
         /// Problem
         ///
 
-        class Initial : x3::position_tagged
+        class Initial
         {
         public:
             AtomicFormula formula;
@@ -182,7 +138,7 @@ namespace pddlboat
             std::ostream &toString(std::ostream &out) const;
         };
 
-        class Metric : x3::position_tagged
+        class Metric
         {
         public:
             bool active{false};
@@ -190,7 +146,7 @@ namespace pddlboat
             Expression function;
         };
 
-        class Problem : x3::position_tagged
+        class Problem
         {
         public:
             std::string name;
@@ -207,7 +163,7 @@ namespace pddlboat
         /// Plan
         ///
 
-        class Plan : x3::position_tagged
+        class Plan
         {
         public:
             std::vector<AtomicFormula> actions{};

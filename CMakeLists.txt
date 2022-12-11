@@ -7,6 +7,8 @@ if(NOT ${CMAKE_VERSION} VERSION_LESS 3.0.0)
 endif()
 project(pddlboat CXX)
 
+
+
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" "${CMAKE_ROOT_DIR}/cmake/Modules"
                       "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules")
 
@@ -67,37 +69,38 @@ list(
 add_definitions(
   -DPDDLBOAT_RESOURCE_DIRECTORY="${CMAKE_CURRENT_LIST_DIR}/resources")
 
-option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
-add_library(pddlboat SHARED ${SOURCES})
-add_dependencies(pddlboat libz3)
 
-set_target_properties(pddlboat PROPERTIES VERSION 0.0.1)
-target_link_libraries(pddlboat PUBLIC ${LIBRARIES})
+set(LIBRARY_NAME pddlboat-c++)
+add_library(${LIBRARY_NAME} SHARED ${SOURCES})
+add_dependencies(${LIBRARY_NAME} libz3)
 
-# add_executable(pddlboat_building scripts/test_building.cpp)
-# add_executable(pddlboat_parsing scripts/test_parsing.cpp)
-# add_executable(pddlboat_smt scripts/test_smt.cpp)
-# add_executable(pddlboat_planning scripts/test_planning.cpp)
-# add_executable(pddlboat_anytime scripts/test_anytime.cpp)
-# add_executable(pddlboat_blocking scripts/test_blocking.cpp)
-# add_executable(pddlboat_state_action_blocking scripts/state_action_blocker_test.cpp)
-# add_executable(pddlboat_graphml scripts/graphml.cpp)
+set_target_properties(${LIBRARY_NAME} PROPERTIES VERSION 0.0.1)
+target_link_libraries(${LIBRARY_NAME} PUBLIC ${LIBRARIES})
 
-# target_link_libraries(pddlboat_building pddlboat ${LIBRARIES})
-# target_link_libraries(pddlboat_parsing pddlboat ${LIBRARIES})
-# target_link_libraries(pddlboat_smt pddlboat ${LIBRARIES})
-# target_link_libraries(pddlboat_planning pddlboat ${LIBRARIES})
-# target_link_libraries(pddlboat_anytime pddlboat ${LIBRARIES})
-# target_link_libraries(pddlboat_blocking pddlboat ${LIBRARIES})
-# target_link_libraries(pddlboat_state_action_blocking pddlboat ${LIBRARIES})
-# target_link_libraries(pddlboat_graphml pddlboat ${LIBRARIES})
+add_executable(pddlboat_building scripts/test_building.cpp)
+add_executable(pddlboat_parsing scripts/test_parsing.cpp)
+add_executable(pddlboat_smt scripts/test_smt.cpp)
+add_executable(pddlboat_planning scripts/test_planning.cpp)
+add_executable(pddlboat_anytime scripts/test_anytime.cpp)
+add_executable(pddlboat_blocking scripts/test_blocking.cpp)
+add_executable(pddlboat_state_action_blocking scripts/state_action_blocker_test.cpp)
+add_executable(pddlboat_graphml scripts/graphml.cpp)
+
+target_link_libraries(pddlboat_building ${LIBRARY_NAME} ${LIBRARIES})
+target_link_libraries(pddlboat_parsing ${LIBRARY_NAME} ${LIBRARIES})
+target_link_libraries(pddlboat_smt ${LIBRARY_NAME} ${LIBRARIES})
+target_link_libraries(pddlboat_planning ${LIBRARY_NAME} ${LIBRARIES})
+target_link_libraries(pddlboat_anytime ${LIBRARY_NAME} ${LIBRARIES})
+target_link_libraries(pddlboat_blocking ${LIBRARY_NAME} ${LIBRARIES})
+target_link_libraries(pddlboat_state_action_blocking ${LIBRARY_NAME} ${LIBRARIES})
+target_link_libraries(pddlboat_graphml ${LIBRARY_NAME} ${LIBRARIES})
 
 find_package(pybind11 CONFIG QUIET)
 if(pybind11_FOUND)
   find_package(Eigen3 REQUIRED)
   include_directories(BEFORE SYSTEM ${EIGEN3_INCLUDE_DIRS})
-  pybind11_add_module(pypddlboat py/pddlboat.cpp)
-  target_link_libraries(pypddlboat PRIVATE pddlboat ${EIGEN3_LIBRARIES})
+  pybind11_add_module(pddlboat py/pddlboat.cpp)
+  target_link_libraries(pddlboat PRIVATE ${LIBRARY_NAME} ${EIGEN3_LIBRARIES})
 endif()
 
 feature_summary(DESCRIPTION INCLUDE_QUIET_PACKAGES WHAT ALL)

@@ -21,7 +21,7 @@ std::vector<const char*> convertVec(const std::vector<std::string>& vec) {
 
   return result;
 }
-#include <pddlboat/parser/parser.h>
+#include <pddlboat/parser/translator.h>
 #include <pddlboat/solver/astarplanner.h>
 #include <pddlboat/solver/dependency.h>
 #include <pddlboat/solver/domain.h>
@@ -834,21 +834,14 @@ py::class_<pddlboat::PlanDependencyGraph::ActionNode, std::shared_ptr<pddlboat::
 .def_readwrite("makespan", &pddlboat::PlanDependencyGraph::ActionNode::makespan)
 .def_readwrite("leafdist", &pddlboat::PlanDependencyGraph::ActionNode::leafdist)
 ;
-m
-.def("parse_file", static_cast<bool (*)(const std::basic_string<char> &, pddlboat::ast::Domain &)>(&pddlboat::parseFile))
-.def("parse_file", static_cast<bool (*)(const std::basic_string<char> &, pddlboat::ast::Problem &)>(&pddlboat::parseFile))
-.def("parse_file", static_cast<bool (*)(const std::basic_string<char> &, pddlboat::ast::Plan &)>(&pddlboat::parseFile))
-.def("parse_file", static_cast<bool (*)(const std::basic_string<char> &, pddlboat::ast::Expression &)>(&pddlboat::parseFile))
-;
-m
-.def("parse_string", static_cast<bool (*)(const std::basic_string<char> &, pddlboat::ast::Domain &)>(&pddlboat::parseString))
-.def("parse_string", static_cast<bool (*)(const std::basic_string<char> &, pddlboat::ast::Problem &)>(&pddlboat::parseString))
-.def("parse_string", static_cast<bool (*)(const std::basic_string<char> &, pddlboat::ast::Plan &)>(&pddlboat::parseString))
-.def("parse_string", static_cast<bool (*)(const std::basic_string<char> &, pddlboat::ast::Expression &)>(&pddlboat::parseString))
-.def("parse_string", static_cast<bool (*)(const std::basic_string<char> &, std::vector<pddlboat::ast::TypedList> &)>(&pddlboat::parseString))
-;
-m.def("parse_z3_action", &pddlboat::parseZ3Action);
-m.def("parse_z3_predicate", &pddlboat::parseZ3Predicate);
+m.def("get_variables", &pddlboat::getVariables);
+m.def("to_expression", &pddlboat::toExpression);
+m.def("to_action", &pddlboat::toAction);
+m.def("to_derived", &pddlboat::toDerived);
+m.def("to_domain", &pddlboat::toDomain);
+m.def("to_problem", &pddlboat::toProblem);
+m.def("parse_domain", &pddlboat::parseDomain);
+m.def("parse_problem", &pddlboat::parseProblem);
 m.def("make_pred", &pddlboat::makePred);
 m.def("make_derived_pred", &pddlboat::makeDerivedPred);
 m.def("make_function", &pddlboat::makeFunction);

@@ -2,12 +2,62 @@
 
 #include <boost/config/warning_disable.hpp>
 
+#include <boost/spirit/home/x3.hpp>
+#include <boost/spirit/home/x3/support/ast/position_tagged.hpp>
+#include <boost/spirit/home/x3/support/utility/error_reporting.hpp>
+#include <boost/spirit/home/x3/support/utility/annotate_on_success.hpp>
+
 #include <pddlboat/utility.h>
 #include <pddlboat/parser/adapted.h>
 #include <pddlboat/parser/parser.h>
 
 namespace x3 = boost::spirit::x3;
 namespace ascii = boost::spirit::x3::ascii;
+
+namespace pddlboat::ast
+{
+    struct Keywords_ : x3::symbols<x3::unused_type>
+    {
+        Keywords_()
+        {
+            add                         //
+                ("define", x3::unused)  //
+                ("domain", x3::unused)  //
+                ;
+        }
+
+    } const Keywords;
+
+    ///
+    /// Requirements Flags
+    ///
+
+    struct RequirementsKeywords_ : x3::symbols<Requirements::Keyword>
+    {
+        RequirementsKeywords_()
+        {
+            Requirements::initialize();
+            for (const auto &it : Requirements::getMap().left)
+                add(it.first, it.second);
+        }
+
+    } const RequirementsKeywords;
+
+    ///
+    /// Operators Flags
+    ///
+
+    struct OperatorsKeywords_ : x3::symbols<Operators::Keyword>
+    {
+        OperatorsKeywords_()
+        {
+            Operators::initialize();
+            for (const auto &it : Operators::getMap().left)
+                add(it.first, it.second);
+        }
+
+    } const OperatorsKeywords;
+}  // namespace pddlboat::ast
 
 using namespace pddlboat;
 
@@ -364,14 +414,14 @@ namespace parser
 
     struct problem_class;
     const x3::rule<problem_class, ast::Problem> problem = "problem";
-    const auto problem_def =                                            //
-        '(' >> (x3::lit("DEFINE") | x3::lit("define")) >>                 //
+    const auto problem_def =                                                //
+        '(' >> (x3::lit("DEFINE") | x3::lit("define")) >>                   //
         '(' >> (x3::lit("PROBLEM") | x3::lit("problem")) >> name >> ')' >>  //
         '(' >> (x3::lit(":DOMAIN") | x3::lit(":domain")) >> name >> ')' >>  //
-        -objects >>                                                      //
-        -initial >>                                                      //
-        -goal >>                                                         //
-        -metric >> ')'                                                   //
+        -objects >>                                                         //
+        -initial >>                                                         //
+        -goal >>                                                            //
+        -metric >> ')'                                                      //
         ;
     PARSE(problem);
     struct problem_class : error_handler

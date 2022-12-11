@@ -6,28 +6,6 @@
 
 using namespace pddlboat::ast;
 
-Keywords_::Keywords_()
-{
-    add                         //
-        ("define", x3::unused)  //
-        ("domain", x3::unused)  //
-        ;
-}
-
-RequirementsKeywords_::RequirementsKeywords_()
-{
-    Requirements::initialize();
-    for (const auto &it : Requirements::getMap().left)
-        add(it.first, it.second);
-}
-
-OperatorsKeywords_::OperatorsKeywords_()
-{
-    Operators::initialize();
-    for (const auto &it : Operators::getMap().left)
-        add(it.first, it.second);
-}
-
 std::ostream &TypedList::toString(std::ostream &out, bool isVariable) const
 {
     out << "[";

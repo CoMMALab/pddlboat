@@ -74,7 +74,8 @@ void printSteps(pd::PlanPtr &plan)
 
 int main(int argc, char **argv)
 {
-    const auto domain_file = std::string(PDDLBOAT_RESOURCE_DIRECTORY) + "/optimize_tamp/pick_place_reachability.pddl";
+    const auto domain_file = std::string(PDDLBOAT_RESOURCE_DIRECTORY) + "/optimize_tamp/"
+                                                                        "pick_place_reachability.pddl";
     const auto problem_file = std::string(PDDLBOAT_RESOURCE_DIRECTORY) + "/optimize_tamp/op4_problem.pddl";
 
     auto domain = parse_domain(domain_file);
@@ -92,20 +93,19 @@ int main(int argc, char **argv)
     // options.dump_clauses = true;
     // options.horizon.max = 4;
     auto task_planner = std::make_shared<pd::Z3Planner>(problem, options);
-    
-    
-    
+
     // Block put-down limited expression for all objects without goal.
     auto pd_action = domain->getAction("put-down-limited");
-    
-    // Need to loop over robots (not really), objects and limited locations (except for the one related to the goal of that object)
+
+    // Need to loop over robots (not really), objects and limited locations (except for the one related to the
+    // goal of that object)
     auto robots = {std::string("thing1")};
-    auto limited_locations = {std::string("ta-eb"), std::string("ta-cb"), std::string("ta-bb"), std::string("ta-ab"), std::string("ta-bc")};
+    auto limited_locations = {std::string("ta-eb"), std::string("ta-cb"), std::string("ta-bb"),
+                              std::string("ta-ab"), std::string("ta-bc")};
     auto blocks = {std::string("bx"), std::string("by"), std::string("bz"), std::string("bw")};
-    
-    std::vector<std::pair<const pd::ActionPtr&, const pd::Assignment&>> actions;
+
+    std::vector<std::pair<const pd::ActionPtr &, const pd::Assignment &>> actions;
     auto expr = pd::makeAnd({});
-    auto empty_amnt = pd::Assignment(problem);
     std::vector<pd::Assignment> assignment_v;
     for (const auto &robot : robots)
     {
@@ -113,49 +113,42 @@ int main(int argc, char **argv)
         {
             for (const auto &location : limited_locations)
             {
-                if (not (block == "by" and location == "ta-eb"))
+                if (not(block == "by" and location == "ta-eb"))
                 {
                     std::cout << "Size of actions " << actions.size() << std::endl;
-                    auto amnt = pd::Assignment(empty_amnt);
-                    amnt.assign("r", robot);
-                    amnt.assign("b", block);
-                    amnt.assign("l", location);
-                    
+                    pd::Assignment amnt;
+                    amnt.assign(*problem, "r", robot);
+                    amnt.assign(*problem, "b", block);
+                    amnt.assign(*problem, "l", location);
+
                     assignment_v.push_back(amnt);
-                    
-//                      action; 
-//                     const auto &action = std::make_pair(pd_action, pd::Assignment(amnt));
-//                     actions.push_back(std::pair<const pd::ActionPtr&, const pd::Assignment&>(pd_action, pd::Assignment(amnt)));
-//                     actions.emplace_back(action);
-                    
+
+                    //                      action;
+                    //                     const auto &action = std::make_pair(pd_action,
+                    //                     pd::Assignment(amnt)); actions.push_back(std::pair<const
+                    //                     pd::ActionPtr&, const pd::Assignment&>(pd_action,
+                    //                     pd::Assignment(amnt))); actions.emplace_back(action);
+
                     amnt.toString();
                     std::cout << std::endl;
-                    
                 }
             }
         }
     }
-    
-    
-    
+
     std::cout << "Outside" << std::endl;
     std::cout << "Size of actions " << actions.size() << std::endl;
     std::cout << std::endl;
-    
+
     for (const auto &amnt : assignment_v)
     {
-        actions.push_back(std::pair<const pd::ActionPtr&, const pd::Assignment&>(pd_action, amnt));
+        actions.push_back(std::pair<const pd::ActionPtr &, const pd::Assignment &>(pd_action, amnt));
     }
-    
+
     std::cout << "Out here " << std::endl;
-    
-    task_planner->blockExpressionActions(actions, expr, empty_amnt);
-    
-        
-        
-        
-        
-        
+
+    task_planner->blockExpressionActions(actions, expr, {});
+
     // auto task_planner = std::make_shared<pd::AStarPlanner>(problem);
 
     std::cout << "Plan:" << std::endl;
@@ -205,9 +198,7 @@ int main(int argc, char **argv)
     }
     std::cout << *plan << std::endl;
     // printSteps(plan);
-    
-    
-    
+
     step2 = plan->getStep(1);
 
     std::cout << "Blocking: ";
@@ -222,8 +213,7 @@ int main(int argc, char **argv)
         return 1;
     }
     std::cout << *plan << std::endl;
-    
-    
+
     step2 = plan->getStep(1);
 
     std::cout << "Blocking: ";
@@ -238,5 +228,4 @@ int main(int argc, char **argv)
         return 1;
     }
     std::cout << *plan << std::endl;
-    
 }

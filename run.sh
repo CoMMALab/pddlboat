@@ -3,7 +3,7 @@ python3 generate_bindings.py \
         -m pddlboat \
         -o py/pddlboat.cpp \
         -c build \
-        include/pddlboat/parser/parser.h \
+        include/pddlboat/parser/translator.h \
         include/pddlboat/solver/astarplanner.h \
         include/pddlboat/solver/dependency.h \
         include/pddlboat/solver/domain.h \

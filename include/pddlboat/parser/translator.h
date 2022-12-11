@@ -23,6 +23,9 @@ namespace pddlboat
     DerivedPredicateDefinitionPtr toDerived(const ast::Action &derived, DomainPtr &domain);
     DomainPtr toDomain(const ast::Domain &domain);
     ProblemPtr toProblem(const ast::Problem &problem, const DomainPtr &domain);
+
+    DomainPtr parseDomain(const std::string &domain_file);
+    ProblemPtr parseProblem(const DomainPtr &domain, const std::string &problem_file);
 }  // namespace pddlboat
 
 #endif
