@@ -276,27 +276,20 @@ PredicateDefinition::PredicateDefinition(const std::string &name, const Variable
 {
 }
 
-PredicatePtr PredicateDefinition::bind() const
-{
-    return bind(std::vector<std::string>{});
-}
-
-PredicatePtr PredicateDefinition::bind(const std::vector<std::string> &bound, const ProblemPtr &problem,
-                                       const DomainPtr &domain) const
+PredicatePtr PredicateDefinition::bind(const std::vector<std::string> &bound) const
 {
     if (variables.size() != bound.size())
         throw std::invalid_argument("Cannot bind variables, size mismatch!");
 
-    return bindValues(getValues(bound, variables, problem, domain));
+    return bindValues(getValues(bound, variables, nullptr, nullptr));
 }
 
-PredicatePtr PredicateDefinition::bind(const std::vector<std::string> &bound, const Problem *problem,
-                                       const Domain *domain) const
+PredicatePtr PredicateDefinition::bind(const std::vector<std::string> &bound, const Problem &problem) const
 {
     if (variables.size() != bound.size())
         throw std::invalid_argument("Cannot bind variables, size mismatch!");
 
-    return bindValues(getValues(bound, variables, problem, domain));
+    return bindValues(getValues(bound, variables, &problem, problem.domain.get()));
 }
 
 PredicatePtr PredicateDefinition::bindValues(const std::vector<Value> &values) const

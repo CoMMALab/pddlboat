@@ -67,12 +67,6 @@ namespace pddlboat
              *  \return The stream.
              */
             std::ostream &toString(std::ostream &out) const;
-
-            /** \brief Comparator. Allows us to build a seequence of steps.
-             *  \param[in] step_obj Other step to compare against.
-             *  \return If this object is "less than" the other (lexicographically).
-             */
-            bool operator<(const Step &step_obj) const;
         };
 
         /** \brief Constructor.

@@ -244,12 +244,6 @@ namespace pddlboat
          */
         PredicateDefinition(const std::string &name, const VariableList &variables);
 
-        /** \brief Bind this 0-ary predicate to an evaluatable Predicate.
-         *  \return A bound version of a 0-ary predicate.
-         *  \throw std::invalid_argument if this is not a 0-ary predicate.
-         */
-        PredicatePtr bind() const;
-
         /** \brief Bind this n-ary predicate to an evaluatable Predicate.
          *  Can be bound to either grounded variables or a named variable that exists in some expression.
          *  The bound list consists of variables, e.g. ?x, ?y --- and objects, e.g, a, b.
@@ -257,15 +251,11 @@ namespace pddlboat
          *  Otherwise, it is bound as an object, and will throw an error if not a valid object to bind.
          *  \param[in] bound List of bindings of variables and objects.
          *  \param[in] problem Optional, but if any objects exist in the bindings the problem is required.
-         *  \param[in] domain Optional, but if any constants exist without a problem the domain is required.
-         *                    Not needed if a problem is provided.
          *  \return A bound version of a n-ary predicate.
          *  \throw std::invalid_argument if this is not a valid binding.
          */
-        PredicatePtr bind(const std::vector<std::string> &bound, const ProblemPtr &problem = nullptr,
-                          const DomainPtr &domain = nullptr) const;
-        PredicatePtr bind(const std::vector<std::string> &bound, const Problem *problem,
-                          const Domain *domain = nullptr) const;
+        PredicatePtr bind(const std::vector<std::string> &bound = {}) const;
+        PredicatePtr bind(const std::vector<std::string> &bound, const Problem &problem) const;
 
         /** \brief Bind this n-ary predicate to an evaluatable Predicate.
          *  \param[in] values The values to bind to this predicate.
@@ -694,7 +684,8 @@ namespace pddlboat
                                    const Assignment &vars) const override;
 
         std::string toID(const StatePtr &state, const Assignment &vars) const;
-        std::ostream &toPDDL(std::ostream &out, unsigned int indent = 0, unsigned int level = 0) const override;
+        std::ostream &toPDDL(std::ostream &out, unsigned int indent = 0,
+                             unsigned int level = 0) const override;
 
     private:
         const NumericFunctionDefinition *function;
@@ -762,7 +753,8 @@ namespace pddlboat
         void getEffects(Effect &effect, const StatePtr &state, const Assignment &vars) const override;
 
         std::string toID(const StatePtr &state, const Assignment &vars) const;
-        std::ostream &toPDDL(std::ostream &out, unsigned int indent = 0, unsigned int level = 0) const override;
+        std::ostream &toPDDL(std::ostream &out, unsigned int indent = 0,
+                             unsigned int level = 0) const override;
 
     private:
         const ObjectFunctionDefinition *function;
@@ -1360,7 +1352,8 @@ namespace pddlboat
          *  \param[in] negatives If true, will also print out negative values.
          *  \return The output stream.
          */
-        std::ostream &toPDDL(std::ostream &out = std::cout, unsigned int indent = 0, bool negatives = false) const;
+        std::ostream &toPDDL(std::ostream &out = std::cout, unsigned int indent = 0,
+                             bool negatives = false) const;
 
         /** \brief Get the problem this state is for.
          *  \return The problem this state is for.

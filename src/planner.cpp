@@ -32,15 +32,6 @@ std::ostream &Plan::Step::toString(std::ostream &out) const
     return out;
 }
 
-bool Plan::Step::operator<(const Step &step_obj) const
-{
-    std::ostringstream ss1, ss2;
-    toString(ss1);
-    step_obj.toString(ss2);
-
-    return ss1.str() < ss2.str();
-}
-
 std::ostream &pddlboat::operator<<(std::ostream &out, const Plan::Step &step)
 {
     return step.toString(out);

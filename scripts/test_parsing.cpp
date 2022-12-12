@@ -56,6 +56,7 @@ void testProblem(const std::string &file)
     bool r = pd::parseFile(std::string(PDDLBOAT_RESOURCE_DIRECTORY "/") + file, problem);
     if (r)
         problem.toString(std::cout) << std::endl << std::endl;
+
 }
 
 int main(int argc, char **argv)

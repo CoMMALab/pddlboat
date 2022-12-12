@@ -1,109 +1,117 @@
 import sys
+
 sys.path.append('.')
 
 import pddlboat as pd
 
-domain = pd.Domain("block-world");
-domain.add_type("block", "object");
+domain = pd.Domain("block-world")
+domain.add_type("block", "object")
 
-p_on = pd.make_pred("on", [pd.Variable("x", "block"), pd.Variable("y", "block")]);
-domain.addPredicate(p_on);
+p_on = pd.make_pred("on", [pd.Variable("x", "block"), pd.Variable("y", "block")])
+domain.add_predicate(p_on)
 
-p_ontable = pd.make_pred("ontable", {{"x", "block"}});
-domain.addPredicate(p_ontable);
+p_ontable = pd.make_pred("ontable", [pd.Variable("x", "block")])
+domain.add_predicate(p_ontable)
 
-p_clear = pd.make_pred("clear", {{"x", "block"}});
-domain.addPredicate(p_clear);
+p_clear = pd.make_pred("clear", [pd.Variable("x", "block")])
+domain.add_predicate(p_clear)
 
-p_empty = pd.make_pred("handempty");
-domain.addPredicate(p_empty);
+p_empty = pd.make_pred("handempty", [])
+domain.add_predicate(p_empty)
 
-p_holding = pd.make_pred("holding", {{"x", "block"}});
-domain.addPredicate(p_holding);
+p_holding = pd.make_pred("holding", [pd.Variable("x", "block")])
+domain.add_predicate(p_holding)
 
-    # auto a_pickup =  //
-    #     pd::makeAction("pick-up",
-    #                    // Parameters
-    #                    {{"x", "block"}},  //
-    #                    // Precondition
-    #                    pd::makeAnd({p_clear->bind({"?x"}), p_ontable->bind({"?x"}), p_empty->bind()}),
-    #                    // Effect
-    #                    pd::makeAnd({pd::makeNot(p_clear->bind({"?x"})),    //
-    #                                 pd::makeNot(p_ontable->bind({"?x"})),  //
-    #                                 pd::makeNot(p_empty->bind()),          //
-    #                                 p_holding->bind({"?x"})}));
-    # domain->addAction(a_pickup);
+a_pickup = pd.make_action(
+    "pick-up",
+    # Parameters
+    [pd.Variable("x", "block")],
+    # Precondition
+    pd.make_and([p_clear.bind(["?x"]), p_ontable.bind(["?x"]), p_empty.bind([])]),
+    # Effect
+    pd.make_and([
+        pd.make_not(p_clear.bind(["?x"])),
+        pd.make_not(p_ontable.bind(["?x"])),
+        pd.make_not(p_empty.bind([])),
+        p_holding.bind(["?x"])
+    ])
+)
+domain.add_action(a_pickup)
 
-    # auto a_putdown =  //
-    #     pd::makeAction("put-down",
-    #                    // Parameters
-    #                    {{"x", "block"}},  //
-    #                    // Precondition
-    #                    pd::makeAnd({p_holding->bind({"?x"})}),
-    #                    // Effect
-    #                    pd::makeAnd({p_clear->bind({"?x"}),    //
-    #                                 p_ontable->bind({"?x"}),  //
-    #                                 p_empty->bind(),          //
-    #                                 pd::makeNot(p_holding->bind({"?x"}))}));
-    # domain->addAction(a_putdown);
+a_putdown = pd.make_action(
+    "put-down",
+    # Parameters
+    [pd.Variable("x", "block")],
+    # Precondition
+    pd.make_and([p_holding.bind(["?x"])]),
+    # Effect
+    pd.make_and([
+        p_clear.bind(["?x"]),
+        p_ontable.bind(["?x"]),
+        p_empty.bind([]),
+        pd.make_not(p_holding.bind(["?x"]))
+    ])
+)
+domain.add_action(a_putdown)
 
-    # auto a_stack =  //
-    #     pd::makeAction("stack",
-    #                    // Parameters
-    #                    {{"x", "block"}, {"y", "block"}},  //
-    #                    // Precondition
-    #                    pd::makeAnd({p_holding->bind({"?x"}), p_clear->bind({"?y"})}),
-    #                    // Effect
-    #                    pd::makeAnd({pd::makeNot(p_holding->bind({"?x"})),  //
-    #                                 pd::makeNot(p_clear->bind({"?y"})),    //
-    #                                 p_clear->bind({"?x"}),                 //
-    #                                 p_empty->bind(),                       //
-    #                                 p_on->bind({"?x", "?y"})}));
-    # domain->addAction(a_stack);
+a_stack = pd.make_action(
+    "stack",
+    # Parameters
+    [pd.Variable("x", "block"), pd.Variable("y", "block")],
+    # Precondition
+    pd.make_and([p_holding.bind(["?x"]), p_clear.bind(["?y"])]),
+    # Effect
+    pd.make_and([
+        pd.make_not(p_holding.bind(["?x"])),
+        pd.make_not(p_clear.bind(["?y"])),
+        p_clear.bind(["?x"]),
+        p_empty.bind([]),
+        p_on.bind(["?x", "?y"])
+    ])
+)
+domain.add_action(a_stack)
 
-    # auto a_unstack =  //
-    #     pd::makeAction("unstack",
-    #                    // Parameters
-    #                    {{"x", "block"}, {"y", "block"}},  //
-    #                    // Precondition
-    #                    pd::makeAnd({p_on->bind({"?x", "?y"}), p_clear->bind({"?x"}), p_empty->bind()}),
-    #                    // Effect
-    #                    pd::makeAnd({p_holding->bind({"?x"}),             //
-    #                                 p_clear->bind({"?y"}),               //
-    #                                 pd::makeNot(p_clear->bind({"?x"})),  //
-    #                                 pd::makeNot(p_empty->bind()),        //
-    #                                 pd::makeNot(p_on->bind({"?x", "?y"}))}));
-    # domain->addAction(a_unstack);
+a_unstack = pd.make_action(
+    "unstack",
+    # Parameters
+    [pd.Variable("x", "block"), pd.Variable("y", "block")],
+    # Precondition
+    pd.make_and([p_on.bind(["?x", "?y"]), p_clear.bind(["?x"]), p_empty.bind([])]),
+    # Effect
+    pd.make_and([
+        p_holding.bind(["?x"]),
+        p_clear.bind(["?y"]),
+        pd.make_not(p_clear.bind(["?x"])),
+        pd.make_not(p_empty.bind([])),
+        pd.make_not(p_on.bind(["?x", "?y"]))
+    ])
+)
+domain.add_action(a_unstack)
 
-    # if (domainout)
-    #     domain->toPDDL(std::cout) << std::endl;
+problem = pd.Problem("simple", domain)
+problem.add_object("a", "block")
+problem.add_object("b", "block")
+problem.add_object("c", "block")
+problem.add_object("d", "block")
 
-    # //
-    # // Build Problem
-    # //
-    # auto problem = std::make_shared<pd::Problem>("simple", domain);
-    # problem->addObject("a", "block");
-    # problem->addObject("b", "block");
-    # problem->addObject("c", "block");
-    # problem->addObject("d", "block");
+problem.start.assign1("clear", "a", True)
+problem.start.assign1("clear", "b", True)
+problem.start.assign1("clear", "c", True)
+problem.start.assign1("clear", "d", True)
+problem.start.assign1("ontable", "a", True)
+problem.start.assign1("ontable", "b", True)
+problem.start.assign1("ontable", "c", True)
+problem.start.assign1("ontable", "d", True)
+problem.start.assign0("handempty", True)
 
-    # problem->start->assign1("clear", "a");
-    # problem->start->assign1("clear", "b");
-    # problem->start->assign1("clear", "c");
-    # problem->start->assign1("clear", "d");
-    # problem->start->assign1("ontable", "a");
-    # problem->start->assign1("ontable", "b");
-    # problem->start->assign1("ontable", "c");
-    # problem->start->assign1("ontable", "d");
-    # problem->start->assign0("handempty");
+problem.goal = pd.make_and([
+    p_on.bind(["d", "c"], problem),
+    p_on.bind(["c", "b"], problem),
+    p_on.bind(["b", "a"], problem),
+])
 
-    # problem->goal = pd::makeAnd({
-    #     p_on->bind({"d", "c"}, problem),
-    #     p_on->bind({"c", "b"}, problem),
-    #     p_on->bind({"b", "a"}, problem),
-    # });
+options = pd.Z3Planner.Options()
+planner = pd.Z3Planner(problem, options)
+plan = pd.Plan(problem)
 
-    # if (problemout)
-    #     problem->toPDDL(std::cout) << std::endl;
-
-    # return 0;
+planner.solve(plan)

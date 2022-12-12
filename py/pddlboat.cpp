@@ -747,9 +747,8 @@ py::class_<pddlboat::DerivedPredicateDefinition, std::shared_ptr<pddlboat::Deriv
 // Bindings for class pddlboat::PredicateDefinition
 py::class_<pddlboat::PredicateDefinition, std::shared_ptr<pddlboat::PredicateDefinition>>(m, "PredicateDefinition")
 .def(py::init<const std::basic_string<char> &, const std::vector<pddlboat::Variable> &>())
-.def("bind", static_cast<pddlboat::PredicatePtr (pddlboat::PredicateDefinition::*)() const>(&pddlboat::PredicateDefinition::bind))
-.def("bind", static_cast<pddlboat::PredicatePtr (pddlboat::PredicateDefinition::*)(const std::vector<std::basic_string<char>> &, const std::shared_ptr<pddlboat::Problem> &, const std::shared_ptr<pddlboat::Domain> &) const>(&pddlboat::PredicateDefinition::bind))
-.def("bind", static_cast<pddlboat::PredicatePtr (pddlboat::PredicateDefinition::*)(const std::vector<std::basic_string<char>> &, const pddlboat::Problem *, const pddlboat::Domain *) const>(&pddlboat::PredicateDefinition::bind))
+.def("bind", static_cast<pddlboat::PredicatePtr (pddlboat::PredicateDefinition::*)(const std::vector<std::basic_string<char>> &) const>(&pddlboat::PredicateDefinition::bind))
+.def("bind", static_cast<pddlboat::PredicatePtr (pddlboat::PredicateDefinition::*)(const std::vector<std::basic_string<char>> &, const pddlboat::Problem &) const>(&pddlboat::PredicateDefinition::bind))
 .def("bind_values", &pddlboat::PredicateDefinition::bindValues)
 .def("is_valid_assignment", &pddlboat::PredicateDefinition::isValidAssignment)
 .def("arity", &pddlboat::PredicateDefinition::arity)

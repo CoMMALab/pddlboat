@@ -130,9 +130,9 @@ int main(int argc, char **argv)
     problem->start->assign0("handempty");
 
     problem->goal = pd::makeAnd({
-        p_on->bind({"d", "c"}, problem),
-        p_on->bind({"c", "b"}, problem),
-        p_on->bind({"b", "a"}, problem),
+        p_on->bind({"d", "c"}, *problem),
+        p_on->bind({"c", "b"}, *problem),
+        p_on->bind({"b", "a"}, *problem),
     });
 
     if (problemout)

@@ -94,7 +94,7 @@ def get_nodes_with_kind(nodes: Iterable[Cursor], node_kinds: Iterable[CursorKind
 
 # This approach to snake-case conversion adapted from:
 # https://stackoverflow.com/questions/1175208/elegant-python-function-to-convert-camelcase-to-snake-case
-SPECIAL_KEYWORDS = re.compile(r'ID|YAML|SRDF|URDF|JSON|IK')
+SPECIAL_KEYWORDS = re.compile(r'ID|YAML|SRDF|URDF|JSON|IK|PDDL')
 NAIVE_CAMEL_CASE = re.compile(r'(.)([A-Z][a-z]+)')
 CAMEL_CASE_UNDERSCORES = re.compile(r'__([A-Z])')
 ADVANCED_CAMEL_CASE = re.compile(r'([a-z0-9])([A-Z])')
