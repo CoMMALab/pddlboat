@@ -5,7 +5,9 @@ cmake_policy(SET CMP0017 NEW)
 if(NOT ${CMAKE_VERSION} VERSION_LESS 3.0.0)
   cmake_policy(SET CMP0042 NEW)
 endif()
-project(pddlboatCXX)
+project(pddlboat
+  LANGUAGES CXX
+)
 
 set(CMAKE_MODULE_PATH
   "${CMAKE_MODULE_PATH}"
