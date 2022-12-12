@@ -1,5 +1,6 @@
 import argparse
 import re
+import subprocess
 from collections import defaultdict
 from dataclasses import dataclass
 from itertools import repeat
@@ -19,6 +20,14 @@ from clang.cindex import (
     TypeKind,
     os
 )
+
+
+def get_header_directories() -> List[str]:
+  p = subprocess.run(["gcc", "-xc++", "-E", "-v", "/dev/null"], capture_output=True, text=True)
+  start_token = "#include <...> search starts here:"
+  start = p.stderr.find(start_token)
+  end = p.stderr.find("End of search list.")
+  return ["-I" + line.strip() for line in p.stderr[start + len(start_token) + 1:end - 1].split('\n')]
 
 
 def format_extent(extent) -> str:
@@ -58,20 +67,24 @@ def load_data(compilation_database_dir: Path,
     file_args = file_args[2:-2]
     file_args = list(map(lambda arg: fix_paths(compilation_database_dir, cwd, arg), file_args))
     # NOTE: Not sure why this needs to be manually included, but we don't find stddef otherwise
-    file_args.append('-I/usr/lib/clang/14.0.6/include')
+    # ZK: Added more general way by querying the compiler for default include directories
+    # file_args.append('-I/usr/lib/clang/14.0.6/include')
+    file_args.extend(get_header_directories())
 
-    if 'build/c-header' in file_args:
-      file_args[file_args.index('build/c-header')] = 'build/c++-header'
+    # if 'build/c-header' in file_args:
+    #   file_args[file_args.index('build/c-header')] = 'build/c++-header'
 
-    # file_args = [arg for arg in file_args if '-I' == arg[:2] or '-std' == arg[:4]]
+    file_args = [arg for arg in file_args if '-I' == arg[:2] or '-std' == arg[:4]]
     # file_args.append('-I/home/zak/code/pddlboat/include')
-    for invalid in ['-fext-numeric-literals', '-fconcepts']:
-      if invalid in file_args:
-        file_args.remove(invalid)
+    # for invalid in ['-fext-numeric-literals', '-fconcepts', '-fno-fat-lto-objects']:
+    #   if invalid in file_args:
+    #     file_args.remove(invalid)
 
     # mq_idx = file_args.index('-MQ')
     # mf_idx = file_args.index('-MF')
     # file_args = file_args[:mq_idx] + file_args[mq_idx + 2:mf_idx] + file_args[mf_idx + 2:]
+
+    print(file_args)
 
     try:
       translation_units.append(
@@ -174,8 +187,6 @@ def generate_operator_methods(operator: str, nodes: Iterable[Cursor],
     argument_type_names = [get_base_type_name(typ) for typ in method_node.type.argument_types()]
     if len(argument_type_names) >= 2:
       print(method_node.spelling, argument_type_names)
-
-    print("______", operator, "______")
 
     assert (len(argument_type_names) < 2)
     if len(argument_type_names) == 0:
@@ -611,6 +622,7 @@ std::vector<const char*> convertVec(const std::vector<std::string>& vec) {
   return result;
 }'''
   ]
+  get_header_directories()
 
   body = []
 
