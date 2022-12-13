@@ -21,13 +21,17 @@ from clang.cindex import (
     os
 )
 
+METHOD_REPLACEMENTS = {}
+
 
 def get_header_directories() -> List[str]:
   p = subprocess.run(["gcc", "-xc++", "-E", "-v", "/dev/null"], capture_output=True, text=True)
   start_token = "#include <...> search starts here:"
   start = p.stderr.find(start_token)
   end = p.stderr.find("End of search list.")
-  return ["-I" + line.strip() for line in p.stderr[start + len(start_token) + 1:end - 1].split('\n')]
+  return [
+      "-I" + line.strip() for line in p.stderr[start + len(start_token) + 1:end - 1].split('\n')
+  ]
 
 
 def format_extent(extent) -> str:
@@ -326,6 +330,13 @@ def generate_methods(class_node: Cursor, qualified_name: str) -> List[str]:
       methods.extend(generate_operator_methods(operator, method_nodes, qualified_name))
     elif len(method_nodes) > 1:
       methods.extend(generate_overloads(method_name, method_nodes, qualified_name, class_node))
+
+    elif method_name in METHOD_REPLACEMENTS:
+      repl, func = METHOD_REPLACEMENTS[method_name]
+      methods.append(
+          f'.def("{repl}", {func.format(qualified_name = qualified_name)})'
+      )
+
     else:
       methods.append(
           f'{".def_static" if method_nodes[0].is_static_method() else ".def"}("{method_name}", &{qualified_name}::{method_nodes[0].spelling})'
@@ -622,7 +633,9 @@ std::vector<const char*> convertVec(const std::vector<std::string>& vec) {
   return result;
 }'''
   ]
-  get_header_directories()
+
+  METHOD_REPLACEMENTS['to_pddl'] = ('__repr__', '[](const {qualified_name} &o){{std::stringstream ss; o.toPDDL(ss); return ss.str();}}')
+  METHOD_REPLACEMENTS['to_string'] = ('__repr__', '[](const {qualified_name} &o){{std::stringstream ss; o.toString(ss); return ss.str();}}')
 
   body = []
 

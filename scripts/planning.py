@@ -9,4 +9,5 @@ planner = pd.FastDownwardPlanner(problem, pd.FastDownwardPlanner.Options())
 plan = pd.Plan(problem)
 
 if planner.solve(plan):
-    print("yay!")
+    for step in plan.get_steps():
+        print(step)

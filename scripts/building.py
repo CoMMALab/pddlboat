@@ -88,6 +88,9 @@ a_unstack = pd.make_action(
 )
 domain.add_action(a_unstack)
 
+print(domain)
+print()
+
 problem = pd.Problem("simple", domain)
 problem.add_object("a", "block")
 problem.add_object("b", "block")
@@ -110,8 +113,14 @@ problem.goal = pd.make_and([
     p_on.bind(["b", "a"], problem),
 ])
 
+print(problem)
+print()
+
 options = pd.Z3Planner.Options()
 planner = pd.Z3Planner(problem, options)
 plan = pd.Plan(problem)
 
-planner.solve(plan)
+if planner.solve(plan):
+    for step in plan.get_steps():
+        print(step)
+
