@@ -22,12 +22,14 @@ message(STATUS "Building ${CMAKE_BUILD_TYPE}")
 
 include_directories(${CMAKE_CURRENT_LIST_DIR}/include)
 
+set(LIBRARY_NAME pddlboat-cpp)
+
 set(BOOST_MIN_VERSION "1.65.0")
 find_package(Boost ${BOOST_MIN_VERSION} REQUIRED
   COMPONENTS system filesystem timer program_options regex)
 if(CATKIN_DEVEL_PREFIX)
   find_package(catkin REQUIRED)
-  catkin_package(LIBRARIES pddlboat CATKIN_DEPENDS DEPENDS INCLUDE_DIRS
+  catkin_package(LIBRARIES ${LIBRARY_NAME} CATKIN_DEPENDS DEPENDS INCLUDE_DIRS
     ${CMAKE_CURRENT_LIST_DIR}/include)
 endif(CATKIN_DEVEL_PREFIX)
 
@@ -63,7 +65,6 @@ list(
 
 add_definitions(-DPDDLBOAT_RESOURCE_DIRECTORY="${CMAKE_CURRENT_LIST_DIR}/resources")
 
-set(LIBRARY_NAME pddlboat-c++)
 add_library(${LIBRARY_NAME} SHARED ${SOURCES})
 
 set_target_properties(${LIBRARY_NAME} PROPERTIES VERSION 0.0.1)
