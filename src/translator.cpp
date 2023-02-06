@@ -518,6 +518,21 @@ pddlboat::DerivedPredicateDefinitionPtr pddlboat::toDerived(const ast::Action &a
     return pred;
 }
 
+pddlboat::AxiomPtr pddlboat::toAxiom(const ast::Action &action, DomainPtr &domain)
+{
+    // need to add before parsing expression due to recursive definitions
+    const auto &variables = getVariables(action.parameters);
+    auto pred = makeAxiom(variables,
+                          (action.precondition.getKeyword() != Operators::Keyword::NONE) ?
+                              toExpression(action.precondition, variables, domain) :
+                              makeAnd({}),
+                          (action.effect.getKeyword() != Operators::Keyword::NONE) ?
+                              toExpression(action.effect, variables, domain) :
+                              makeAnd({}));
+
+    return pred;
+}
+
 pddlboat::DomainPtr pddlboat::toDomain(const ast::Domain &domain)
 {
     auto r = std::make_shared<Domain>(domain.name);
@@ -585,7 +600,12 @@ pddlboat::DomainPtr pddlboat::toDomain(const ast::Domain &domain)
         if (action.derived)
             toDerived(action, r);
         else
-            r->addAction(toAction(action, r));
+        {
+            if (action.name == "axiom")
+                r->addAxiom(toAxiom(action, r));
+            else
+                r->addAction(toAction(action, r));
+        }
     }
 
     return r;

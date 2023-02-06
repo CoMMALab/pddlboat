@@ -121,6 +121,5 @@ planner = pd.Z3Planner(problem, options)
 plan = pd.Plan(problem)
 
 if planner.solve(plan):
-    for step in plan.get_steps():
-        print(step)
-
+  for step in plan.get_steps():
+    print(step)

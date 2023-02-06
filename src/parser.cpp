@@ -111,7 +111,7 @@ namespace parser
     const x3::rule<name_class, std::string> name = "name";
     const x3::rule<namelist_class, std::vector<std::string>> namelist = "namelist";
 
-    auto name_symbols1 = x3::char_("");
+    auto name_symbols1 = x3::char_("=");
     auto name_symbols2 = x3::char_("*+/><=_-");
     const auto name_identifier = (ascii::alpha | name_symbols1) >> *(ascii::alnum | name_symbols2);
     const auto name_def = x3::lexeme[name_identifier];
@@ -320,6 +320,25 @@ namespace parser
     };
 
     ///
+    /// Axioms
+    ///
+
+    struct axiom_class;
+    const x3::rule<axiom_class, ast::Action> axiom = "axiom";
+    const auto axiom_def =  //
+        '(' >> x3::attr(false) >>
+        (x3::lit(":AXIOM") | x3::lit(":axiom")) >> x3::attr(std::string{"axiom"}) >>      //
+        ((x3::lit(":VARS") | x3::lit(":vars")) >> '(' >> *typedlist_variable >> ')') >>  //
+        ((x3::lit(":CONTEXT") | x3::lit(":context")) >> expression) >>                   //
+        ((x3::lit(":IMPLIES") | x3::lit(":implies")) >> expression) >>                   //
+        ')'  //
+        ;
+    PARSE(axiom)
+    struct axiom_class : error_handler
+    {
+    };
+
+    ///
     /// Domain
     ///
 
@@ -333,7 +352,7 @@ namespace parser
         -constants >>                                                     //
         -predicates >>                                                    //
         -functions >>                                                     //
-        *(action | derived) >>                                            //
+        *(axiom | action | derived) >>                                    //
         ')'                                                               //
         ;
     PARSE(domain);

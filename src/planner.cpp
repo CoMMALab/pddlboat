@@ -80,8 +80,8 @@ std::pair<ActionPtr, Assignment> Plan::getAction(const std::string &action_name,
         // Check type
         if (not problem_->domain->isTypeOf(obj->type, action->parameters[i].type))
             throw std::invalid_argument(  //
-                log::format("Cannot do action with object %1%, is type %2%, not %3%!", object_name, obj->type,
-                            action->parameters[i].type));
+                log::format("Cannot do action %1% with object %2%, is type %3%, not %4%!", action->name,
+                            object_name, obj->type, action->parameters[i].type));
 
         assignment.assign(*problem_, action->parameters[i].name, objects[i]);
     }
@@ -193,6 +193,19 @@ std::size_t Plan::getNumSteps() const
         total += set.size();
 
     return total;
+}
+
+std::vector<StatePtr> Plan::getStepStates(bool include_start) const
+{
+    std::vector<StatePtr> steps;
+
+    if (include_start)
+        steps.emplace_back(getProblem()->start->clone());
+
+    for (const auto &step : getSteps())
+        steps.emplace_back(step.state->clone());
+
+    return steps;
 }
 
 std::size_t Plan::getMakespan() const
@@ -614,6 +627,11 @@ void Planner::blockExpressionActions(
 void Planner::addConstraint(Planner::ConstraintTime time, const ExpressionPtr &expression, bool value)
 {
     throw std::runtime_error("Not implemented!");
+}
+
+const ProblemPtr &Planner::getProblem() const
+{
+    return problem_;
 }
 
 auto pddlboat::PlanWatcher::startPlanner() -> std::pair<FILE *, pid_t>

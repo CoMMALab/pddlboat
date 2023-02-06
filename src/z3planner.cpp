@@ -179,6 +179,8 @@ namespace pddlboat
          */
         void addFrameAxioms(Time step);
 
+        void addDomainAxioms(Time step);
+
         /** \brief Helper function to add linear action implication chain.
          *  \param[in] step Step to generate mutual exclusions for.
          *  \param[in] forward Direction of chain.
@@ -225,6 +227,7 @@ namespace pddlboat
 
         Diagnostics action_implications_;
         Diagnostics derived_predicates_;
+        Diagnostics domain_axioms_;
         Diagnostics frame_axioms_;
         Diagnostics mutual_exclusions_;
         Diagnostics start_propositions_;
@@ -234,6 +237,7 @@ namespace pddlboat
 
         // groundings
 
+        std::vector<GroundedAxiom> ground_axioms_;              ///< All grounded domain axioms.
         std::vector<GroundedDerivedPredicate> ground_derived_;  ///< All grounded derived predicates.
         std::vector<GroundedPredicate> ground_predicate_;       ///< All grounded unaffected predicates.
         std::vector<GroundedFunction> ground_fluent_;           ///< All grounded unaffected fluents.
@@ -425,7 +429,7 @@ Requirements::Keyword Z3Planner::getSupportedRequirements() const
     return Requirements::ADL                   //
            | Requirements::DERIVED_PREDICATES  //
            | Requirements::OBJECT_FLUENTS      //
-           | Requirements::NUMERIC_FLUENTS;
+           | Requirements::NUMERIC_FLUENTS | Requirements::DOMAIN_AXIOMS;
 }
 
 bool Z3Planner::solve(Plan &plan)
@@ -613,10 +617,8 @@ bool Z3PlannerInternal::solve(Plan &plan, unsigned int timeout)
 
     plan.setTimeTaken("action_implications",
                       io::getElapsedMilliseconds(action_implications_.totaltime) / 1000.);
-    plan.setTimeTaken("frame_axioms",
-                      io::getElapsedMilliseconds(frame_axioms_.totaltime) / 1000.);
-    plan.setTimeTaken("mutual_exclusion",
-                      io::getElapsedMilliseconds(mutual_exclusions_.totaltime) / 1000.);
+    plan.setTimeTaken("frame_axioms", io::getElapsedMilliseconds(frame_axioms_.totaltime) / 1000.);
+    plan.setTimeTaken("mutual_exclusion", io::getElapsedMilliseconds(mutual_exclusions_.totaltime) / 1000.);
 
     if (solved_)
     {
@@ -733,6 +735,8 @@ void Z3PlannerInternal::addStep(Time step, bool incremental)
 
     // (2) Predicates do not change unless an action changes them
     addFrameAxioms(step);
+
+    addDomainAxioms(step);
 
     if (options_.simultaneous)
         // (3) Only actions that don't conflict, if enabled
@@ -1079,6 +1083,14 @@ void Z3PlannerInternal::generateGroundings()
         }
     }
 
+    // get all axiom predicate groundings
+    for (const auto &axiom : problem_->domain->axioms)
+    {
+        const auto &assignments = problem_->getGroundings(axiom->parameters);
+        for (const auto &assignment : assignments)
+            ground_axioms_.emplace_back(axiom, assignment);
+    }
+
     // get all derived predicate groundings
     for (const auto &[name, derived] : problem_->domain->derived)
     {
@@ -1216,6 +1228,32 @@ void Z3PlannerInternal::addDerivedPredicates(Time step)
     {
         std::cout << "Building Z3 Derived Predicates @ " << step
                   << " took: " << io::getTiming(derived_predicates_.onestep) << std::endl;
+    }
+}
+
+void Z3PlannerInternal::addDomainAxioms(Time step)
+{
+    if (options_.dump_clauses)
+        std::cout << ";; Adding Domain Axioms @ " << step << ":" << std::endl;
+
+    domain_axioms_.start();
+
+    for (const auto &axiom : ground_axioms_)
+    {
+        z3::expr expr = imply(getExpression(axiom.axiom->context, axiom.assignment, step),
+                              getExpression(axiom.axiom->implies, axiom.assignment, step));
+        addClause(expr);
+
+        domain_axioms_.inc();
+        if (options_.dump_clauses)
+            std::cout << expr << std::endl;
+    }
+
+    domain_axioms_.stop();
+    if (options_.diagnostics)
+    {
+        std::cout << "Building Z3 Domain Axioms @ " << step
+                  << " took: " << io::getTiming(domain_axioms_.onestep) << std::endl;
     }
 }
 

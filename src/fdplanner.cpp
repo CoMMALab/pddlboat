@@ -221,7 +221,8 @@ bool FastDownwardPlanner::solve(Plan &plan, unsigned int timeout)
         update();
 
     boost::timer::cpu_timer timer;
-    if (not(io::runCommand(getSolverCommand()) != std::nullopt))
+    if (not(io::runCommand(log::format("timeout %1$0.3f ", timeout / 1000.) + getSolverCommand()) !=
+            std::nullopt))
         return false;
 
     // Parse output file

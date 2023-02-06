@@ -12,6 +12,7 @@ namespace pddlboat
     PDDLBOAT_CLASS_FORWARD(Domain);
     PDDLBOAT_CLASS_FORWARD(Problem);
     PDDLBOAT_CLASS_FORWARD(Action);
+    PDDLBOAT_CLASS_FORWARD(Axiom);
     PDDLBOAT_CLASS_FORWARD(Expression);
     PDDLBOAT_CLASS_FORWARD(DerivedPredicateDefinition);
     PDDLBOAT_CLASS_FORWARD(Variable);
@@ -21,6 +22,7 @@ namespace pddlboat
                                const DomainPtr &domain, const ProblemPtr &problem = nullptr);
     ActionPtr toAction(const ast::Action &action, const DomainPtr &domain);
     DerivedPredicateDefinitionPtr toDerived(const ast::Action &derived, DomainPtr &domain);
+    AxiomPtr toAxiom(const ast::Action &axiom, DomainPtr &domain);
     DomainPtr toDomain(const ast::Domain &domain);
     ProblemPtr toProblem(const ast::Problem &problem, const DomainPtr &domain);
 

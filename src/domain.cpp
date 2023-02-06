@@ -1163,25 +1163,24 @@ std::string Domain::getParent(const std::string &type) const
     return it->second;
 }
 
+bool Domain::compareTypes(const std::string &a, const std::string &b) const
+{
+    if (isTypeOf(a, b))
+        return true;
+
+    else if (isTypeOf(b, a))
+        return false;
+
+    return compareTypes(getParent(a), getParent(b));
+}
+
 std::vector<std::string> Domain::getTypes() const
 {
     std::vector<std::string> ret;
     for (const auto &pair : types)
         ret.emplace_back(pair.first);
 
-    std::sort(ret.begin(), ret.end(),
-              [&](const auto &a, const auto &b)
-              {
-                  if (isTypeOf(a, b))
-                      return false;
-                  if (isTypeOf(b, a))
-                      return true;
-
-                  if (getParent(a) == getParent(b))
-                      return a < b;
-
-                  return getParent(a) > getParent(b);
-              });
+    std::sort(ret.begin(), ret.end(), [&](const auto &a, const auto &b) { return not compareTypes(a, b); });
 
     return ret;
 }
@@ -1363,6 +1362,15 @@ const ActionPtr Domain::getAction(const std::string &name) const
     return it->second;
 }
 
+void Domain::addAxiom(const AxiomPtr &axiom)
+{
+    // addRequirement(Requirements::DOMAIN_AXIOMS);
+    addRequirementsFromExpression(axiom->context);
+    addRequirementsFromExpression(axiom->implies);
+
+    axioms.emplace_back(axiom);
+}
+
 void Domain::addRequirementsFromExpression(const ExpressionPtr &expression)
 {
     auto type = expression->getTypes();
@@ -1485,6 +1493,9 @@ std::ostream &Domain::toPDDL(std::ostream &out) const
         ptr->toPDDL(out, INDENT) << std::endl << std::endl;
         toPrint.erase(toPrint.find(ptr->name));
     }
+
+    // for (const auto &axiom : axioms)
+    //     axiom->toPDDL(out, INDENT) << std::endl << std::endl;
 
     for (const auto &key : actions)
         key.second->toPDDL(out, INDENT) << std::endl << std::endl;
@@ -1625,6 +1636,18 @@ StatePtr Problem::makeState() const
     return std::make_shared<State>(this);
 }
 
+
+bool Problem::axiomsHold(const StatePtr &state)
+{
+    return std::all_of(domain->axioms.begin(), domain->axioms.end(), [&](const auto &a) {
+        const auto &as = getGroundings(a->parameters);
+        if (as.empty())
+            return a->holds(state, {});
+        else
+            return std::all_of(as.begin(), as.end(), [&](const auto &b) { return a->holds(state, b); });
+    });
+}
+
 std::ostream &Problem::toPDDL(std::ostream &out) const
 {
     const unsigned int INDENT = 4;
@@ -1704,6 +1727,16 @@ void State::setProblem(Problem *problem)
 const Problem *State::getProblem() const
 {
     return problem_;
+}
+
+void State::strip(const State &other)
+{
+    for (const auto &[key, value] : other.assignments)
+    {
+        auto it = assignments.find(key);
+        if (it != assignments.end())
+            assignments.erase(it);
+    }
 }
 
 void State::clear()
@@ -1796,6 +1829,16 @@ bool State::isEqual(const State &other) const
     return assignments == other.assignments and numeric == other.numeric and values == other.values;
 }
 
+std::vector<std::string> State::getObjects() const
+{
+    std::set<std::string> objects;
+    for (const auto &pair : assignments)
+        for (const auto &value : pair.first.second)
+            objects.emplace(value);
+
+    return std::vector<std::string>(objects.begin(), objects.end());
+}
+
 bool State::isTrue(const std::string &predicate, const std::vector<std::string> &objects) const
 {
     auto it = assignments.find(std::make_pair(predicate, objects));
@@ -1833,11 +1876,11 @@ void State::assign1(const std::string &predicate, const std::string &object, boo
 // Assign n-ary pred.
 void State::assignN(const std::string &predicate, const std::vector<std::string> &objects, bool value)
 {
-    const auto &pred = problem_->domain->getPredicate(predicate);
+    // const auto &pred = problem_->domain->getPredicate(predicate);
 
     auto [it, r] =
         assignments.emplace(std::piecewise_construct,  //
-                            std::forward_as_tuple(pred->name, objects), std::forward_as_tuple(value));
+                            std::forward_as_tuple(predicate, objects), std::forward_as_tuple(value));
     if (not r)
         it->second = value;
 }
@@ -2109,6 +2152,68 @@ ActionPtr pddlboat::makeNoOpAction(const std::string &name)
 }
 
 //
+// Axioms
+//
+
+Axiom::Axiom(const VariableList &parameters, const ExpressionPtr &context, const ExpressionPtr &implies)
+  : parameters(parameters), context(context), implies(implies)
+{
+}
+
+unsigned int Axiom::arity() const
+{
+    return parameters.size();
+}
+
+bool Axiom::relevant(const StatePtr &state, const Assignment &vars) const
+{
+    return context->evaluate(state, vars);
+}
+
+bool Axiom::holds(const StatePtr &state, const Assignment &vars) const
+{
+    return not context->evaluate(state, vars) or implies->evaluate(state, vars);
+}
+
+std::ostream &Axiom::toPDDL(std::ostream &out, unsigned int indent) const
+{
+    const std::string SPACE = std::string(indent, ' ');
+
+    out << SPACE << "(:axiom" << std::endl;
+
+    if (not parameters.empty())
+    {
+        out << SPACE << SPACE << ":vars (";
+        for (unsigned int i = 0; i < parameters.size(); ++i)
+        {
+            if (i > 0)
+                out << " ";
+
+            out << "?" << parameters[i].name;
+            if (parameters[i].type != PDDLBOAT_OBJECT_CLASS)
+                out << " - " << parameters[i].type;
+        }
+        out << ")" << std::endl;
+    }
+
+    out << SPACE << SPACE << ":context" << std::endl;
+    context->toPDDL(out, indent, 3) << std::endl;
+
+    out << SPACE << SPACE << ":implies" << std::endl;
+    implies->toPDDL(out, indent, 3) << std::endl;
+
+    out << SPACE << ")";
+
+    return out;
+}
+
+AxiomPtr pddlboat::makeAxiom(const VariableList &parameters, const ExpressionPtr &context,
+                             const ExpressionPtr &implies)
+{
+    return std::make_shared<Axiom>(parameters, context, implies);
+}
+
+//
 // Groundings
 //
 
@@ -2147,6 +2252,11 @@ GroundedNumericFunction::GroundedNumericFunction(const NumericFunctionDefinition
 GroundedDerivedPredicate::GroundedDerivedPredicate(const DerivedPredicateDefinitionPtr &derived,
                                                    const Assignment &assignment)
   : derived(derived), assignment(assignment), string(derived->toID(assignment))
+{
+}
+
+GroundedAxiom::GroundedAxiom(const AxiomPtr &axiom, const Assignment &assignment)
+  : axiom(axiom), assignment(assignment)
 {
 }
 

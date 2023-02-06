@@ -23,7 +23,7 @@ FastForwardPlanner::FastForwardPlanner(const ProblemPtr &problem, const Options 
   , problem_file(temporary + "/" + log::format(problem_file_template, uuid))
   , options(options)
 {
-    checkRequirements();
+    // checkRequirements();
 }
 
 FastForwardPlanner::~FastForwardPlanner()

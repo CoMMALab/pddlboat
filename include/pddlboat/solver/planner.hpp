@@ -157,6 +157,12 @@ namespace pddlboat
          */
         std::size_t getNumSteps() const;
 
+        /** \brief Get the states in the sequence of this plan (including start if needed).
+         *  \param[in] include_start Include the start state.
+         *  \return The states in this plan.
+         */
+        std::vector<StatePtr> getStepStates(bool include_start = true) const;
+
         /** \} */
 
         /** \brief Validates if this plan is correct. Also propagates internal action states if steps were
@@ -470,6 +476,8 @@ namespace pddlboat
          *  \throws std::runtime_error if the planner does not support the planner.
          */
         void checkRequirements() const;
+
+        const ProblemPtr &getProblem() const;
 
     protected:
         const ProblemPtr problem_;  ///< Problem to solve.

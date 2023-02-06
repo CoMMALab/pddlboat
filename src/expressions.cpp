@@ -876,16 +876,12 @@ bool Exists::evaluate(const StatePtr &state, const Assignment &vars) const
     auto copy = vars;
     const auto &groundings = state->getProblem()->getGroundings(domain_);
 
-    bool r = false;
-    for (const auto &grounding : groundings)
-    {
-        copy.fold(grounding);
-        if (formula_->evaluate(state, copy))
-        {
-            r = true;
-            break;
-        }
-    }
+    bool r = std::any_of(groundings.begin(), groundings.end(),
+                         [&](const auto &grounding)
+                         {
+                             copy.fold(grounding);
+                             return formula_->evaluate(state, copy);
+                         });
 
     if (debug)
     {

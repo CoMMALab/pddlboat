@@ -32,10 +32,12 @@ namespace pddlboat
     PDDLBOAT_CLASS_FORWARD(Problem)
     PDDLBOAT_CLASS_FORWARD(State)
     PDDLBOAT_CLASS_FORWARD(Action)
+    PDDLBOAT_CLASS_FORWARD(Axiom)
     PDDLBOAT_CLASS_FORWARD(GroundedAction)
     PDDLBOAT_CLASS_FORWARD(GroundedPredicate)
     PDDLBOAT_CLASS_FORWARD(GroundedObjectFunction)
     PDDLBOAT_CLASS_FORWARD(GroundedDerivedPredicate)
+    PDDLBOAT_CLASS_FORWARD(GroundedAxiom)
     /** \endcond */
 
     /** \class pddlboat::ObjectPtr
@@ -116,6 +118,12 @@ namespace pddlboat
     /** \class pddlboat::StateConstPtr
         \brief A const shared pointer wrapper for pddlboat::State. */
 
+    /** \class pddlboat::AxiomPtr
+        \brief A shared pointer wrapper for pddlboat::Axiom. */
+
+    /** \class pddlboat::AxiomConstPtr
+        \brief A const shared pointer wrapper for pddlboat::Axiom. */
+
     /** \class pddlboat::ActionPtr
         \brief A shared pointer wrapper for pddlboat::Action. */
 
@@ -145,6 +153,12 @@ namespace pddlboat
 
     /** \class pddlboat::GroundedDerivedPredicateConstPtr
         \brief A const shared pointer wrapper for pddlboat::GroundedDerivedPredicate. */
+
+    /** \class pddlboat::GroundedAxiomPtr
+        \brief A shared pointer wrapper for pddlboat::GroundedAxiom. */
+
+    /** \class pddlboat::GroundedAxiomConstPtr
+        \brief A const shared pointer wrapper for pddlboat::GroundedAxiom. */
 
     ///
     /// Assignment
@@ -847,6 +861,28 @@ namespace pddlboat
     ActionPtr makeNoOpAction(const std::string &name = "no-op");
 
     ///
+    /// Axioms
+    ///
+
+    class Axiom
+    {
+    public:
+        const VariableList parameters;
+        const ExpressionPtr context;
+        const ExpressionPtr implies;
+
+        Axiom(const VariableList &parameters, const ExpressionPtr &context, const ExpressionPtr &implies);
+
+        unsigned int arity() const;
+        bool relevant(const StatePtr &state, const Assignment &vars) const;
+        bool holds(const StatePtr &state, const Assignment &vars) const;
+        std::ostream &toPDDL(std::ostream &out = std::cout, unsigned int indent = 2) const;
+    };
+
+    AxiomPtr makeAxiom(const VariableList &parameters, const ExpressionPtr &context,
+                       const ExpressionPtr &implies);
+
+    ///
     /// Domain
     ///
 
@@ -863,6 +899,7 @@ namespace pddlboat
         std::map<std::string, PredicateDefinitionPtr> predicates;  ///< Predicates defined in this domain.
         std::map<std::string, DerivedPredicateDefinitionPtr> derived;  ///< Derived predicates in this domain.
         std::map<std::string, ActionPtr> actions;                      ///< Actions defined in this domain.
+        std::vector<AxiomPtr> axioms;                                  ///< Axioms defined in this domain.
 
         /** \brief Constructor. Creates an empty domain.
          *  \param[in] name Name of this domain
@@ -935,6 +972,13 @@ namespace pddlboat
          *  \return The closest common type between the two types.
          */
         std::string findCommonType(const std::string &a, const std::string &b) const;
+
+        /** \brief Returns true if a is topologically less than b,
+         *  \param[in] a
+         *  \param[in] b
+         *  \return True if a is less than b.
+         */
+        bool compareTypes(const std::string &type, const std::string &other) const;
 
         /** \} */
 
@@ -1062,6 +1106,16 @@ namespace pddlboat
 
         /** \} */
 
+        /* \name Axioms
+           \{ */
+
+        /** \brief Add an axiom to the domain.
+         *  \param[in] axiom Axiom to add.
+         */
+        void addAxiom(const AxiomPtr &axiom);
+
+        /** \} */
+
         /* \name Actions
            \{ */
 
@@ -1162,6 +1216,8 @@ namespace pddlboat
          */
         StatePtr makeState() const;
 
+        bool axiomsHold(const StatePtr &state);
+
         /** \brief Serializes this problem to PDDL.
          *  \param[in,out] out Output stream to use.
          *  \return The output stream.
@@ -1219,8 +1275,16 @@ namespace pddlboat
          */
         bool isEqual(const State &other) const;
 
+        /** \brief Get used objects in this state.
+         */
+        std::vector<std::string> getObjects() const;
+
         /* \name Assignment Manipulations
            \{ */
+
+        /** \brief Remove all assignments specified by other state.
+         */
+        void strip(const State &other);
 
         /** \brief Clear all assignments.
          */
@@ -1465,6 +1529,16 @@ namespace pddlboat
          *  \param[in] assignment The assignment to ground the derived predicate.
          */
         GroundedDerivedPredicate(const DerivedPredicateDefinitionPtr &derived, const Assignment &assignment);
+    };
+
+    /** \brief A grounded derived predicate.
+     */
+    class GroundedAxiom
+    {
+    public:
+        const AxiomPtr axiom;         ///<
+        const Assignment assignment;  ///< The grounding.
+        GroundedAxiom(const AxiomPtr &axiom, const Assignment &assignment);
     };
 
     class GroundedExpression

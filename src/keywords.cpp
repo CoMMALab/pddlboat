@@ -55,6 +55,7 @@ std::vector<std::string> Requirements::toStrings(Keyword req)
     addIf(CONSTRAINTS);
 
     addIf(ACTION_COSTS);
+    addIf(DOMAIN_AXIOMS);
 
     return strings;
 }
@@ -87,6 +88,7 @@ void Requirements::initialize()
     map.insert(bimap::value_type(":preferences", PREFERENCES));                              //
     map.insert(bimap::value_type(":constraints", CONSTRAINTS));                              //
     map.insert(bimap::value_type(":action-costs", ACTION_COSTS));                            //
+    map.insert(bimap::value_type(":domain-axioms", DOMAIN_AXIOMS));                            //
 }
 
 bool Requirements::isSubset(Keyword subset, Keyword set)

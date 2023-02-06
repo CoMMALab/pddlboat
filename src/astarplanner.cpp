@@ -553,7 +553,7 @@ void AStarPlanner::blockStateActions(
 Requirements::Keyword AStarPlanner::getSupportedRequirements() const
 {
     return Requirements::ADL | Requirements::DERIVED_PREDICATES | Requirements::OBJECT_FLUENTS |
-           Requirements::NUMERIC_FLUENTS;
+        Requirements::NUMERIC_FLUENTS | Requirements::DOMAIN_AXIOMS;
 }
 
 void AStarPlanner::initialize()
