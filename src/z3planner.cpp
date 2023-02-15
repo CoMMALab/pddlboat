@@ -534,7 +534,12 @@ bool Z3PlannerInternal::solve(Plan &plan, unsigned int timeout)
     if (timeout > 0)
     {
         if (solver_)
-            solver_->set("timeout", timeout);
+        {
+            z3::params p(*ctx_);
+            p.set("timeout", timeout);
+
+            solver_->set(p);
+        }
 
         if (optimizer_)
             std::cerr << "Z3 optimizer does not understand timeout, ignoring!" << std::endl;

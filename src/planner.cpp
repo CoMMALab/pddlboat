@@ -308,7 +308,7 @@ const ProblemPtr &PlanSet::getProblem() const
     return problem_;
 }
 
-PlanWatcher::PlanWatcher(const std::filesystem::path &output_dir, const std::string &filename_prefix,
+PlanWatcher::PlanWatcher(const fs::path &output_dir, const std::string &filename_prefix,
                          const ProblemPtr &problem, const std::string &cmd, bool start_immediately,
                          unsigned int timeout, unsigned int backlog_size)
   : plans(problem)
@@ -537,7 +537,7 @@ auto PlanWatcher::readPlans() -> bool
 
 auto PlanWatcher::addPlan(std::string_view filename) -> bool
 {
-    std::filesystem::path full_path = output_dir_ / filename;
+    fs::path full_path = output_dir_ / filename;
     ast::Plan parsed;
     parseFile(full_path, parsed);
     auto &plan = plans.newPlan();

@@ -9,7 +9,6 @@
 #include <cerrno>
 #include <cstdio>
 #include <fcntl.h>
-#include <filesystem>
 #include <pddlboat/solver/domain.hpp>
 #include <memory>
 #include <poll.h>
@@ -23,6 +22,15 @@
 #include <pddlboat/solver/expression.hpp>
 #include <sys/inotify.h>
 #include <unistd.h>
+#if __has_include(<filesystem>)
+  #include <filesystem>
+  namespace fs = std::filesystem;
+#elif __has_include(<experimental/filesystem>)
+  #include <experimental/filesystem>
+  namespace fs = std::experimental::filesystem;
+#else
+  error "Missing the <filesystem> header."
+#endif
 
 namespace pddlboat
 {
@@ -312,7 +320,7 @@ namespace pddlboat
     class PlanWatcher
     {
     public:
-        PlanWatcher(const std::filesystem::path &output_dir, const std::string &filename_prefix,
+        PlanWatcher(const fs::path &output_dir, const std::string &filename_prefix,
                     const ProblemPtr &problem, const std::string &cmd, bool start_immediately = true,
                     unsigned int timeout = 50, unsigned int backlog_size = 50);
         ~PlanWatcher();
@@ -336,7 +344,7 @@ namespace pddlboat
 
         static constexpr std::size_t EVENT_SIZE = sizeof(inotify_event);
 
-        const std::filesystem::path output_dir_;
+        const fs::path output_dir_;
         const std::string filename_prefix_;
         const std::string cmd_;
         const unsigned int timeout_;

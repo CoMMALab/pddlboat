@@ -27,11 +27,6 @@ set(LIBRARY_NAME pddlboat-cpp)
 set(BOOST_MIN_VERSION "1.65.0")
 find_package(Boost ${BOOST_MIN_VERSION} REQUIRED
   COMPONENTS system filesystem timer program_options regex)
-if(CATKIN_DEVEL_PREFIX)
-  find_package(catkin REQUIRED)
-  catkin_package(LIBRARIES ${LIBRARY_NAME} CATKIN_DEPENDS DEPENDS INCLUDE_DIRS
-    ${CMAKE_CURRENT_LIST_DIR}/include)
-endif(CATKIN_DEVEL_PREFIX)
 
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 list(APPEND LIBRARIES ${Boost_LIBRARIES})
@@ -39,6 +34,19 @@ list(APPEND LIBRARIES ${Boost_LIBRARIES})
 find_package(Z3 REQUIRED)
 include_directories(SYSTEM ${Z3_CXX_INCLUDE_DIRS})
 list(APPEND LIBRARIES ${Z3_LIBRARIES})
+
+list(APPEND LIBRARIES stdc++fs)
+
+if(CATKIN_DEVEL_PREFIX)
+  find_package(catkin REQUIRED)
+  catkin_package(
+	  LIBRARIES ${LIBRARY_NAME}
+	  CATKIN_DEPENDS
+	  DEPENDS
+	  Boost
+	  INCLUDE_DIRS
+    ${CMAKE_CURRENT_LIST_DIR}/include)
+endif(CATKIN_DEVEL_PREFIX)
 
 add_subdirectory(submodules)
 add_definitions(-DPDDLBOAT_FASTFORWARD_LOCATION="${CMAKE_CURRENT_SOURCE_DIR}/submodules/ff")
