@@ -51,3 +51,5 @@ compile_commands.json
 *.sas
 submodules/ff/ff
 /output/*.txt
+/py/pddlboat.egg-info/
+*.pyc

@@ -73,10 +73,10 @@ list(
 
 add_definitions(-DPDDLBOAT_RESOURCE_DIRECTORY="${CMAKE_CURRENT_LIST_DIR}/resources")
 
-add_library(${LIBRARY_NAME} SHARED ${SOURCES})
+add_library(pddlboat-cpp SHARED ${SOURCES})
 
-set_target_properties(${LIBRARY_NAME} PROPERTIES VERSION 0.0.1)
-target_link_libraries(${LIBRARY_NAME} PUBLIC ${LIBRARIES})
+set_target_properties(pddlboat-cpp PROPERTIES VERSION 0.0.1)
+target_link_libraries(pddlboat-cpp PUBLIC ${LIBRARIES})
 
 add_executable(pddlboat_building scripts/building.cpp)
 add_executable(pddlboat_planning scripts/planning.cpp)
@@ -84,25 +84,37 @@ add_executable(pddlboat_anytime scripts/anytime.cpp)
 add_executable(pddlboat_graphml scripts/graphml.cpp)
 add_executable(pddlboat_blocking_test scripts/blocking_test.cpp)
 
-target_link_libraries(pddlboat_building ${LIBRARY_NAME} ${LIBRARIES})
-target_link_libraries(pddlboat_planning ${LIBRARY_NAME} ${LIBRARIES})
-target_link_libraries(pddlboat_anytime ${LIBRARY_NAME} ${LIBRARIES})
-target_link_libraries(pddlboat_graphml ${LIBRARY_NAME} ${LIBRARIES})
-target_link_libraries(pddlboat_blocking_test ${LIBRARY_NAME} ${LIBRARIES})
+target_link_libraries(pddlboat_building pddlboat-cpp ${LIBRARIES})
+target_link_libraries(pddlboat_planning pddlboat-cpp ${LIBRARIES})
+target_link_libraries(pddlboat_anytime pddlboat-cpp ${LIBRARIES})
+target_link_libraries(pddlboat_graphml pddlboat-cpp ${LIBRARIES})
+target_link_libraries(pddlboat_blocking_test pddlboat-cpp ${LIBRARIES})
 
 find_package(pybind11 CONFIG QUIET)
 if(pybind11_FOUND)
   find_package(Eigen3 REQUIRED)
   include_directories(BEFORE SYSTEM ${EIGEN3_INCLUDE_DIRS})
   pybind11_add_module(pddlboat py/pddlboat.cpp)
-  target_link_libraries(pddlboat PRIVATE ${LIBRARY_NAME} ${EIGEN3_LIBRARIES})
+  target_link_libraries(pddlboat PRIVATE pddlboat-cpp ${EIGEN3_LIBRARIES})
+
+  add_custom_command(
+    TARGET pddlboat-cpp POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+    $<TARGET_FILE:pddlboat-cpp>
+    ${CMAKE_CURRENT_SOURCE_DIR}/py/pddlboat/pddlboat-cpp.so)
+
+  add_custom_command(
+    TARGET pddlboat POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+    $<TARGET_FILE:pddlboat>
+    ${CMAKE_CURRENT_SOURCE_DIR}/py/pddlboat/pddlboat.so)
 endif()
 
 feature_summary(DESCRIPTION INCLUDE_QUIET_PACKAGES WHAT ALL)
 
 if(CATKIN_DEVEL_PREFIX)
   install(
-    TARGETS ${LIBRARY_NAME}
+    TARGETS pddlboat-cpp
     ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})

@@ -49,6 +49,7 @@ py::class_<pddlboat::Planner, std::shared_ptr<pddlboat::Planner>>(m, "Planner")
 .def("block_state_actions_simultaneous", &pddlboat::Planner::blockStateActionsSimultaneous)
 .def("get_supported_requirements", &pddlboat::Planner::getSupportedRequirements)
 .def("check_requirements", &pddlboat::Planner::checkRequirements)
+.def("get_problem", &pddlboat::Planner::getProblem)
 ;
 // Bindings for class pddlboat::Z3Planner
 py::class_<pddlboat::Z3Planner, pddlboat::Planner, std::shared_ptr<pddlboat::Z3Planner>> py_pddlboat_Z3Planner(m, "Z3Planner");
@@ -174,6 +175,7 @@ py_pddlboat_Plan.def(py::init<const std::shared_ptr<pddlboat::Problem> &>())
 .def("get_steps_at_makespan", &pddlboat::Plan::getStepsAtMakespan)
 .def("get_makespan_steps", &pddlboat::Plan::getMakespanSteps)
 .def("get_num_steps", &pddlboat::Plan::getNumSteps)
+.def("get_step_states", &pddlboat::Plan::getStepStates)
 .def("validate", &pddlboat::Plan::validate)
 .def("__repr__", [](const pddlboat::Plan &o){std::stringstream ss; o.toString(ss); return ss.str();})
 .def("get_problem", &pddlboat::Plan::getProblem)
@@ -550,6 +552,12 @@ py::class_<pddlboat::GroundedExpression, std::shared_ptr<pddlboat::GroundedExpre
 .def_readonly("expression", &pddlboat::GroundedExpression::expression)
 .def_readonly("assignment", &pddlboat::GroundedExpression::assignment)
 ;
+// Bindings for class pddlboat::GroundedAxiom
+py::class_<pddlboat::GroundedAxiom, std::shared_ptr<pddlboat::GroundedAxiom>>(m, "GroundedAxiom")
+.def(py::init<const std::shared_ptr<pddlboat::Axiom> &, const pddlboat::Assignment &>())
+.def_readonly("axiom", &pddlboat::GroundedAxiom::axiom)
+.def_readonly("assignment", &pddlboat::GroundedAxiom::assignment)
+;
 // Bindings for class pddlboat::GroundedDerivedPredicate
 py::class_<pddlboat::GroundedDerivedPredicate, std::shared_ptr<pddlboat::GroundedDerivedPredicate>>(m, "GroundedDerivedPredicate")
 .def(py::init<const std::shared_ptr<pddlboat::DerivedPredicateDefinition> &, const pddlboat::Assignment &>())
@@ -601,6 +609,8 @@ py::class_<pddlboat::State, std::shared_ptr<pddlboat::State>>(m, "State")
 .def("hash", &pddlboat::State::hash)
 .def("is_equal", static_cast<bool (pddlboat::State::*)(const std::shared_ptr<pddlboat::State> &) const>(&pddlboat::State::isEqual))
 .def("is_equal", static_cast<bool (pddlboat::State::*)(const pddlboat::State &) const>(&pddlboat::State::isEqual))
+.def("get_objects", &pddlboat::State::getObjects)
+.def("strip", &pddlboat::State::strip)
 .def("clear", &pddlboat::State::clear)
 .def("complement", &pddlboat::State::complement)
 .def("fold", static_cast<void (pddlboat::State::*)(const std::shared_ptr<pddlboat::State> &)>(&pddlboat::State::fold))
@@ -636,6 +646,7 @@ py::class_<pddlboat::Problem, std::shared_ptr<pddlboat::Problem>>(m, "Problem")
 .def("objects_of_type", &pddlboat::Problem::objectsOfType)
 .def("get_groundings", &pddlboat::Problem::getGroundings)
 .def("make_state", &pddlboat::Problem::makeState)
+.def("axioms_hold", &pddlboat::Problem::axiomsHold)
 .def("__repr__", [](const pddlboat::Problem &o){std::stringstream ss; o.toPDDL(ss); return ss.str();})
 .def_readonly("name", &pddlboat::Problem::name)
 .def_readonly("domain", &pddlboat::Problem::domain)
@@ -658,6 +669,7 @@ py::class_<pddlboat::Domain, std::shared_ptr<pddlboat::Domain>>(m, "Domain")
 .def("is_type", &pddlboat::Domain::isType)
 .def("is_type_of", &pddlboat::Domain::isTypeOf)
 .def("find_common_type", &pddlboat::Domain::findCommonType)
+.def("compare_types", &pddlboat::Domain::compareTypes)
 .def("get_constant", &pddlboat::Domain::getConstant)
 .def("add_constant", static_cast<void (pddlboat::Domain::*)(const std::shared_ptr<pddlboat::Object> &)>(&pddlboat::Domain::addConstant))
 .def("add_constant", static_cast<void (pddlboat::Domain::*)(const std::basic_string<char> &, const std::basic_string<char> &)>(&pddlboat::Domain::addConstant))
@@ -676,6 +688,7 @@ py::class_<pddlboat::Domain, std::shared_ptr<pddlboat::Domain>>(m, "Domain")
 .def("get_function", &pddlboat::Domain::getFunction)
 .def("get_object_function", &pddlboat::Domain::getObjectFunction)
 .def("get_numeric_function", &pddlboat::Domain::getNumericFunction)
+.def("add_axiom", &pddlboat::Domain::addAxiom)
 .def("add_action", &pddlboat::Domain::addAction)
 .def("get_action", &pddlboat::Domain::getAction)
 .def("__repr__", [](const pddlboat::Domain &o){std::stringstream ss; o.toPDDL(ss); return ss.str();})
@@ -687,6 +700,18 @@ py::class_<pddlboat::Domain, std::shared_ptr<pddlboat::Domain>>(m, "Domain")
 .def_readwrite("predicates", &pddlboat::Domain::predicates)
 .def_readwrite("derived", &pddlboat::Domain::derived)
 .def_readwrite("actions", &pddlboat::Domain::actions)
+.def_readwrite("axioms", &pddlboat::Domain::axioms)
+;
+// Bindings for class pddlboat::Axiom
+py::class_<pddlboat::Axiom, std::shared_ptr<pddlboat::Axiom>>(m, "Axiom")
+.def(py::init<const std::vector<pddlboat::Variable> &, const std::shared_ptr<pddlboat::Expression> &, const std::shared_ptr<pddlboat::Expression> &>())
+.def("arity", &pddlboat::Axiom::arity)
+.def("relevant", &pddlboat::Axiom::relevant)
+.def("holds", &pddlboat::Axiom::holds)
+.def("__repr__", [](const pddlboat::Axiom &o){std::stringstream ss; o.toPDDL(ss); return ss.str();})
+.def_readonly("parameters", &pddlboat::Axiom::parameters)
+.def_readonly("context", &pddlboat::Axiom::context)
+.def_readonly("implies", &pddlboat::Axiom::implies)
 ;
 // Bindings for class pddlboat::Action
 py::class_<pddlboat::Action, std::shared_ptr<pddlboat::Action>>(m, "Action")
@@ -871,6 +896,7 @@ m.def("get_variables", &pddlboat::getVariables);
 m.def("to_expression", &pddlboat::toExpression);
 m.def("to_action", &pddlboat::toAction);
 m.def("to_derived", &pddlboat::toDerived);
+m.def("to_axiom", &pddlboat::toAxiom);
 m.def("to_domain", &pddlboat::toDomain);
 m.def("to_problem", &pddlboat::toProblem);
 m.def("parse_domain", &pddlboat::parseDomain);
@@ -881,6 +907,7 @@ m.def("make_function", &pddlboat::makeFunction);
 m.def("make_object_function", &pddlboat::makeObjectFunction);
 m.def("make_action", &pddlboat::makeAction);
 m.def("make_no_op_action", &pddlboat::makeNoOpAction);
+m.def("make_axiom", &pddlboat::makeAxiom);
 m.def("is_in", &pddlboat::isIn);
 m.def("get_value_objects", &pddlboat::getValueObjects);
 m.def("get_value", &pddlboat::getValue);
