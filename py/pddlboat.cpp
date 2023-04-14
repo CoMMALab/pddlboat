@@ -743,7 +743,8 @@ py::class_<pddlboat::FunctionDefinition, std::shared_ptr<pddlboat::FunctionDefin
 py::class_<pddlboat::ObjectFunctionDefinition, pddlboat::FunctionDefinition, std::shared_ptr<pddlboat::ObjectFunctionDefinition>>(m, "ObjectFunctionDefinition")
 .def(py::init<const std::basic_string<char> &, const std::vector<pddlboat::Variable> &, const std::basic_string<char> &>())
 .def("bind", static_cast<pddlboat::ObjectFunctionPtr (pddlboat::ObjectFunctionDefinition::*)() const>(&pddlboat::ObjectFunctionDefinition::bind))
-.def("bind", static_cast<pddlboat::ObjectFunctionPtr (pddlboat::ObjectFunctionDefinition::*)(const std::vector<std::basic_string<char>> &, const std::shared_ptr<pddlboat::Problem> &, const std::shared_ptr<pddlboat::Domain> &) const>(&pddlboat::ObjectFunctionDefinition::bind))
+.def("bind", static_cast<pddlboat::ObjectFunctionPtr (pddlboat::ObjectFunctionDefinition::*)(const std::vector<std::basic_string<char>> &) const>(&pddlboat::ObjectFunctionDefinition::bind))
+.def("bind", static_cast<pddlboat::ObjectFunctionPtr (pddlboat::ObjectFunctionDefinition::*)(const std::vector<std::basic_string<char>> &, const std::shared_ptr<pddlboat::Problem> &) const>(&pddlboat::ObjectFunctionDefinition::bind))
 .def("bind_values", &pddlboat::ObjectFunctionDefinition::bindValues)
 ;
 // Bindings for class pddlboat::NumericFunctionDefinition
@@ -758,6 +759,7 @@ py::class_<pddlboat::DerivedPredicateDefinition, std::shared_ptr<pddlboat::Deriv
 .def(py::init<const std::basic_string<char> &, const std::vector<pddlboat::Variable> &, const std::shared_ptr<pddlboat::Expression> &>())
 .def("set_formula", &pddlboat::DerivedPredicateDefinition::setFormula)
 .def("bind", static_cast<pddlboat::DerivedPredicatePtr (pddlboat::DerivedPredicateDefinition::*)() const>(&pddlboat::DerivedPredicateDefinition::bind))
+.def("bind", static_cast<pddlboat::DerivedPredicatePtr (pddlboat::DerivedPredicateDefinition::*)(const std::vector<std::basic_string<char>> &) const>(&pddlboat::DerivedPredicateDefinition::bind))
 .def("bind", static_cast<pddlboat::DerivedPredicatePtr (pddlboat::DerivedPredicateDefinition::*)(const std::vector<std::basic_string<char>> &, const std::shared_ptr<pddlboat::Problem> &, const std::shared_ptr<pddlboat::Domain> &) const>(&pddlboat::DerivedPredicateDefinition::bind))
 .def("bind_values", &pddlboat::DerivedPredicateDefinition::bindValues)
 .def("is_valid_assignment", &pddlboat::DerivedPredicateDefinition::isValidAssignment)

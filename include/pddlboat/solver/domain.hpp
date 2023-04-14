@@ -463,14 +463,25 @@ namespace pddlboat
          *  If a `?` is in the first position, the label is bound as a variable.
          *  Otherwise, it is bound as an object, and will throw an error if not a valid object to bind.
          *  \param[in] bound List of bindings of variables and objects.
+         *  \return A bound version of a n-ary predicate.
+         *  \throw std::invalid_argument if this is not a valid binding.
+         */
+        DerivedPredicatePtr bind(const std::vector<std::string> &bound) const;
+
+        /** \brief Bind this n-ary predicate to an evaluatable Predicate.
+         *  Can be bound to either grounded variables or a named variable that exists in some expression.
+         *  The bound list consists of variables, e.g. ?x, ?y --- and objects, e.g, a, b.
+         *  If a `?` is in the first position, the label is bound as a variable.
+         *  Otherwise, it is bound as an object, and will throw an error if not a valid object to bind.
+         *  \param[in] bound List of bindings of variables and objects.
          *  \param[in] problem Optional, but if any objects exist in the bindings the problem is required.
          *  \param[in] domain Optional, but if any constants exist without a problem the domain is required.
          *                    Not needed if a problem is provided.
          *  \return A bound version of a n-ary predicate.
          *  \throw std::invalid_argument if this is not a valid binding.
          */
-        DerivedPredicatePtr bind(const std::vector<std::string> &bound, const ProblemPtr &problem = nullptr,
-                                 const DomainPtr &domain = nullptr) const;
+        DerivedPredicatePtr bind(const std::vector<std::string> &bound, const ProblemPtr &problem,
+                                 const DomainPtr &domain) const;
 
         /** \brief Bind this n-ary predicate to an evaluatable Predicate.
          *  \param[in] values The values to bind to this predicate.
@@ -719,8 +730,8 @@ namespace pddlboat
                                  const std::string &type);
 
         ObjectFunctionPtr bind() const;
-        ObjectFunctionPtr bind(const std::vector<std::string> &bound, const ProblemPtr &problem = nullptr,
-                               const DomainPtr &domain = nullptr) const;
+        ObjectFunctionPtr bind(const std::vector<std::string> &bound) const;
+        ObjectFunctionPtr bind(const std::vector<std::string> &bound, const ProblemPtr &problem) const;
         ObjectFunctionPtr bindValues(const std::vector<Value> &values) const;
     };
 
