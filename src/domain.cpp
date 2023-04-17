@@ -519,6 +519,14 @@ DerivedPredicatePtr DerivedPredicateDefinition::bind() const
     return bind(std::vector<std::string>{});
 }
 
+DerivedPredicatePtr DerivedPredicateDefinition::bind(const std::vector<std::string> &bound) const
+{
+    if (parameters.size() != bound.size())
+        throw std::invalid_argument("Cannot bind variables, size mismatch!");
+
+    return bindValues(getValues(bound, parameters, nullptr, nullptr));
+}
+
 DerivedPredicatePtr DerivedPredicateDefinition::bind(const std::vector<std::string> &bound,
                                                      const ProblemPtr &problem, const DomainPtr &domain) const
 {
@@ -948,13 +956,21 @@ ObjectFunctionPtr ObjectFunctionDefinition::bind() const
     return bind(std::vector<std::string>{});
 }
 
-ObjectFunctionPtr ObjectFunctionDefinition::bind(const std::vector<std::string> &bound,
-                                                 const ProblemPtr &problem, const DomainPtr &domain) const
+ObjectFunctionPtr ObjectFunctionDefinition::bind(const std::vector<std::string> &bound) const
 {
     if (parameters.size() != bound.size())
         throw std::invalid_argument("Cannot bind parameters, size mismatch!");
 
-    return bindValues(getValues(bound, parameters, problem, domain));
+    return bindValues(getValues(bound, parameters, nullptr, nullptr));
+}
+
+ObjectFunctionPtr ObjectFunctionDefinition::bind(const std::vector<std::string> &bound,
+                                                 const ProblemPtr &problem) const
+{
+    if (parameters.size() != bound.size())
+        throw std::invalid_argument("Cannot bind parameters, size mismatch!");
+
+    return bindValues(getValues(bound, parameters, problem, problem->domain));
 }
 
 ObjectFunctionPtr ObjectFunctionDefinition::bindValues(const std::vector<Value> &values) const
