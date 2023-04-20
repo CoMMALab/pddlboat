@@ -5,7 +5,7 @@ project(fast-forward)
 # ours to maintain and this is the simplest way to make it build
 set(CMAKE_C_FLAGS "-Wall -g -std=gnu99 -O6 -fcommon")
 
-find_package(BISON)
+find_package(BISON REQUIRED)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
