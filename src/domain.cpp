@@ -1550,6 +1550,13 @@ Problem::Problem(const ProblemPtr &problem) : Problem(*problem)
 {
 }
 
+Problem::Problem(const StatePtr &state) : Problem(*state->getProblem())
+{
+    auto new_goal = state->clone();
+    new_goal->setProblem(this);
+    goal = new_goal->toExpression();
+}
+
 const ObjectPtr Problem::getObject(const std::string &name) const
 {
     const auto &constant = domain->getConstant(name);
@@ -1652,16 +1659,18 @@ StatePtr Problem::makeState() const
     return std::make_shared<State>(this);
 }
 
-
 bool Problem::axiomsHold(const StatePtr &state)
 {
-    return std::all_of(domain->axioms.begin(), domain->axioms.end(), [&](const auto &a) {
-        const auto &as = getGroundings(a->parameters);
-        if (as.empty())
-            return a->holds(state, {});
-        else
-            return std::all_of(as.begin(), as.end(), [&](const auto &b) { return a->holds(state, b); });
-    });
+    return std::all_of(domain->axioms.begin(), domain->axioms.end(),
+                       [&](const auto &a)
+                       {
+                           const auto &as = getGroundings(a->parameters);
+                           if (as.empty())
+                               return a->holds(state, {});
+                           else
+                               return std::all_of(as.begin(), as.end(),
+                                                  [&](const auto &b) { return a->holds(state, b); });
+                       });
 }
 
 std::ostream &Problem::toPDDL(std::ostream &out) const
@@ -1833,6 +1842,22 @@ std::size_t State::hash() const
     boost::hash_combine(seed, values_hash);
 
     return seed;
+}
+
+ExpressionPtr State::toExpression() const
+{
+    auto expr = makeAnd({});
+    for (const auto &[key, value] : assignments)
+    {
+        const auto &[name, objects] = key;
+
+        auto pred_def = problem_->domain->getPredicate(name);
+        auto pred = pred_def->bind(objects, *problem_);
+
+        expr->addTerm(pred);
+    }
+
+    return expr;
 }
 
 bool State::isEqual(const StatePtr &other) const
