@@ -531,6 +531,13 @@ void Z3PlannerInternal::clear()
 
 bool Z3PlannerInternal::solve(Plan &plan, unsigned int timeout)
 {
+    // NOTE: This does not print diagnostics or log solve times for idempotent calls to solve. This
+    // may not be desirable behavior?
+    if (solved_)
+    {
+        return buildPlan(plan, current_step_);
+    }
+
     if (timeout > 0)
     {
         if (solver_)
@@ -1001,8 +1008,9 @@ void Z3PlannerInternal::generateGroundings()
 {
     boost::timer::cpu_timer tl;
 
-    auto addToPredicate = [&](const std::string &predicate, const GroundedActionPtr &action, bool relies,
-                              bool effects) {
+    auto addToPredicate =
+        [&](const std::string &predicate, const GroundedActionPtr &action, bool relies, bool effects)
+    {
         auto it = action_effects_.find(predicate);
         if (it == action_effects_.end())
             it = action_effects_.emplace(predicate, std::vector<PredAction>{}).first;
@@ -1409,7 +1417,8 @@ void Z3PlannerInternal::addMutualExclusionLinearHelper(const std::vector<PredAct
     args.push_back(ctx_->bool_val(forward));
     castZ3TypeArgs(args, *function);
 
-    auto auxilliary = [&](std::size_t index) -> z3::expr {
+    auto auxilliary = [&](std::size_t index) -> z3::expr
+    {
         auto pargs = copy(args);
         pargs.push_back(ctx_->int_val((int)index));
 

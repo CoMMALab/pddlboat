@@ -1185,6 +1185,11 @@ namespace pddlboat
          */
         Problem(const ProblemPtr &problem);
 
+        /** \brief Create a new problem with the provided state as the goal, using the state's problem.
+         *  \param[in] state New goal state.
+         */
+        Problem(const StatePtr &state);
+
         /* \name Objects
            \{ */
 
@@ -1273,6 +1278,10 @@ namespace pddlboat
         /** \brief Compute the hash of this state.
          *  \return Hash of this state. */
         std::size_t hash() const;
+
+        /** \brief Convert this state into an expression.
+         */
+        ExpressionPtr toExpression() const;
 
         /** \brief Compares two states.
          *  \param[in] other The state to compare to.

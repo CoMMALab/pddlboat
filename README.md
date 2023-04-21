@@ -198,9 +198,16 @@ Checkout the `scripts` directory for example programs.
 For Ubuntu-based platforms:
 ```sh
 sudo apt-get install libboost-all-dev
+sudo apt-get install bison
+sudo apt-get install autoconf
 ```
 
-You will need to clone the submodules (Z3 and Fast Downward).
+Install Z3
+```sh
+sudo apt-get install libz3-dev
+```
+
+You will need to clone the submodules (Fast Downward, FF, Symk).
 Either clone this repo with:
 ```
 git clone --recursive git@github.com:KavrakiLab/pddlboat.git
