@@ -22,7 +22,7 @@ void testDomain(const std::string &file)
     std::cout << "Parsing file: " << file << std::endl;
 
     pd::ast::Domain domain_ast;
-    bool r = pd::parseFile(std::string(PDDLBOAT_RESOURCE_DIRECTORY "/") + file, domain_ast);
+    bool r = pd::parseFile(io::getResourceDirectory(PDDLBOAT_RESOURCE_DIRECTORY) "/" + file, domain_ast);
     if (not r)
         std::cout << "------------- FAILED! -------------" << std::endl << std::endl;
 

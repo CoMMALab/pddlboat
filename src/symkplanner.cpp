@@ -11,8 +11,8 @@
 
 using namespace pddlboat;
 
-const std::string SymKPlanner::SymKPlanner::symk_directory =
-    PDDLBOAT_SYMK_LOCATION;  ///< Directory where the sym-k fast downward binary resides
+const std::string SymKPlanner::SymKPlanner::symk_directory = io::getResourceDirectory(
+    PDDLBOAT_SYMK_LOCATION);  ///< Directory where the sym-k fast downward binary resides
 
 SymKPlanner::SymKPlanner(const ProblemPtr &problem, SolutionSelector selector, unsigned int k, float q,
                          bool run_preprocessor)
@@ -76,7 +76,7 @@ bool SymKPlanner::multiSolve(PlanSet &plans)
         // This signifies that we haven't run update() ever
         update();
 
-    if (not (io::runCommand(getSolverCommand()) != std::nullopt))
+    if (not(io::runCommand(getSolverCommand()) != std::nullopt))
         return false;
 
     // Parse output files

@@ -1,4 +1,5 @@
 #include <iostream>
+#include <pddlboat/utility.hpp>
 #include <pddlboat/parser/parser.hpp>
 #include <pddlboat/parser/translator.hpp>
 #include <pddlboat/parser/ast.hpp>
@@ -74,7 +75,7 @@ void printSteps(pd::PlanPtr &plan)
 
 int main(int argc, char **argv)
 {
-    const auto domain_file = std::string(PDDLBOAT_RESOURCE_DIRECTORY) + "/optimize_tamp/"
+    const auto domain_file = pd::io::getResourceDirectory(PDDLBOAT_RESOURCE_DIRECTORY) + "/optimize_tamp/"
                                                                         "pick_place_reachability.pddl";
     const auto problem_file = std::string(PDDLBOAT_RESOURCE_DIRECTORY) + "/optimize_tamp/op4_problem.pddl";
 

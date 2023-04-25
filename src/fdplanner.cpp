@@ -10,8 +10,8 @@
 
 using namespace pddlboat;
 
-const std::string FastDownwardPlanner::FastDownwardPlanner::fd_directory =
-    PDDLBOAT_FASTDOWNWARD_LOCATION;  ///< Directory where the fast downward binary resides
+const std::string FastDownwardPlanner::FastDownwardPlanner::fd_directory = io::getResourceDirectory(
+    PDDLBOAT_FASTDOWNWARD_LOCATION);  ///< Directory where the fast downward binary resides
 
 FastDownwardPlanner::FastDownwardPlanner(const ProblemPtr &problem, const Options &options)
   : Planner(problem)

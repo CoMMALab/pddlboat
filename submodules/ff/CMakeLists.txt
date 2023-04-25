@@ -6,9 +6,6 @@ project(fast-forward)
 set(CMAKE_C_FLAGS "-Wall -g -std=gnu99 -O6 -fcommon")
 
 find_package(BISON REQUIRED)
-
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 # NOTE: Because the original FF parser uses a cursed build step of #include-ing the generated lexer,
 # and because this doesn't seem to play nice with CMake's Bison/Flex utilities, we've hacked this up
 # a bit to manually include the generated C in the relevant .y files...
@@ -24,13 +21,11 @@ bison_target(ff-ops-parser
 
 list(
   APPEND
-  PARSER_SOURCES
+  FF_PARSER_SOURCES
   ${BISON_ff-fct-parser_OUTPUT_SOURCE}
   ${BISON_ff-ops-parser_OUTPUT_SOURCE})
 
-list(
-  APPEND
-  SOURCES
+list(APPEND FF_SOURCES
   main.c
   memory.c
   output.c
@@ -43,5 +38,6 @@ list(
   relax.c
   search.c)
 
-add_executable(ff ${SOURCES} ${PARSER_SOURCES})
+add_executable(ff ${FF_SOURCES} ${FF_PARSER_SOURCES})
+target_include_directories(ff SYSTEM PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(ff m)

@@ -236,3 +236,20 @@ unsigned int io::getElapsedMilliseconds(const boost::timer::cpu_timer &timer)
                boost::chrono::nanoseconds(timer.elapsed().wall))
         .count();
 }
+
+std::string io::getResourceDirectory(const std::string &list)
+{
+    std::size_t last = 0;
+    std::size_t next = 0;
+    while ((next = list.find(":", last)) != std::string::npos)
+    {
+        boost::filesystem::path path(list.substr(last, next - last));
+
+        if (boost::filesystem::exists(path))
+            return path.string();
+
+        last = next + 1;
+    }
+
+    return list.substr(last);
+}

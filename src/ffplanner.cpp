@@ -13,8 +13,8 @@
 
 using namespace pddlboat;
 
-const std::string FastForwardPlanner::FastForwardPlanner::ff_directory =
-    PDDLBOAT_FASTFORWARD_LOCATION;  ///< Directory where the fast forward binary resides
+const std::string FastForwardPlanner::FastForwardPlanner::ff_directory = io::getResourceDirectory(
+    PDDLBOAT_FASTFORWARD_LOCATION);  ///< Directory where the fast forward binary resides
 
 FastForwardPlanner::FastForwardPlanner(const ProblemPtr &problem, const Options &options)
   : Planner(problem)
@@ -83,7 +83,6 @@ bool FastForwardPlanner::solve(Plan &plan, unsigned int timeout)
     auto output = io::runCommand(getSolverCommand());
     if (output == std::nullopt)
         return false;
-
 
     // Parse output file
     ast::Plan parsed;

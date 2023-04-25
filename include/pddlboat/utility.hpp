@@ -55,6 +55,8 @@ namespace pddlboat
         std::string generateUUID();
         std::string getTiming(const boost::timer::cpu_timer &timer);
         unsigned int getElapsedMilliseconds(const boost::timer::cpu_timer &timer);
+
+        std::string getResourceDirectory(const std::string &list);
     }  // namespace io
 }  // namespace pddlboat
 
