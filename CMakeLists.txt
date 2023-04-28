@@ -78,21 +78,21 @@ list(APPEND PDDLBOAT_SOURCES
 add_definitions(-w)
 
 ## Fast-forward
-add_compile_definitions(-DPDDLBOAT_FASTFORWARD_LOCATION="${CMAKE_CURRENT_BINARY_DIR}/submodules/ff:${CMAKE_INSTALL_PREFIX}/share/pddlboat/ff")
+add_compile_definitions(PDDLBOAT_FASTFORWARD_LOCATION="${CMAKE_CURRENT_BINARY_DIR}/submodules/ff:${CMAKE_INSTALL_PREFIX}/share/pddlboat/ff")
 list(APPEND PDDLBOAT_SOURCES src/ffplanner.cpp)
 add_subdirectory(submodules/ff)
 
 ## Fast-downward
-add_compile_definitions(-DPDDLBOAT_FASTDOWNWARD_LOCATION="${CMAKE_CURRENT_BINARY_DIR}/submodules/downward/src/bin:${CMAKE_INSTALL_PREFIX}/share/pddlboat/fd")
+add_compile_definitions(PDDLBOAT_FASTDOWNWARD_LOCATION="${CMAKE_CURRENT_BINARY_DIR}/submodules/downward/src/bin:${CMAKE_INSTALL_PREFIX}/share/pddlboat/fd")
 list(APPEND PDDLBOAT_SOURCES src/fdplanner.cpp)
 add_subdirectory(submodules/downward/src)
 
 ## Sym-k
-add_compile_definitions(-DPDDLBOAT_SYMK_LOCATION="${CMAKE_CURRENT_BINARY_DIR}/submodules/symk/src/bin:${CMAKE_INSTALL_PREFIX}/share/pddlboat/symk")
+add_compile_definitions(PDDLBOAT_SYMK_LOCATION="${CMAKE_CURRENT_BINARY_DIR}/submodules/symk/src/bin:${CMAKE_INSTALL_PREFIX}/share/pddlboat/symk")
 list(APPEND PDDLBOAT_SOURCES src/symkplanner.cpp)
 add_subdirectory(submodules/symk/src)
 
-add_definitions(-DPDDLBOAT_RESOURCE_DIRECTORY="${CMAKE_CURRENT_LIST_DIR}/resources:${CMAKE_INSTALL_PREFIX}/share/pddlboat/resources")
+add_compile_definitions(PDDLBOAT_RESOURCE_DIRECTORY="${CMAKE_CURRENT_LIST_DIR}/resources:${CMAKE_INSTALL_PREFIX}/share/pddlboat/resources")
 
 add_library(pddlboat-cpp SHARED ${PDDLBOAT_SOURCES})
 
