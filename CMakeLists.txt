@@ -11,7 +11,7 @@ project(pddlboat
 )
 
 option(PDDLBOAT_BUILD_SCRIPTS "Build scripts" ON)
-option(PDDLBOAT_BUILD_PYBINDS "Build Python bindings" ON)
+option(PDDLBOAT_BUILD_PYBIND "Build Python bindings" ON)
 
 option(FORCE_COLORED_OUTPUT "Always produce ANSI-colored output." ON)
 if(FORCE_COLORED_OUTPUT)
