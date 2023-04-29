@@ -9,4 +9,5 @@ setup(
     author='Zachary Kingston',
     author_email='zak@rice.edu',
     packages=['pddlboat'],
+    include_package_data=True
 )
