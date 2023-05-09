@@ -1428,6 +1428,11 @@ namespace pddlboat
          */
         std::string getObject(const std::string &function, const std::vector<std::string> &objects) const;
 
+        /** \brief Gets a list of all ground predicates which are true in this state.
+         *  \return The list of predicates that are set to true
+         */
+        std::vector<Key> getTruePredicates() const noexcept;
+
         /** \} */
 
         /** \brief Serializes this state to PDDL.

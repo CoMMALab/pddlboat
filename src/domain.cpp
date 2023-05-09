@@ -2305,3 +2305,18 @@ GroundedExpression::GroundedExpression(const ExpressionPtr &expression, const As
   : expression(expression), assignment(assignment)
 {
 }
+
+std::vector<State::Key> State::getTruePredicates() const noexcept
+{
+    std::vector<Key> result;
+    result.reserve(assignments.size());
+    for (const auto &[k, v] : assignments)
+    {
+        if (v)
+        {
+            result.emplace_back(k);
+        }
+    }
+
+    return result;
+}
