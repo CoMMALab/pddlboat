@@ -14,5 +14,7 @@ python3 generate_bindings.py \
         include/pddlboat/solver/ffplanner.hpp \
         include/pddlboat/solver/planner.hpp \
         include/pddlboat/solver/symkplanner.hpp \
-        include/pddlboat/solver/z3planner.hpp
+        include/pddlboat/solver/z3planner.hpp \
+        include/pddlboat/parser/ast.hpp \
+        include/pddlboat/parser/parser.hpp
 

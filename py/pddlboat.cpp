@@ -33,8 +33,111 @@ std::vector<const char*> convertVec(const std::vector<std::string>& vec) {
 #include <pddlboat/solver/planner.hpp>
 #include <pddlboat/solver/symkplanner.hpp>
 #include <pddlboat/solver/z3planner.hpp>
+#include <pddlboat/parser/ast.hpp>
+#include <pddlboat/parser/parser.hpp>
 namespace py = pybind11;
 PYBIND11_MODULE(pddlboat, m) {
+py::module_ ast_m = m.def_submodule("ast");
+// Bindings for class pddlboat::ast::z3Predicate
+py::class_<pddlboat::ast::z3Predicate, std::shared_ptr<pddlboat::ast::z3Predicate>>(ast_m, "z3Predicate")
+.def("__repr__", [](const pddlboat::ast::z3Predicate &o){std::stringstream ss; o.toPDDL(ss); return ss.str();})
+.def_readwrite("name", &pddlboat::ast::z3Predicate::name)
+.def_readwrite("args", &pddlboat::ast::z3Predicate::args)
+.def_readwrite("time", &pddlboat::ast::z3Predicate::time)
+.def_readwrite("conv", &pddlboat::ast::z3Predicate::conv)
+;
+// Bindings for class pddlboat::ast::z3Action
+py::class_<pddlboat::ast::z3Action, std::shared_ptr<pddlboat::ast::z3Action>>(ast_m, "z3Action")
+.def("__repr__", [](const pddlboat::ast::z3Action &o){std::stringstream ss; o.toPDDL(ss); return ss.str();})
+.def_readwrite("name", &pddlboat::ast::z3Action::name)
+.def_readwrite("args", &pddlboat::ast::z3Action::args)
+.def_readwrite("time", &pddlboat::ast::z3Action::time)
+.def_readwrite("conv", &pddlboat::ast::z3Action::conv)
+;
+// Bindings for class pddlboat::ast::Plan
+py::class_<pddlboat::ast::Plan, std::shared_ptr<pddlboat::ast::Plan>>(ast_m, "Plan")
+.def("__repr__", [](const pddlboat::ast::Plan &o){std::stringstream ss; o.toString(ss); return ss.str();})
+.def_readwrite("actions", &pddlboat::ast::Plan::actions)
+;
+// Bindings for class pddlboat::ast::Problem
+py::class_<pddlboat::ast::Problem, std::shared_ptr<pddlboat::ast::Problem>>(ast_m, "Problem")
+.def("__repr__", [](const pddlboat::ast::Problem &o){std::stringstream ss; o.toString(ss); return ss.str();})
+.def_readwrite("name", &pddlboat::ast::Problem::name)
+.def_readwrite("domain", &pddlboat::ast::Problem::domain)
+.def_readwrite("objects", &pddlboat::ast::Problem::objects)
+.def_readwrite("initial", &pddlboat::ast::Problem::initial)
+.def_readwrite("goal", &pddlboat::ast::Problem::goal)
+.def_readwrite("metric", &pddlboat::ast::Problem::metric)
+;
+// Bindings for class pddlboat::ast::Metric
+py::class_<pddlboat::ast::Metric, std::shared_ptr<pddlboat::ast::Metric>>(ast_m, "Metric")
+.def_readwrite("active", &pddlboat::ast::Metric::active)
+.def_readwrite("minimize", &pddlboat::ast::Metric::minimize)
+.def_readwrite("function", &pddlboat::ast::Metric::function)
+;
+// Bindings for class pddlboat::ast::Initial
+py::class_<pddlboat::ast::Initial, std::shared_ptr<pddlboat::ast::Initial>>(ast_m, "Initial")
+.def("__repr__", [](const pddlboat::ast::Initial &o){std::stringstream ss; o.toString(ss); return ss.str();})
+.def_readwrite("formula", &pddlboat::ast::Initial::formula)
+.def_readwrite("set", &pddlboat::ast::Initial::set)
+.def_readwrite("object", &pddlboat::ast::Initial::object)
+;
+// Bindings for class pddlboat::ast::Domain
+py::class_<pddlboat::ast::Domain, std::shared_ptr<pddlboat::ast::Domain>>(ast_m, "Domain")
+.def("__repr__", [](const pddlboat::ast::Domain &o){std::stringstream ss; o.toString(ss); return ss.str();})
+.def_readwrite("name", &pddlboat::ast::Domain::name)
+.def_readwrite("requirements", &pddlboat::ast::Domain::requirements)
+.def_readwrite("types", &pddlboat::ast::Domain::types)
+.def_readwrite("constants", &pddlboat::ast::Domain::constants)
+.def_readwrite("predicates", &pddlboat::ast::Domain::predicates)
+.def_readwrite("functions", &pddlboat::ast::Domain::functions)
+.def_readwrite("actions", &pddlboat::ast::Domain::actions)
+;
+// Bindings for class pddlboat::ast::Action
+py::class_<pddlboat::ast::Action, std::shared_ptr<pddlboat::ast::Action>>(ast_m, "Action")
+.def("__repr__", [](const pddlboat::ast::Action &o){std::stringstream ss; o.toString(ss); return ss.str();})
+.def_readwrite("derived", &pddlboat::ast::Action::derived)
+.def_readwrite("name", &pddlboat::ast::Action::name)
+.def_readwrite("parameters", &pddlboat::ast::Action::parameters)
+.def_readwrite("precondition", &pddlboat::ast::Action::precondition)
+.def_readwrite("effect", &pddlboat::ast::Action::effect)
+;
+// Bindings for class pddlboat::ast::Expression
+py::class_<pddlboat::ast::Expression, std::shared_ptr<pddlboat::ast::Expression>>(ast_m, "Expression")
+.def(py::init())
+.def(py::init<const std::basic_string<char> &>())
+.def(py::init<const std::basic_string<char> &, const std::vector<pddlboat::ast::Expression> &>())
+.def(py::init<const std::basic_string<char> &, const std::vector<pddlboat::ast::TypedList> &, const std::vector<pddlboat::ast::Expression> &>())
+.def("__repr__", [](const pddlboat::ast::Expression &o){std::stringstream ss; o.toString(ss); return ss.str();})
+.def("get_keyword", &pddlboat::ast::Expression::getKeyword)
+.def_readwrite("op", &pddlboat::ast::Expression::op)
+.def_readwrite("parameters", &pddlboat::ast::Expression::parameters)
+.def_readwrite("terms", &pddlboat::ast::Expression::terms)
+.def_readwrite("number", &pddlboat::ast::Expression::number)
+;
+// Bindings for class pddlboat::ast::AtomicFormulaList
+py::class_<pddlboat::ast::AtomicFormulaList, std::shared_ptr<pddlboat::ast::AtomicFormulaList>>(ast_m, "AtomicFormulaList")
+.def("__repr__", [](const pddlboat::ast::AtomicFormulaList &o){std::stringstream ss; o.toString(ss); return ss.str();})
+.def_readwrite("formulas", &pddlboat::ast::AtomicFormulaList::formulas)
+.def_readwrite("parent", &pddlboat::ast::AtomicFormulaList::parent)
+;
+// Bindings for class pddlboat::ast::AtomicFormula
+py::class_<pddlboat::ast::AtomicFormula, std::shared_ptr<pddlboat::ast::AtomicFormula>>(ast_m, "AtomicFormula")
+.def("__repr__", [](const pddlboat::ast::AtomicFormula &o){std::stringstream ss; o.toString(ss); return ss.str();})
+.def_readwrite("name", &pddlboat::ast::AtomicFormula::name)
+.def_readwrite("variables", &pddlboat::ast::AtomicFormula::variables)
+;
+// Bindings for class pddlboat::ast::TypedList
+py::class_<pddlboat::ast::TypedList, std::shared_ptr<pddlboat::ast::TypedList>>(ast_m, "TypedList")
+.def("__repr__", [](const pddlboat::ast::TypedList &o){std::stringstream ss; o.toString(ss); return ss.str();})
+.def_readwrite("types", &pddlboat::ast::TypedList::types)
+.def_readwrite("parent", &pddlboat::ast::TypedList::parent)
+;
+// Bindings for class pddlboat::ast::Term
+py::class_<pddlboat::ast::Term, std::shared_ptr<pddlboat::ast::Term>>(ast_m, "Term")
+.def_readwrite("symbol", &pddlboat::ast::Term::symbol)
+.def_readwrite("terms", &pddlboat::ast::Term::terms)
+;
 // Bindings for class pddlboat::Planner
 py::class_<pddlboat::Planner, std::shared_ptr<pddlboat::Planner>>(m, "Planner")
 .def("solve", static_cast<bool (pddlboat::Planner::*)(pddlboat::Plan &)>(&pddlboat::Planner::solve))
@@ -957,4 +1060,19 @@ m
 .def("make_decrease", static_cast<pddlboat::DecreasePtr (*)(const std::shared_ptr<pddlboat::NumericFunction> &, const std::shared_ptr<pddlboat::NumericExpression> &)>(&pddlboat::makeDecrease))
 .def("make_decrease", static_cast<pddlboat::DecreasePtr (*)(const std::shared_ptr<pddlboat::NumericFunction> &, double)>(&pddlboat::makeDecrease))
 ;
+m
+.def("parse_file", static_cast<bool (*)(const std::basic_string<char> &, pddlboat::ast::Domain &)>(&pddlboat::parseFile))
+.def("parse_file", static_cast<bool (*)(const std::basic_string<char> &, pddlboat::ast::Problem &)>(&pddlboat::parseFile))
+.def("parse_file", static_cast<bool (*)(const std::basic_string<char> &, pddlboat::ast::Plan &)>(&pddlboat::parseFile))
+.def("parse_file", static_cast<bool (*)(const std::basic_string<char> &, pddlboat::ast::Expression &)>(&pddlboat::parseFile))
+;
+m
+.def("parse_string", static_cast<bool (*)(const std::basic_string<char> &, pddlboat::ast::Domain &)>(&pddlboat::parseString))
+.def("parse_string", static_cast<bool (*)(const std::basic_string<char> &, pddlboat::ast::Problem &)>(&pddlboat::parseString))
+.def("parse_string", static_cast<bool (*)(const std::basic_string<char> &, pddlboat::ast::Plan &)>(&pddlboat::parseString))
+.def("parse_string", static_cast<bool (*)(const std::basic_string<char> &, pddlboat::ast::Expression &)>(&pddlboat::parseString))
+.def("parse_string", static_cast<bool (*)(const std::basic_string<char> &, std::vector<pddlboat::ast::TypedList> &)>(&pddlboat::parseString))
+;
+m.def("parse_z3_action", &pddlboat::parseZ3Action);
+m.def("parse_z3_predicate", &pddlboat::parseZ3Predicate);
 }
