@@ -22,6 +22,7 @@ from clang.cindex import (
 )
 
 METHOD_REPLACEMENTS = {}
+SUBMODULE_NAMESPACES = []
 
 
 def get_header_directories() -> List[str]:
@@ -333,9 +334,7 @@ def generate_methods(class_node: Cursor, qualified_name: str) -> List[str]:
 
     elif method_name in METHOD_REPLACEMENTS:
       repl, func = METHOD_REPLACEMENTS[method_name]
-      methods.append(
-          f'.def("{repl}", {func.format(qualified_name = qualified_name)})'
-      )
+      methods.append(f'.def("{repl}", {func.format(qualified_name = qualified_name)})')
 
     else:
       methods.append(
@@ -380,7 +379,8 @@ def generate_class(
     class_node: Cursor,
     ns_name: str,
     pointer_names: Set[str],
-    parent_class: Optional[str] = None
+    parent_class: Optional[str] = None,
+    submodule_name: Optional[str] = None
 ) -> List[Binding]:
   # Handle forward declarations
   class_definition_node = class_node.get_definition()
@@ -391,7 +391,12 @@ def generate_class(
     )
     return []
 
-  parent_object = f'py_{parent_class.replace("::", "_")}' if parent_class else 'm'
+  if parent_class:
+    parent_object = f'py_{parent_class.replace("::", "_")}'
+  elif submodule_name:
+    parent_object = f"{submodule_name}_m"
+  else:
+    parent_object = "m"
 
   superclasses = []
   for superclass_node in get_nodes_with_kind(class_node.get_children(),
@@ -428,7 +433,15 @@ def generate_class(
 
     # Nested types
     for nested_type_node in filter(is_not_private, get_nested_types(class_node)):
-      nested_output.extend(generate_class(nested_type_node, ns_name, pointer_names, qualified_name))
+      nested_output.extend(
+          generate_class(
+              nested_type_node,
+              ns_name,
+              pointer_names,
+              qualified_name,
+              submodule_name=submodule_name
+          )
+      )
 
     if nested_output:
       class_output[
@@ -472,6 +485,11 @@ def bind_classes(top_level_node: Cursor) -> List[Binding]:
     else:
       qualified_name = ns.spelling
 
+    if ns.spelling in SUBMODULE_NAMESPACES:
+      submodule_name = ns.spelling
+    else:
+      submodule_name = None
+
     pointer_names = get_pointer_defs(ns)
     for class_node in get_nodes_with_kind(
         ns.get_children(),
@@ -479,7 +497,9 @@ def bind_classes(top_level_node: Cursor) -> List[Binding]:
             CursorKind.CLASS_DECL,  # type: ignore
             CursorKind.STRUCT_DECL  # type: ignore
         ]):
-      output.extend(generate_class(class_node, qualified_name, pointer_names))
+      output.extend(
+          generate_class(class_node, qualified_name, pointer_names, submodule_name=submodule_name)
+      )
   return output
 
 
@@ -498,12 +518,13 @@ def bind_functions(top_level_node: Cursor) -> List[Binding]:
                                              [CursorKind.FUNCTION_DECL]):  # type: ignore
       ns_functions[to_snake_case(function_node.spelling)].append(function_node)
 
+    parent_object = qualified_name if ns.spelling in SUBMODULE_NAMESPACES else "m"
     for function_name, function_nodes in ns_functions.items():
       if function_name[:8] == 'operator':
         continue
 
       if len(function_nodes) > 1:
-        function_body = ['m']
+        function_body = [parent_object]
         function_body.extend(generate_overloads(function_name, function_nodes, qualified_name))
         function_body.append(';')
         function_bindings.append(
@@ -516,7 +537,7 @@ def bind_functions(top_level_node: Cursor) -> List[Binding]:
                 is_class=False,
                 dependencies=[],
                 body=[
-                    f'm.def("{function_name}", &{qualified_name}::{function_nodes[0].spelling});'
+                    f'{parent_object}.def("{function_name}", &{qualified_name}::{function_nodes[0].spelling});'
                 ]
             )
         )
@@ -548,7 +569,6 @@ def toposort_bindings(bindings: List[Binding]) -> List[str]:
   output: List[str] = []
   class_bindings = [binding for binding in bindings if binding.is_class and binding.dependencies]
   frontier = [binding for binding in bindings if binding.is_class and not binding.dependencies]
-
   while frontier:
     next_binding = frontier.pop()
     output.extend(next_binding.body)
@@ -634,13 +654,22 @@ std::vector<const char*> convertVec(const std::vector<std::string>& vec) {
 }'''
   ]
 
-  METHOD_REPLACEMENTS['to_pddl'] = ('__repr__', '[](const {qualified_name} &o){{std::stringstream ss; o.toPDDL(ss); return ss.str();}}')
-  METHOD_REPLACEMENTS['to_string'] = ('__repr__', '[](const {qualified_name} &o){{std::stringstream ss; o.toString(ss); return ss.str();}}')
+  METHOD_REPLACEMENTS['to_pddl'] = (
+      '__repr__',
+      '[](const {qualified_name} &o){{std::stringstream ss; o.toPDDL(ss); return ss.str();}}'
+  )
+  METHOD_REPLACEMENTS['to_string'] = (
+      '__repr__',
+      '[](const {qualified_name} &o){{std::stringstream ss; o.toString(ss); return ss.str();}}'
+  )
 
   body = []
 
   print('Parsing header files...')
   index, translation_units = load_data(args.compilation_database, args.headers)
+
+  # HACK: We should handle generating submodules for namespaces more generally
+  SUBMODULE_NAMESPACES.append('ast')
 
   print('Generating bindings...')
   bindings = []
@@ -659,6 +688,9 @@ std::vector<const char*> convertVec(const std::vector<std::string>& vec) {
 
   prefix.extend(f"#include <{header_path.relative_to('include')}>" for header_path in args.headers)
   prefix.extend(['namespace py = pybind11;', f'PYBIND11_MODULE({args.module_name}, m) {{'])
+  prefix.extend(
+      f'py::module_ {ns_name}_m = m.def_submodule("{ns_name}");' for ns_name in SUBMODULE_NAMESPACES
+  )
   prefix.extend(
       f'py::module_::import("{import_name}");' for mod_name,
       import_name in EXTERNAL_MODULES.items() if external_module_imports[mod_name]
