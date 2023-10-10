@@ -137,7 +137,7 @@ def generate_function_pointer_signature(
     is_static: bool = False,
     class_node: Optional[Cursor] = None
 ) -> str:
-  signature = f'{function_node.type.get_result().spelling} ({qualified_name + "::*" if class_node and not is_static else "*"})('
+  signature = f'{function_node.type.get_result().get_canonical().spelling} ({qualified_name + "::*" if class_node and not is_static else "*"})('
   arg_types = function_node.type.argument_types()
   for typ in function_node.type.argument_types():
     signature += f'{typ.get_canonical().spelling}, '
@@ -179,7 +179,7 @@ def generate_overloads(
 
 
 def get_base_type_name(typ: Type) -> str:
-  type_name_chunks = typ.spelling.split(' ')
+  type_name_chunks = typ.get_canonical().spelling.split(' ')
   # Check for const and reference
   return ' '.join(chunk if chunk not in ['const', '&'] else '' for chunk in type_name_chunks
                  ).strip()
@@ -375,6 +375,49 @@ def get_nested_types(class_node: Cursor) -> List[Cursor]:
   )  # type: ignore
 
 
+def get_nested_enums(class_node: Cursor) -> list[Cursor]:
+  return get_nodes_with_kind(class_node.get_children(), [CursorKind.ENUM_DECL])
+
+
+def generate_enum(
+    enum_node: Cursor,
+    ns_name: str,
+    parent_class: Optional[str] = None,
+    submodule_name: Optional[str] = None
+) -> List[Binding]:
+  # Handle forward declarations
+  enum_definition_node = enum_node.get_definition()
+  qualified_name = f'{parent_class if parent_class else ns_name}::{enum_node.spelling}'
+  if enum_definition_node is None or enum_definition_node != enum_node:
+    print(
+        f'{qualified_name} appears to be a forward declaration at {format_extent(enum_node.extent)}'
+    )
+    return []
+
+  if parent_class:
+    parent_object = f'py_{parent_class.replace("::", "_")}'
+  elif submodule_name:
+    parent_object = f"{submodule_name}_m"
+  else:
+    parent_object = "m"
+
+  print(f'Processing {qualified_name} at {format_extent(enum_node.extent)}...')
+  # NOTE: We assume that everything uses shared_ptr as its holder type for simplicity
+  enum_output = [f'// Bindings for enum {qualified_name}']
+  enum_output.append(f'py::enum_<{qualified_name}>({parent_object}, "{enum_node.spelling}")')
+  # Enum values
+  for ec in enum_definition_node.get_children():
+    enum_output.append(f'.value("{ec.spelling}", {qualified_name}::{ec.spelling})')
+
+  enum_output.append(".export_values()")
+  enum_output.append(';')
+  enum_binding = Binding(qualified_name, True, dependencies=[], body=enum_output)
+  if parent_class:
+    enum_binding.dependencies.append(parent_class)
+
+  return [enum_binding]
+
+
 def generate_class(
     class_node: Cursor,
     ns_name: str,
@@ -398,11 +441,10 @@ def generate_class(
   else:
     parent_object = "m"
 
-  superclasses = []
-  for superclass_node in get_nodes_with_kind(class_node.get_children(),
-                                             [CursorKind.CXX_BASE_SPECIFIER]):  # type: ignore
-    superclasses.append(superclass_node.type.spelling)
-
+  superclasses = [
+      sc_node.type.get_canonical().spelling for sc_node in
+      get_nodes_with_kind(class_node.get_children(), [CursorKind.CXX_BASE_SPECIFIER]) # type: ignore
+  ]
   superclass_string = ''
   print(f'Processing {qualified_name} at {format_extent(class_node.extent)}...')
   # NOTE: We assume that everything uses shared_ptr as its holder type for simplicity
@@ -430,6 +472,12 @@ def generate_class(
 
     # Fields
     class_output.extend(generate_fields(class_node, qualified_name))
+
+    # Nested enums
+    for nested_enum_node in filter(is_not_private, get_nested_enums(class_node)):
+      nested_output.extend(
+          generate_enum(nested_enum_node, ns_name, qualified_name, submodule_name=submodule_name)
+      )
 
     # Nested types
     for nested_type_node in filter(is_not_private, get_nested_types(class_node)):
