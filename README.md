@@ -229,6 +229,32 @@ make
 
 Otherwise, simply run the catkin build command.
 
+### Troubleshooting the Boost version problem
+In Ubuntu 22.04, the default released version of `Boost` is 1.74. If you encounter a problem of requiring `Boost` 1.82, download `boost_1_82_0.tar.gz` from the [Boost website](https://www.boost.org/users/history/version_1_82_0.html). Untar it and enter its directory. Then run the bootstrap script, assuming the installation prefix is `/usr`:
+```sh
+./bootstrap.sh --prefix=/usr/
+sudo ./b2 install
+```
+
+### Faster compilation
+You can compile `pddlboat` using Ninja. Note: if you installed `Boost` using the above command, replace `$PREFIX` with `/usr/`, if it is empty.
+```
+cmake -Bbuild -GNinja -DBOOST_ROOT=$PREFIX .
+cmake --build build
+```
+
+
+### Installing the Python bindings
+Before you compile `pddlboat`, make sure you have `pybind11` installed. Assuming you are using a conda environment, activate it and install:
+```sh
+conda install -c conda-forge pybind11
+```
+Then, install `pddlboat` as a Python package in your environment:
+```sh
+cd py
+pip install -e .
+```
+
 # TODO
 
 More features in _PDDLboat_ are planned soon.
