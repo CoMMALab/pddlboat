@@ -706,6 +706,10 @@ std::vector<const char*> convertVec(const std::vector<std::string>& vec) {
       '__repr__',
       '[](const {qualified_name} &o){{std::stringstream ss; o.toPDDL(ss); return ss.str();}}'
   )
+  METHOD_REPLACEMENTS['to_dot_file'] = (
+      '__repr__',
+      '[](const {qualified_name} &o){{std::stringstream ss; o.toDotFile(ss); return ss.str();}}'
+  )
   METHOD_REPLACEMENTS['to_string'] = (
       '__repr__',
       '[](const {qualified_name} &o){{std::stringstream ss; o.toString(ss); return ss.str();}}'

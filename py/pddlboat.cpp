@@ -921,7 +921,7 @@ py_pddlboat_PlanDependencyGraph.def(py::init<const pddlboat::Plan &>())
 .def("get_nodes_by_leaf_distance", &pddlboat::PlanDependencyGraph::getNodesByLeafDistance)
 .def("get_leafs", &pddlboat::PlanDependencyGraph::getLeafs)
 .def("get_max_leaf_distance", &pddlboat::PlanDependencyGraph::getMaxLeafDistance)
-.def("to_dot_file", &pddlboat::PlanDependencyGraph::toDotFile)
+.def("__repr__", [](const pddlboat::PlanDependencyGraph &o){std::stringstream ss; o.toDotFile(ss); return ss.str();})
 ;
 // Bindings for class pddlboat::PlanDependencyGraph::DotFileOptions
 py::class_<pddlboat::PlanDependencyGraph::DotFileOptions, std::shared_ptr<pddlboat::PlanDependencyGraph::DotFileOptions>> py_pddlboat_PlanDependencyGraph_DotFileOptions(py_pddlboat_PlanDependencyGraph, "DotFileOptions");
