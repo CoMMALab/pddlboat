@@ -1099,6 +1099,11 @@ Domain::Domain(const std::string &name) : name(boost::algorithm::to_lower_copy(n
     addRequirement(Requirements::STRIPS);
 }
 
+void Domain::clearRequirements()
+{
+    requirements = Requirements::STRIPS;
+}
+
 void Domain::addRequirement(const Requirements::Keyword &requirement)
 {
     requirements = requirements | requirement;

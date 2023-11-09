@@ -925,6 +925,10 @@ namespace pddlboat
          */
         void addRequirement(const Requirements::Keyword &requirement);
 
+        /** \brief Clear all requirements in this domain.
+         */
+        void clearRequirements();
+
         /** \brief Adds requirements to domain specification based on contents of expression.
          *  \param[in] expression Expression to check.
          */
