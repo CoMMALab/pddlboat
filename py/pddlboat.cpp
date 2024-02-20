@@ -1082,6 +1082,7 @@ m.def("to_domain", &pddlboat::toDomain);
 m.def("to_problem", &pddlboat::toProblem);
 m.def("parse_domain", &pddlboat::parseDomain);
 m.def("parse_problem", &pddlboat::parseProblem);
+m.def("parse_expression", &pddlboat::parseExpression);
 m.def("make_pred", &pddlboat::makePred);
 m.def("make_derived_pred", &pddlboat::makeDerivedPred);
 m.def("make_function", &pddlboat::makeFunction);

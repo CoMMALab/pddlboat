@@ -715,3 +715,29 @@ pddlboat::ProblemPtr pddlboat::parseProblem(const DomainPtr &domain, const std::
 
     return problem;
 }
+
+pddlboat::ExpressionPtr pddlboat::parseExpression(const ProblemPtr &problem,
+                                                  const std::string &expression_string)
+{
+    ast::Expression expression_ast;
+    if (parseString(expression_string, expression_ast))
+    {
+        std::cerr << log::format("Failed to parse expression string `%1%`.", expression_string) << std::endl;
+        return nullptr;
+    }
+
+    ExpressionPtr expression;
+
+    // translate problem
+    try
+    {
+        expression = toExpression(expression_ast, {}, problem->domain, problem);
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << log::format("Caught exception translating expression: %1%", e.what()) << std::endl;
+        return nullptr;
+    }
+
+    return expression;
+}

@@ -28,6 +28,7 @@ namespace pddlboat
 
     DomainPtr parseDomain(const std::string &domain_file);
     ProblemPtr parseProblem(const DomainPtr &domain, const std::string &problem_file);
+    ExpressionPtr parseExpression(const ProblemPtr &problem, const std::string &expression_string);
 }  // namespace pddlboat
 
 #endif
