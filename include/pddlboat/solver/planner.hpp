@@ -20,7 +20,10 @@
 #include <pddlboat/parser/ast.hpp>
 #include <pddlboat/parser/parser.hpp>
 #include <pddlboat/solver/expression.hpp>
+#ifdef __linux__
 #include <sys/inotify.h>
+#endif
+
 #include <unistd.h>
 #if __has_include(<filesystem>)
   #include <filesystem>
@@ -317,6 +320,7 @@ namespace pddlboat
         std::vector<Plan> plans_;   ///< The collected plans
     };
 
+#ifdef __linux__
     class PlanWatcher
     {
     public:
@@ -364,6 +368,7 @@ namespace pddlboat
         // are at most 128 names to store at any  time
         std::array<std::string_view, 128> plan_filename_backlog_;
     };
+#endif
 
     /** \brief Output stream operator for a step in the plan.
      *  \param[in, out] out Output stream to use.

@@ -415,6 +415,7 @@ namespace pddlboat
             return r;
         }
 
+#ifdef __linux__
         bool doAnytimePlanning()
         {
             std::size_t count = 0;
@@ -446,6 +447,7 @@ namespace pddlboat
 
             return true;
         }
+#endif
 
         bool doPlanning()
         {

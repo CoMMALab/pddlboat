@@ -48,12 +48,14 @@ namespace pddlboat
          */
         bool multiSolve(PlanSet &plans);
 
+#ifdef __linux__
         /** \brief Enumerate solutions in an anytime manner
          *  \param timeout Desired timeout, in ms, for each check for new plans
          *  \param start_immediately Flag for whether the planner should be started immediately
          *  \return PlanWatcher instance which will retrieve plans as sym-k outputs them
          */
         PlanWatcher anytimeSolve(unsigned int timeout = 50, bool start_immediately = true);
+#endif
 
     protected:
         /** \brief Generate the command for calling sym-k's search

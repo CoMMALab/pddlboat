@@ -119,6 +119,7 @@ bool SymKPlanner::multiSolve(PlanSet &plans)
     return true;
 }
 
+#ifdef __linux__
 PlanWatcher SymKPlanner::anytimeSolve(unsigned int timeout, bool start_immediately)
 {
     if (not translator_command)
@@ -130,6 +131,7 @@ PlanWatcher SymKPlanner::anytimeSolve(unsigned int timeout, bool start_immediate
     return PlanWatcher("/tmp", output_filename, problem_, generateAnytimeSolverCommand(), timeout,
                        start_immediately);
 }
+#endif
 
 const std::string &SymKPlanner::getDirectory() const
 {

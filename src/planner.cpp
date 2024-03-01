@@ -308,6 +308,7 @@ const ProblemPtr &PlanSet::getProblem() const
     return problem_;
 }
 
+#ifdef __linux__
 PlanWatcher::PlanWatcher(const fs::path &output_dir, const std::string &filename_prefix,
                          const ProblemPtr &problem, const std::string &cmd, bool start_immediately,
                          unsigned int timeout, unsigned int backlog_size)
@@ -568,6 +569,7 @@ PlanSet &PlanWatcher::getPlans()
 {
     return plans;
 }
+#endif
 
 ///
 /// Planner
@@ -634,6 +636,7 @@ const ProblemPtr &Planner::getProblem() const
     return problem_;
 }
 
+#ifdef __linux__
 auto pddlboat::PlanWatcher::startPlanner() -> std::pair<FILE *, pid_t>
 {
     int pdes[2];
@@ -658,3 +661,4 @@ auto pddlboat::PlanWatcher::startPlanner() -> std::pair<FILE *, pid_t>
 
     return {pout, ppid};
 }
+#endif

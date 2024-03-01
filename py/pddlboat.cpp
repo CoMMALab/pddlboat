@@ -144,7 +144,9 @@ py::class_<pddlboat::SymKPlanner, pddlboat::FastDownwardPlanner, std::shared_ptr
 py_pddlboat_SymKPlanner.def(py::init<const std::shared_ptr<pddlboat::Problem> &, pddlboat::SymKPlanner::SolutionSelector, unsigned int, float, bool>())
 .def("get_supported_requirements", &pddlboat::SymKPlanner::getSupportedRequirements)
 .def("multi_solve", &pddlboat::SymKPlanner::multiSolve)
+#ifdef __linux__
 .def("anytime_solve", &pddlboat::SymKPlanner::anytimeSolve)
+#endif
 ;
 // Bindings for enum pddlboat::SymKPlanner::SolutionSelector
 py::enum_<pddlboat::SymKPlanner::SolutionSelector>(py_pddlboat_SymKPlanner, "SolutionSelector")
@@ -189,6 +191,8 @@ py::class_<pddlboat::AStarPlanner::Options, std::shared_ptr<pddlboat::AStarPlann
 .def_readwrite("transition_distance", &pddlboat::AStarPlanner::Options::transition_distance)
 .def_readwrite("heuristic", &pddlboat::AStarPlanner::Options::heuristic)
 ;
+
+#ifdef __linux__
 // Bindings for class pddlboat::PlanWatcher
 py::class_<pddlboat::PlanWatcher, std::shared_ptr<pddlboat::PlanWatcher>>(m, "PlanWatcher")
 .def(py::init<const std::filesystem::path &, const std::basic_string<char> &, const std::shared_ptr<pddlboat::Problem> &, const std::basic_string<char> &, bool, unsigned int, unsigned int>())
@@ -199,6 +203,8 @@ py::class_<pddlboat::PlanWatcher, std::shared_ptr<pddlboat::PlanWatcher>>(m, "Pl
 .def("get_plan_idx", &pddlboat::PlanWatcher::getPlanIdx)
 .def("get_plans", &pddlboat::PlanWatcher::getPlans)
 ;
+#endif
+
 // Bindings for class pddlboat::PlanSet
 py::class_<pddlboat::PlanSet, std::shared_ptr<pddlboat::PlanSet>>(m, "PlanSet")
 .def(py::init<const std::shared_ptr<pddlboat::Problem> &>())
