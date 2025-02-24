@@ -72,7 +72,7 @@ bool io::isSuffix(const std::string &lhs, const std::string &rhs)
 bool io::isExtension(const std::string &path_string, const std::string &extension)
 {
     boost::filesystem::path path(path_string);
-    const std::string last = boost::filesystem::extension(path);
+    const std::string last = path.extension().string();
     return isSuffix(extension, last);
 }
 

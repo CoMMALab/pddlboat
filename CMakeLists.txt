@@ -78,9 +78,9 @@ list(APPEND PDDLBOAT_SOURCES
 add_definitions(-w)
 
 ## Fast-forward
-add_compile_definitions(PDDLBOAT_FASTFORWARD_LOCATION="${CMAKE_CURRENT_BINARY_DIR}/submodules/ff:${CMAKE_INSTALL_PREFIX}/share/pddlboat/ff")
-list(APPEND PDDLBOAT_SOURCES src/ffplanner.cpp)
-add_subdirectory(submodules/ff)
+# add_compile_definitions(PDDLBOAT_FASTFORWARD_LOCATION="${CMAKE_CURRENT_BINARY_DIR}/submodules/ff:${CMAKE_INSTALL_PREFIX}/share/pddlboat/ff")
+# list(APPEND PDDLBOAT_SOURCES src/ffplanner.cpp)
+# add_subdirectory(submodules/ff)
 
 ## Fast-downward
 add_compile_definitions(PDDLBOAT_FASTDOWNWARD_LOCATION="${CMAKE_CURRENT_BINARY_DIR}/submodules/downward/src/bin:${CMAKE_INSTALL_PREFIX}/share/pddlboat/fd")

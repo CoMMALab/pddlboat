@@ -120,17 +120,17 @@ py::enum_<pddlboat::Planner::ConstraintTime>(py_pddlboat_Planner, "ConstraintTim
 .export_values()
 ;
 // Bindings for class pddlboat::FastForwardPlanner
-py::class_<pddlboat::FastForwardPlanner, pddlboat::Planner, std::shared_ptr<pddlboat::FastForwardPlanner>> py_pddlboat_FastForwardPlanner(m, "FastForwardPlanner");
-py_pddlboat_FastForwardPlanner.def(py::init<const std::shared_ptr<pddlboat::Problem> &, const pddlboat::FastForwardPlanner::Options &>())
-.def("get_supported_requirements", &pddlboat::FastForwardPlanner::getSupportedRequirements)
-.def("update", &pddlboat::FastForwardPlanner::update)
-.def("solve", static_cast<bool (pddlboat::FastForwardPlanner::*)(pddlboat::Plan &)>(&pddlboat::FastForwardPlanner::solve))
-.def("solve", static_cast<bool (pddlboat::FastForwardPlanner::*)(pddlboat::Plan &, unsigned int)>(&pddlboat::FastForwardPlanner::solve))
-;
+// py::class_<pddlboat::FastForwardPlanner, pddlboat::Planner, std::shared_ptr<pddlboat::FastForwardPlanner>> py_pddlboat_FastForwardPlanner(m, "FastForwardPlanner");
+// py_pddlboat_FastForwardPlanner.def(py::init<const std::shared_ptr<pddlboat::Problem> &, const pddlboat::FastForwardPlanner::Options &>())
+// .def("get_supported_requirements", &pddlboat::FastForwardPlanner::getSupportedRequirements)
+// .def("update", &pddlboat::FastForwardPlanner::update)
+// .def("solve", static_cast<bool (pddlboat::FastForwardPlanner::*)(pddlboat::Plan &)>(&pddlboat::FastForwardPlanner::solve))
+// .def("solve", static_cast<bool (pddlboat::FastForwardPlanner::*)(pddlboat::Plan &, unsigned int)>(&pddlboat::FastForwardPlanner::solve))
+// ;
 // Bindings for class pddlboat::FastForwardPlanner::Options
-py::class_<pddlboat::FastForwardPlanner::Options, std::shared_ptr<pddlboat::FastForwardPlanner::Options>>(py_pddlboat_FastForwardPlanner, "Options")
-.def(py::init())
-;
+// py::class_<pddlboat::FastForwardPlanner::Options, std::shared_ptr<pddlboat::FastForwardPlanner::Options>>(py_pddlboat_FastForwardPlanner, "Options")
+// .def(py::init())
+// ;
 // Bindings for class pddlboat::FastDownwardPlanner
 py::class_<pddlboat::FastDownwardPlanner, pddlboat::Planner, std::shared_ptr<pddlboat::FastDownwardPlanner>> py_pddlboat_FastDownwardPlanner(m, "FastDownwardPlanner");
 py_pddlboat_FastDownwardPlanner.def(py::init<const std::shared_ptr<pddlboat::Problem> &, const pddlboat::FastDownwardPlanner::Options &>())

@@ -370,7 +370,7 @@ namespace pddlboat
                     planner = std::make_shared<Z3Planner>(problem, z3.options);
                     break;
                 case FF:
-                    planner = std::make_shared<FastForwardPlanner>(problem, ff.options);
+                    // planner = std::make_shared<FastForwardPlanner>(problem, ff.options);
                     break;
                 case FD:
                     planner = std::make_shared<FastDownwardPlanner>(problem, fd.options);
