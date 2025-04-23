@@ -1,14 +1,14 @@
 if (CMAKE_VERSION VERSION_LESS "3.1")
     # force C++11 mode (MS Visual Studio doesn't know about this flag)
     if(NOT MSVC)
-        add_definitions(-std=c++17)
+        add_definitions(-std=c++20)
     endif()
 else()
-    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD 20)
     set(CMAKE_CXX_STANDARD_REQUIRED ON)
     set(CMAKE_CXX_EXTENSIONS OFF)
     # this next line shouldn't be necessary, but doesn't always get added by cmake (e.g., for clang++-5)
-    add_definitions(-std=c++17)
+    add_definitions(-std=c++20)
 endif()
 
 

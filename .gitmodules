@@ -4,7 +4,8 @@
 	shallow = True
 [submodule "submodules/symk"]
 	path = submodules/symk
-	url = git@github.com:wbthomason/symk.git
+	url = git@github.com:CoMMALab/symk.git
+	branch = update
 	shallow = True
 [submodule "resources/icaps"]
 	path = resources/icaps
