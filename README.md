@@ -249,11 +249,15 @@ Before you compile `pddlboat`, make sure you have `pybind11` installed. Assuming
 ```sh
 conda install -c conda-forge pybind11
 ```
-Then, install `pddlboat` as a Python package in your environment:
+The CMake build compiles the `pddlboat` Python extension and copies it into
+`py/pddlboat/`, so **build the project first** (see above), then install the
+package from the repository root:
 ```sh
-cd py
 pip install -e .
 ```
+This is an editable install of the already-built extension: because the CMake
+build re-copies the compiled `.so` into `py/pddlboat/` on every rebuild, later
+rebuilds are picked up automatically without reinstalling.
 
 # TODO
 

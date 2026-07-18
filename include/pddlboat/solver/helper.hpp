@@ -17,6 +17,7 @@
 #include <pddlboat/solver/fdplanner.hpp>
 #include <pddlboat/solver/symkplanner.hpp>
 #include <pddlboat/solver/z3planner.hpp>
+#include <pddlboat/solver/madagascarplanner.hpp>
 #include <pddlboat/solver/astarplanner.hpp>
 #include <pddlboat/solver/dependency.hpp>
 
@@ -34,6 +35,7 @@ namespace pddlboat
         FD,
         AS,
         SYMK,
+        MADAGASCAR,
     };
 
     std::istream &operator>>(std::istream &in, PlannerType &unit)
@@ -50,6 +52,21 @@ namespace pddlboat
             unit = PlannerType::AS;
         else if (token == "symk")
             unit = PlannerType::SYMK;
+        else if (token == "mdg" or token == "madagascar")
+            unit = PlannerType::MADAGASCAR;
+        else
+            in.setstate(std::ios_base::failbit);
+        return in;
+    }
+
+    std::istream &operator>>(std::istream &in, MadagascarPlanner::Semantics &unit)
+    {
+        std::string token;
+        in >> token;
+        if (token == "exists")
+            unit = MadagascarPlanner::Semantics::EXISTS_STEP;
+        else if (token == "forall")
+            unit = MadagascarPlanner::Semantics::FORALL_STEP;
         else
             in.setstate(std::ios_base::failbit);
         return in;
@@ -136,6 +153,11 @@ namespace pddlboat
                 bool smt;
             } output;
         } z3;
+
+        struct
+        {
+            MadagascarPlanner::Options options;
+        } mdg;
 
         struct
         {
@@ -236,6 +258,37 @@ namespace pddlboat
                  "Print the model as a smt2 file")                                                     //
                 ;
             description.add(z3opt);
+
+            po::options_description mdgopt("Madagascar Planner Options");
+            mdgopt.add_options()                                                                        //
+                ("mdg_max_horizon", po::value<std::size_t>(&mdg.options.horizon_max)->default_value(60),  //
+                 "Maximum planning horizon to use")                                                       //
+                ("mdg_min_horizon", po::value<std::size_t>(&mdg.options.horizon_min)->default_value(0),   //
+                 "Minimum planning horizon to use")                                                       //
+                ("mdg_step", po::value<std::size_t>(&mdg.options.horizon_step)->default_value(1),         //
+                 "Gap between scheduled horizons")                                                        //
+                ("mdg_window", po::value<unsigned int>(&mdg.options.window)->default_value(8),            //
+                 "Maximum concurrently active horizons (Algorithm B)")                                    //
+                ("mdg_gamma", po::value<double>(&mdg.options.gamma)->default_value(0.9),                  //
+                 "Geometric effort rate for Algorithm B")                                                 //
+                ("mdg_rlimit", po::value<unsigned int>(&mdg.options.rlimit_base)->default_value(500000),  //
+                 "Z3 resource budget per round for the shortest horizon")                                 //
+                ("mdg_semantics",
+                 po::value<MadagascarPlanner::Semantics>(&mdg.options.semantics)
+                     ->default_value(MadagascarPlanner::Semantics::EXISTS_STEP, "exists"),  //
+                 "Parallel plan semantics. Either `exists` or `forall`")                    //
+                ("mdg_invariants", po::value<bool>(&mdg.options.invariants)->default_value(true),  //
+                 "Synthesize and assert invariants")                                               //
+                ("mdg_algorithm_b", po::value<bool>(&mdg.options.algorithm_b)->default_value(true),  //
+                 "Concurrent horizons; false solves horizons sequentially")                          //
+                ("mdg_parallel", po::bool_switch(&mdg.options.parallel),                             //
+                 "Parallel solving through Z3")                                                      //
+                ("mdg_diagnostics", po::bool_switch(&mdg.options.diagnostics),                       //
+                 "Print debugging statistics")                                                      //
+                ("mdg_dump_clauses", po::bool_switch(&mdg.options.dump_clauses),                    //
+                 "Print all constituent clauses in plan")                                           //
+                ;
+            description.add(mdgopt);
 
             po::options_description ffopt("Fast Forward Planner Options");
             description.add(ffopt);
@@ -380,6 +433,9 @@ namespace pddlboat
                     break;
                 case SYMK:
                     planner = std::make_shared<SymKPlanner>(problem, symk.selector, symk.k, symk.q);
+                    break;
+                case MADAGASCAR:
+                    planner = std::make_shared<MadagascarPlanner>(problem, mdg.options);
                     break;
                 default:
                     std::cerr << "Unknown planner type. Exiting." << std::endl;

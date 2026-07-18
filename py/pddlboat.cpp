@@ -35,7 +35,25 @@ std::vector<const char*> convertVec(const std::vector<std::string>& vec) {
 #include <pddlboat/solver/symkplanner.hpp>
 #include <pddlboat/solver/variables.hpp>
 #include <pddlboat/solver/z3planner.hpp>
+#include <pddlboat/solver/madagascarplanner.hpp>
 namespace py = pybind11;
+
+// The block* planner methods take vectors of pairs of *references*; pybind11's container
+// conversion would bind those references to temporaries that dangle before the call. These
+// helpers accept stable by-value pairs and forward reference pairs into them.
+namespace {
+using ActionAssignments = std::vector<std::pair<pddlboat::ActionPtr, pddlboat::Assignment>>;
+
+std::vector<std::pair<const pddlboat::ActionPtr &, const pddlboat::Assignment &>>
+toRefPairs(const ActionAssignments &actions) {
+  std::vector<std::pair<const pddlboat::ActionPtr &, const pddlboat::Assignment &>> refs;
+  refs.reserve(actions.size());
+  for (const auto &pair : actions)
+    refs.emplace_back(pair.first, pair.second);
+  return refs;
+}
+}  // namespace
+
 PYBIND11_MODULE(pddlboat, m) {
 py::module_ ast_m = m.def_submodule("ast");
 // Bindings for class pddlboat::VariableSet
@@ -78,11 +96,11 @@ py_pddlboat_Planner.def("solve", static_cast<bool (pddlboat::Planner::*)(pddlboa
 .def("reset", &pddlboat::Planner::reset)
 .def("block_plan_step", &pddlboat::Planner::blockPlanStep)
 .def("block_state_action", &pddlboat::Planner::blockStateAction)
-.def("block_state_actions", &pddlboat::Planner::blockStateActions)
+.def("block_state_actions", [](pddlboat::Planner &self, const ActionAssignments &actions, const pddlboat::StatePtr &state){ self.blockStateActions(toRefPairs(actions), state); })
 .def("block_expression_action", &pddlboat::Planner::blockExpressionAction)
-.def("block_expression_actions", &pddlboat::Planner::blockExpressionActions)
+.def("block_expression_actions", [](pddlboat::Planner &self, const ActionAssignments &actions, const pddlboat::ExpressionPtr &expression, const pddlboat::Assignment &exp_assignment){ self.blockExpressionActions(toRefPairs(actions), expression, exp_assignment); })
 .def("add_constraint", &pddlboat::Planner::addConstraint)
-.def("block_state_actions_simultaneous", &pddlboat::Planner::blockStateActionsSimultaneous)
+.def("block_state_actions_simultaneous", [](pddlboat::Planner &self, const ActionAssignments &actions, const pddlboat::StatePtr &state){ self.blockStateActionsSimultaneous(toRefPairs(actions), state); })
 .def("get_supported_requirements", &pddlboat::Planner::getSupportedRequirements)
 .def("check_requirements", &pddlboat::Planner::checkRequirements)
 .def("get_problem", &pddlboat::Planner::getProblem)
@@ -94,9 +112,9 @@ py_pddlboat_Z3Planner.def(py::init<const std::shared_ptr<pddlboat::Problem> &, c
 .def("get_supported_requirements", &pddlboat::Z3Planner::getSupportedRequirements)
 .def("solve", static_cast<bool (pddlboat::Z3Planner::*)(pddlboat::Plan &)>(&pddlboat::Z3Planner::solve))
 .def("solve", static_cast<bool (pddlboat::Z3Planner::*)(pddlboat::Plan &, unsigned int)>(&pddlboat::Z3Planner::solve))
-.def("block_state_actions", &pddlboat::Z3Planner::blockStateActions)
-.def("block_state_actions_simultaneous", &pddlboat::Z3Planner::blockStateActionsSimultaneous)
-.def("block_expression_actions", &pddlboat::Z3Planner::blockExpressionActions)
+.def("block_state_actions", [](pddlboat::Z3Planner &self, const ActionAssignments &actions, const pddlboat::StatePtr &state){ self.blockStateActions(toRefPairs(actions), state); })
+.def("block_state_actions_simultaneous", [](pddlboat::Z3Planner &self, const ActionAssignments &actions, const pddlboat::StatePtr &state){ self.blockStateActionsSimultaneous(toRefPairs(actions), state); })
+.def("block_expression_actions", [](pddlboat::Z3Planner &self, const ActionAssignments &actions, const pddlboat::ExpressionPtr &expression, const pddlboat::Assignment &exp_assignment){ self.blockExpressionActions(toRefPairs(actions), expression, exp_assignment); })
 .def("add_constraint", &pddlboat::Z3Planner::addConstraint)
 .def("print_model", &pddlboat::Z3Planner::printModel)
 .def("print_smt2", &pddlboat::Z3Planner::printSMT2)
@@ -118,6 +136,40 @@ py::enum_<pddlboat::Planner::ConstraintTime>(py_pddlboat_Planner, "ConstraintTim
 .value("AT_END", pddlboat::Planner::ConstraintTime::AT_END)
 .value("OVER_ALL", pddlboat::Planner::ConstraintTime::OVER_ALL)
 .export_values()
+;
+// Bindings for class pddlboat::MadagascarPlanner
+py::class_<pddlboat::MadagascarPlanner, pddlboat::Planner, std::shared_ptr<pddlboat::MadagascarPlanner>> py_pddlboat_MadagascarPlanner(m, "MadagascarPlanner");
+py_pddlboat_MadagascarPlanner.def(py::init<const std::shared_ptr<pddlboat::Problem> &, const pddlboat::MadagascarPlanner::Options &>())
+.def("reset", &pddlboat::MadagascarPlanner::reset)
+.def("get_supported_requirements", &pddlboat::MadagascarPlanner::getSupportedRequirements)
+.def("solve", static_cast<bool (pddlboat::MadagascarPlanner::*)(pddlboat::Plan &)>(&pddlboat::MadagascarPlanner::solve))
+.def("solve", static_cast<bool (pddlboat::MadagascarPlanner::*)(pddlboat::Plan &, unsigned int)>(&pddlboat::MadagascarPlanner::solve))
+.def("block_state_actions", [](pddlboat::MadagascarPlanner &self, const ActionAssignments &actions, const pddlboat::StatePtr &state){ self.blockStateActions(toRefPairs(actions), state); })
+.def("block_state_actions_simultaneous", [](pddlboat::MadagascarPlanner &self, const ActionAssignments &actions, const pddlboat::StatePtr &state){ self.blockStateActionsSimultaneous(toRefPairs(actions), state); })
+.def("block_expression_actions", [](pddlboat::MadagascarPlanner &self, const ActionAssignments &actions, const pddlboat::ExpressionPtr &expression, const pddlboat::Assignment &exp_assignment){ self.blockExpressionActions(toRefPairs(actions), expression, exp_assignment); })
+.def("add_constraint", &pddlboat::MadagascarPlanner::addConstraint)
+;
+// Bindings for enum pddlboat::MadagascarPlanner::Semantics
+py::enum_<pddlboat::MadagascarPlanner::Semantics>(py_pddlboat_MadagascarPlanner, "Semantics")
+.value("FORALL_STEP", pddlboat::MadagascarPlanner::Semantics::FORALL_STEP)
+.value("EXISTS_STEP", pddlboat::MadagascarPlanner::Semantics::EXISTS_STEP)
+.export_values()
+;
+// Bindings for class pddlboat::MadagascarPlanner::Options
+py::class_<pddlboat::MadagascarPlanner::Options, std::shared_ptr<pddlboat::MadagascarPlanner::Options>>(py_pddlboat_MadagascarPlanner, "Options")
+.def(py::init())
+.def_readwrite("horizon_max", &pddlboat::MadagascarPlanner::Options::horizon_max)
+.def_readwrite("horizon_min", &pddlboat::MadagascarPlanner::Options::horizon_min)
+.def_readwrite("horizon_step", &pddlboat::MadagascarPlanner::Options::horizon_step)
+.def_readwrite("window", &pddlboat::MadagascarPlanner::Options::window)
+.def_readwrite("gamma", &pddlboat::MadagascarPlanner::Options::gamma)
+.def_readwrite("rlimit_base", &pddlboat::MadagascarPlanner::Options::rlimit_base)
+.def_readwrite("semantics", &pddlboat::MadagascarPlanner::Options::semantics)
+.def_readwrite("invariants", &pddlboat::MadagascarPlanner::Options::invariants)
+.def_readwrite("algorithm_b", &pddlboat::MadagascarPlanner::Options::algorithm_b)
+.def_readwrite("parallel", &pddlboat::MadagascarPlanner::Options::parallel)
+.def_readwrite("diagnostics", &pddlboat::MadagascarPlanner::Options::diagnostics)
+.def_readwrite("dump_clauses", &pddlboat::MadagascarPlanner::Options::dump_clauses)
 ;
 // Bindings for class pddlboat::FastForwardPlanner
 // py::class_<pddlboat::FastForwardPlanner, pddlboat::Planner, std::shared_ptr<pddlboat::FastForwardPlanner>> py_pddlboat_FastForwardPlanner(m, "FastForwardPlanner");

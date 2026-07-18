@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pddlboat"
+version = "0.1.0"
+description = "PDDL parsing, manipulation, and planning"
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [{ name = "Zachary Kingston", email = "zak@rice.edu" }]
+
+# NOTE: The compiled extension (pddlboat/pddlboat.so) and its C++ backend
+# (pddlboat/pddlboat-cpp.so) are produced by the CMake build, which copies them
+# into py/pddlboat/. Build the project with CMake first, then `pip install -e .`
+# packages the already-built extension. See README for the build steps.
+
+[tool.setuptools]
+package-dir = { "" = "py" }
+
+[tool.setuptools.packages.find]
+where = ["py"]
+include = ["pddlboat*"]
+
+[tool.setuptools.package-data]
+pddlboat = ["*.so", "*.so.*", "*.pyi"]

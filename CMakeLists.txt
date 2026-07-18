@@ -73,6 +73,7 @@ list(APPEND PDDLBOAT_SOURCES
   src/planner.cpp
   src/dependency.cpp
   src/z3planner.cpp
+  src/madagascarplanner.cpp
   src/astarplanner.cpp)
 
 add_definitions(-w)
