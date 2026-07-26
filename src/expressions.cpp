@@ -983,7 +983,14 @@ void Forall::getAssignedPredicates(std::set<std::string> &predicates, const Stat
 
 void Forall::getEffects(Effect &effect, const StatePtr &state, const Assignment &vars) const
 {
-    formula_->getEffects(effect, state, vars);
+    auto copy = vars;
+    const auto &groundings = state->getProblem()->getGroundings(domain_);
+
+    for (const auto &grounding : groundings)
+    {
+        copy.fold(grounding);
+        formula_->getEffects(effect, state, copy);
+    }
 }
 
 Expression::Type Forall::type() const
