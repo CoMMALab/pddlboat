@@ -81,14 +81,43 @@ namespace pddlboat
         void addConstraint(Planner::ConstraintTime time, const ExpressionPtr &expression, bool value);
 
     private:
+        /** \brief One conditional effect of a ground action: the literals asserted when every
+         *  antecedent in `conditions` holds. Nested `when`s stack their antecedents; an enclosing
+         *  `forall` yields one of these per grounding, with `assignment` binding its variables.
+         */
+        struct CondEffect
+        {
+            std::vector<ExpressionPtr> conditions;  ///< Antecedents, conjoined.
+            Assignment assignment;                  ///< Binding for translating `conditions`.
+            std::vector<int> add, del;              ///< Asserted atom indices (sorted).
+            std::vector<int> cond_atoms;            ///< Atoms occurring in `conditions` (sorted).
+            std::size_t id{0};                      ///< Index into the flat conditional effect table.
+        };
+
         /** \brief Static analysis of a single ground action.
+         *
+         *  Effects split into the unconditional part and the conditional effects. Analyses that
+         *  must not miss a change (interference, invariant threats) use the `may_*` sets, which
+         *  add every conditional literal; analyses that need a guarantee (invariant rescues) use
+         *  `add`/`del` alone, since a conditional effect need not fire.
          */
         struct GroundActionInfo
         {
             GroundedActionPtr ga;
-            std::vector<int> add, del;          ///< Exact effect atom indices (sorted).
+            std::vector<int> add, del;          ///< Unconditional effect atom indices (sorted).
+            std::vector<CondEffect> ces;        ///< Conditional effects.
+            std::vector<int> may_add, may_del;  ///< Unconditional plus conditional (sorted).
             std::vector<int> pre_pos, pre_neg;  ///< Over-approximate precondition literals (sorted).
             std::vector<int> must_pos, must_neg;  ///< Guaranteed precondition literals (sorted).
+        };
+
+        /** \brief A reference to the encoding variable that carries an effect: the action variable
+         *  for unconditional effects, or the conditional effect's own variable.
+         */
+        struct EffectRef
+        {
+            int action;
+            int ce;  ///< Flat conditional effect index, or -1 for the unconditional effect.
         };
 
         /** \brief Chain constraint specification for a literal within an SCC: falsifiers and
@@ -110,6 +139,7 @@ namespace pddlboat
             std::unique_ptr<z3::solver> solver;
             std::vector<std::vector<z3::expr>> atom_vars;  ///< [t][atom], t in [0, horizon].
             std::vector<std::vector<z3::expr>> act_vars;   ///< [t][action], t in [0, horizon).
+            std::vector<std::vector<z3::expr>> ce_vars;    ///< [t][conditional effect].
             std::size_t aux_counter{0};                    ///< Fresh auxiliary variable counter.
             bool built{false};
 
@@ -122,6 +152,11 @@ namespace pddlboat
         void ground();
         void collectPrecLiterals(const ExpressionPtr &expr, const Assignment &assignment, bool negated,
                                  bool definite, GroundActionInfo &info) const;
+        void collectEffects(const ExpressionPtr &expr, const Assignment &assignment, bool negated,
+                            std::vector<ExpressionPtr> &conditions, int target,
+                            GroundActionInfo &info) const;
+        void collectCondAtoms(const ExpressionPtr &expr, const Assignment &assignment,
+                              std::vector<int> &atoms) const;
         void computeInvariants();
         void buildDisablingGraphChains();
         void buildForallMutexes();
@@ -173,7 +208,13 @@ namespace pddlboat
         std::map<std::string, std::size_t> action_index_;
 
         // Per-atom occurrence lists (indices into actions_, ascending).
-        std::vector<std::vector<int>> adders_, deleters_, pos_req_, neg_req_;
+        std::vector<std::vector<int>> pos_req_, neg_req_;
+
+        // Per-atom lists of the effects that may change it, and of the actions whose conditional
+        // effect antecedents mention it (either polarity, since both firing and not firing matter).
+        std::vector<std::vector<EffectRef>> adders_, deleters_;
+        std::vector<std::vector<int>> cond_req_;
+        std::size_t ce_count_{0};  ///< Total conditional effects over all ground actions.
 
         // Invariants: unit literals and 2-literal clauses, all true in every reachable state.
         std::vector<Lit> invariant_units_;
@@ -225,7 +266,8 @@ Requirements::Keyword MadagascarPlanner::getSupportedRequirements() const
            | Requirements::NEGATIVE_PRECONDITIONS   //
            | Requirements::DISJUNCTIVE_PRECONDITIONS  //
            | Requirements::EQUALITY                 //
-           | Requirements::QUANTIFIED_PRECONDITIONS;
+           | Requirements::QUANTIFIED_PRECONDITIONS  //
+           | Requirements::CONDITIONAL_EFFECTS;
 }
 
 bool MadagascarPlanner::solve(Plan &plan)
@@ -279,12 +321,6 @@ void MadagascarPlannerInternal::checkSupported() const
 
     if (not domain->axioms.empty())
         throw std::runtime_error("MadagascarPlanner does not support domain axioms.");
-
-    for (const auto &[name, action] : domain->actions)
-        if (isIn(Expression::Type::WHEN, action->effect->getTypes()))
-            throw std::runtime_error(
-                log::format("MadagascarPlanner does not support conditional effects (in action `%1%`).",  //
-                            name));
 }
 
 void MadagascarPlannerInternal::ground()
@@ -330,6 +366,7 @@ void MadagascarPlannerInternal::ground()
     deleters_.resize(atoms_.size());
     pos_req_.resize(atoms_.size());
     neg_req_.resize(atoms_.size());
+    cond_req_.resize(atoms_.size());
 
     // Ground action table.
     for (const auto &[name, action] : problem_->domain->actions)
@@ -340,29 +377,58 @@ void MadagascarPlannerInternal::ground()
             GroundActionInfo info;
             info.ga = std::make_shared<GroundedAction>(action, assignment);
 
-            Expression::Effect effect;
-            action->effect->getEffects(effect, problem_->start, assignment);
-
-            for (const auto &id : effect.add)
-                info.add.push_back(static_cast<int>(atom_index_.at(id)));
-            for (const auto &id : effect.remove)
-                info.del.push_back(static_cast<int>(atom_index_.at(id)));
-
+            std::vector<ExpressionPtr> conditions;
+            collectEffects(action->effect, assignment, false, conditions, -1, info);
             collectPrecLiterals(action->precondition, assignment, false, true, info);
 
-            std::sort(info.add.begin(), info.add.end());
-            std::sort(info.del.begin(), info.del.end());
+            auto tidy = [](std::vector<int> &v) {
+                std::sort(v.begin(), v.end());
+                v.erase(std::unique(v.begin(), v.end()), v.end());
+            };
+
+            tidy(info.add);
+            tidy(info.del);
             for (auto *v : {&info.pre_pos, &info.pre_neg, &info.must_pos, &info.must_neg})
+                tidy(*v);
+
+            info.may_add = info.add;
+            info.may_del = info.del;
+
+            // Conditional effects that assert nothing constrain nothing.
+            info.ces.erase(std::remove_if(info.ces.begin(), info.ces.end(),
+                                          [](const CondEffect &ce) {
+                                              return ce.add.empty() and ce.del.empty();
+                                          }),
+                           info.ces.end());
+
+            for (auto &ce : info.ces)
             {
-                std::sort(v->begin(), v->end());
-                v->erase(std::unique(v->begin(), v->end()), v->end());
+                tidy(ce.add);
+                tidy(ce.del);
+                tidy(ce.cond_atoms);
+
+                ce.id = ce_count_++;
+                info.may_add.insert(info.may_add.end(), ce.add.begin(), ce.add.end());
+                info.may_del.insert(info.may_del.end(), ce.del.begin(), ce.del.end());
             }
+
+            tidy(info.may_add);
+            tidy(info.may_del);
 
             const int index = static_cast<int>(actions_.size());
             for (int p : info.add)
-                adders_[p].push_back(index);
+                adders_[p].push_back({index, -1});
             for (int p : info.del)
-                deleters_[p].push_back(index);
+                deleters_[p].push_back({index, -1});
+            for (const auto &ce : info.ces)
+            {
+                for (int p : ce.add)
+                    adders_[p].push_back({index, static_cast<int>(ce.id)});
+                for (int p : ce.del)
+                    deleters_[p].push_back({index, static_cast<int>(ce.id)});
+                for (int p : ce.cond_atoms)
+                    cond_req_[p].push_back(index);
+            }
             for (int p : info.pre_pos)
                 pos_req_[p].push_back(index);
             for (int p : info.pre_neg)
@@ -373,10 +439,159 @@ void MadagascarPlannerInternal::ground()
         }
     }
 
+    for (auto &v : cond_req_)
+        v.erase(std::unique(v.begin(), v.end()), v.end());  // Built in ascending action order.
+
     if (options_.diagnostics)
-        std::cout << log::format("Madagascar: %1% ground atoms, %2% ground actions", atoms_.size(),
-                                 actions_.size())
+        std::cout << log::format("Madagascar: %1% ground atoms, %2% ground actions, "
+                                 "%3% conditional effects",
+                                 atoms_.size(), actions_.size(), ce_count_)
                   << std::endl;
+}
+
+/**
+ * Collects the effect of an action into its unconditional literals and its conditional effects.
+ * `negated` tracks polarity through NOT; `conditions` is the stack of enclosing `when` antecedents.
+ *
+ * A `when` starts a new conditional effect holding the literals directly beneath it, and recursion
+ * continues so that nested `when`s produce their own effects with the antecedents conjoined. A
+ * `forall` is expanded over its groundings, so a `when` beneath one yields a separate conditional
+ * effect per grounding, while a `forall` beneath a `when` merely adds literals to it. This mirrors
+ * the reference implementation's NEWlocateconditionals/NEWinserteffectlits pair.
+ */
+void MadagascarPlannerInternal::collectEffects(const ExpressionPtr &expr, const Assignment &assignment,
+                                               bool negated, std::vector<ExpressionPtr> &conditions,
+                                               int target, GroundActionInfo &info) const
+{
+    const auto &type = expr->type();
+    switch (type)
+    {
+        case Expression::Type::PREDICATE:
+        {
+            const auto &predicate = std::static_pointer_cast<Predicate>(expr);
+            const int atom = static_cast<int>(getAtomIndex(predicate, assignment));
+
+            // Literals land in the innermost enclosing `when`, or in the unconditional effect.
+            auto &add = (target < 0) ? info.add : info.ces[target].add;
+            auto &del = (target < 0) ? info.del : info.ces[target].del;
+            (negated ? del : add).push_back(atom);
+            return;
+        }
+        case Expression::Type::NOT:
+        {
+            const auto &not_expr = std::static_pointer_cast<Not>(expr);
+            collectEffects(not_expr->getTerm(), assignment, not negated, conditions, target, info);
+            return;
+        }
+        case Expression::Type::AND:
+        {
+            const auto &variadic = std::static_pointer_cast<VariadicExpression>(expr);
+            for (const auto &term : variadic->getTerms())
+                collectEffects(term, assignment, negated, conditions, target, info);
+            return;
+        }
+        case Expression::Type::WHEN:
+        {
+            const auto &when_expr = std::static_pointer_cast<When>(expr);
+            if (negated)
+                throw std::runtime_error("MadagascarPlanner: negated conditional effect.");
+
+            // An antecedent mentioning no predicate is decided at grounding time: a false one
+            // makes the effect dead, a true one leaves the consequent as conditional as it was.
+            if (not isIn(Expression::Type::PREDICATE, when_expr->getLeft()->getTypes()))
+            {
+                if (when_expr->getLeft()->evaluate(problem_->start, assignment))
+                    collectEffects(when_expr->getRight(), assignment, negated, conditions, target, info);
+                return;
+            }
+
+            conditions.push_back(when_expr->getLeft());
+
+            CondEffect ce;
+            ce.conditions = conditions;
+            ce.assignment = assignment;
+            for (const auto &condition : conditions)
+                collectCondAtoms(condition, assignment, ce.cond_atoms);
+
+            const int nested = static_cast<int>(info.ces.size());
+            info.ces.emplace_back(std::move(ce));
+
+            collectEffects(when_expr->getRight(), assignment, negated, conditions, nested, info);
+            conditions.pop_back();
+            return;
+        }
+        case Expression::Type::FORALL:
+        {
+            const auto &quantifier = std::static_pointer_cast<QuantifierExpression>(expr);
+
+            auto copy = assignment;
+            const auto &groundings = problem_->getGroundings(quantifier->getDomain());
+            for (const auto &grounding : groundings)
+            {
+                copy.fold(grounding);
+                collectEffects(quantifier->getFormula(), copy, negated, conditions, target, info);
+            }
+            return;
+        }
+        default:
+            throw std::runtime_error(
+                log::format("MadagascarPlanner: unsupported expression type %1% in effect.", type));
+    }
+}
+
+/**
+ * Collects the atoms occurring in a conditional effect antecedent, ignoring polarity: an action
+ * that changes such an atom may flip whether the effect fires, either way around.
+ */
+void MadagascarPlannerInternal::collectCondAtoms(const ExpressionPtr &expr, const Assignment &assignment,
+                                                 std::vector<int> &atoms) const
+{
+    const auto &type = expr->type();
+    switch (type)
+    {
+        case Expression::Type::PREDICATE:
+        {
+            const auto &predicate = std::static_pointer_cast<Predicate>(expr);
+            atoms.push_back(static_cast<int>(getAtomIndex(predicate, assignment)));
+            return;
+        }
+        case Expression::Type::NOT:
+            collectCondAtoms(std::static_pointer_cast<Not>(expr)->getTerm(), assignment, atoms);
+            return;
+        case Expression::Type::AND:
+        case Expression::Type::OR:
+        {
+            const auto &variadic = std::static_pointer_cast<VariadicExpression>(expr);
+            for (const auto &term : variadic->getTerms())
+                collectCondAtoms(term, assignment, atoms);
+            return;
+        }
+        case Expression::Type::IMPLY:
+        {
+            const auto &imply_expr = std::static_pointer_cast<Imply>(expr);
+            collectCondAtoms(imply_expr->getLeft(), assignment, atoms);
+            collectCondAtoms(imply_expr->getRight(), assignment, atoms);
+            return;
+        }
+        case Expression::Type::FORALL:
+        case Expression::Type::EXISTS:
+        {
+            const auto &quantifier = std::static_pointer_cast<QuantifierExpression>(expr);
+
+            auto copy = assignment;
+            for (const auto &grounding : problem_->getGroundings(quantifier->getDomain()))
+            {
+                copy.fold(grounding);
+                collectCondAtoms(quantifier->getFormula(), copy, atoms);
+            }
+            return;
+        }
+        case Expression::Type::EQUALS:
+            return;  // Compile-time constant, contributes no atoms.
+        default:
+            throw std::runtime_error(log::format(
+                "MadagascarPlanner: unsupported expression type %1% in effect condition.", type));
+    }
 }
 
 /**
@@ -496,8 +711,14 @@ void MadagascarPlannerInternal::computeInvariants()
     const double budget_seconds = 5.0;
     const std::size_t pair_cap = 200000;
 
-    // E(a) membership tests over exact effects; P(a) over guaranteed precondition literals.
-    auto inEffects = [&](const GroundActionInfo &a, Lit l) {
+    // Threat tests ask whether a *may* assert a literal, so they range over conditional effects
+    // too; rescue tests ask whether a *must* assert one, so they range over unconditional effects
+    // only. Conflating the two would keep invariants that a conditional effect can break.
+    auto mayAssert = [&](const GroundActionInfo &a, Lit l) {
+        return (l > 0) ? sortedContains(a.may_add, static_cast<int>(litAtom(l))) :
+                         sortedContains(a.may_del, static_cast<int>(litAtom(l)));
+    };
+    auto mustAssert = [&](const GroundActionInfo &a, Lit l) {
         return (l > 0) ? sortedContains(a.add, static_cast<int>(litAtom(l))) :
                          sortedContains(a.del, static_cast<int>(litAtom(l)));
     };
@@ -595,12 +816,16 @@ void MadagascarPlannerInternal::computeInvariants()
             if (dead or not preStateConsistent(a, 0))
                 continue;
 
-            // Effect literals of a, as literals.
-            std::vector<Lit> effects;
-            for (int p : a.add)
+            // Literals a may assert (threats), and those it is guaranteed to (rescues).
+            std::vector<Lit> effects, forced;
+            for (int p : a.may_add)
                 effects.push_back(posLit(p));
-            for (int p : a.del)
+            for (int p : a.may_del)
                 effects.push_back(negLit(p));
+            for (int p : a.add)
+                forced.push_back(posLit(p));
+            for (int p : a.del)
+                forced.push_back(negLit(p));
 
             // A candidate is only threatened if a falsifies one of its literals.
             for (Lit e : effects)
@@ -613,7 +838,8 @@ void MadagascarPlannerInternal::computeInvariants()
                     units.erase(falsified);
                     changed = true;
 
-                    for (Lit rescue : effects)
+                    // Only a guaranteed effect can stand in for the lost literal.
+                    for (Lit rescue : forced)
                         if (rescue != e and rescue != falsified)
                             pairs.insert(normalizePair(falsified, rescue));
                 }
@@ -633,8 +859,8 @@ void MadagascarPlannerInternal::computeInvariants()
                     const Lit other = (l1 == falsified) ? l2 : l1;
 
                     const bool other_false_post =
-                        inEffects(a, -other)  //
-                        or (not inEffects(a, other) and preStateConsistent(a, -other));
+                        mayAssert(a, -other)  //
+                        or (not mustAssert(a, other) and preStateConsistent(a, -other));
                     if (other_false_post)
                     {
                         it = pairs.erase(it);
@@ -675,13 +901,21 @@ void MadagascarPlannerInternal::buildDisablingGraphChains()
 {
     const std::size_t n = actions_.size();
 
-    // Successors of a in the disabling graph: actions whose precondition literals a falsifies.
+    // Successors of a in the disabling graph: actions whose precondition literals a may falsify,
+    // plus actions with a conditional effect antecedent over an atom a may change -- changing it
+    // decides whether that effect fires, so the two are order dependent either way around.
     auto successors = [&](std::size_t a) {
         std::vector<int> succ;
-        for (int p : actions_[a].del)
+        for (int p : actions_[a].may_del)
+        {
             succ.insert(succ.end(), pos_req_[p].begin(), pos_req_[p].end());
-        for (int p : actions_[a].add)
+            succ.insert(succ.end(), cond_req_[p].begin(), cond_req_[p].end());
+        }
+        for (int p : actions_[a].may_add)
+        {
             succ.insert(succ.end(), neg_req_[p].begin(), neg_req_[p].end());
+            succ.insert(succ.end(), cond_req_[p].begin(), cond_req_[p].end());
+        }
 
         std::sort(succ.begin(), succ.end());
         succ.erase(std::unique(succ.begin(), succ.end()), succ.end());
@@ -787,20 +1021,38 @@ void MadagascarPlannerInternal::buildDisablingGraphChains()
         for (int member : members)  // ascending: falsifier/requirer lists stay sorted
         {
             const auto &info = actions_[member];
-            for (int p : info.del)
+            for (int p : info.may_del)
                 spec(posLit(p)).falsifiers.push_back(member);
             for (int p : info.pre_pos)
                 spec(posLit(p)).requirers.push_back(member);
-            for (int p : info.add)
+            for (int p : info.may_add)
                 spec(negLit(p)).falsifiers.push_back(member);
             for (int p : info.pre_neg)
                 spec(negLit(p)).requirers.push_back(member);
+
+            // A conditional effect antecedent depends on its atoms at both polarities.
+            for (const auto &ce : info.ces)
+                for (int p : ce.cond_atoms)
+                {
+                    spec(posLit(p)).requirers.push_back(member);
+                    spec(negLit(p)).requirers.push_back(member);
+                }
         }
 
+        // Members were visited in ascending order, but an atom can enter a spec from several of
+        // the lists above, so the chain builder's ordering assumption needs restoring.
         std::vector<ChainSpec> chains;
         for (auto &[l, s] : specs)
+        {
+            for (auto *v : {&s.falsifiers, &s.requirers})
+            {
+                std::sort(v->begin(), v->end());
+                v->erase(std::unique(v->begin(), v->end()), v->end());
+            }
+
             if (not s.falsifiers.empty() and not s.requirers.empty())
                 chains.emplace_back(std::move(s));
+        }
 
         if (not chains.empty())
         {
@@ -827,10 +1079,16 @@ void MadagascarPlannerInternal::buildForallMutexes()
                     pairs.emplace(std::min(static_cast<int>(a), b), std::max(static_cast<int>(a), b));
         };
 
-        for (int p : actions_[a].del)
+        for (int p : actions_[a].may_del)
+        {
             addEdges(pos_req_[p]);
-        for (int p : actions_[a].add)
+            addEdges(cond_req_[p]);
+        }
+        for (int p : actions_[a].may_add)
+        {
             addEdges(neg_req_[p]);
+            addEdges(cond_req_[p]);
+        }
     }
 
     mutex_pairs_.assign(pairs.begin(), pairs.end());
@@ -885,6 +1143,18 @@ void MadagascarPlannerInternal::encode(HorizonSolver &hs)
         for (std::size_t a = 0; a < actions_.size(); ++a)
             vars.push_back(hs.ctx->bool_const(log::format("%1%@%2%", actions_[a].ga->string, t).c_str()));
         hs.act_vars.emplace_back(std::move(vars));
+    }
+
+    // One variable per conditional effect per step, standing for "this effect fires here".
+    for (Time t = 0; t < hs.horizon; ++t)
+    {
+        std::vector<z3::expr> vars;
+        vars.reserve(ce_count_);
+        for (const auto &info : actions_)
+            for (const auto &ce : info.ces)
+                vars.push_back(hs.ctx->bool_const(
+                    log::format("%1%:ce%2%@%3%", info.ga->string, ce.id, t).c_str()));
+        hs.ce_vars.emplace_back(std::move(vars));
     }
 
     // Initial state (closed world).
@@ -948,6 +1218,29 @@ void MadagascarPlannerInternal::addStep(HorizonSolver &hs, Time t)
             body = body and not hs.atom_vars[t + 1][p];
 
         addClause(hs, z3::implies(act, body));
+
+        // A conditional effect variable is equivalent to its action taken with its antecedent
+        // holding; the frame axioms below then use it as the explanation for its literals.
+        for (const auto &ce : info.ces)
+        {
+            const auto &fires = hs.ce_vars[t][ce.id];
+
+            z3::expr condition = hs.ctx->bool_val(true);
+            for (const auto &term : ce.conditions)
+                condition = condition and translate(hs, term, ce.assignment, t);
+
+            addClause(hs, z3::implies(act and condition, fires));
+            addClause(hs, z3::implies(fires, act));
+            addClause(hs, z3::implies(fires, condition));
+
+            z3::expr consequent = hs.ctx->bool_val(true);
+            for (int p : ce.add)
+                consequent = consequent and hs.atom_vars[t + 1][p];
+            for (int p : ce.del)
+                consequent = consequent and not hs.atom_vars[t + 1][p];
+
+            addClause(hs, z3::implies(fires, consequent));
+        }
     }
 
     // (2) Explanatory frame axioms.
@@ -965,11 +1258,15 @@ void MadagascarPlannerInternal::addStep(HorizonSolver &hs, Time t)
             continue;
         }
 
+        auto effectVar = [&](const EffectRef &ref) {
+            return (ref.ce < 0) ? hs.act_vars[t][ref.action] : hs.ce_vars[t][ref.ce];
+        };
+
         z3::expr_vector dels(*hs.ctx), adds(*hs.ctx);
-        for (int a : deleters_[p])
-            dels.push_back(hs.act_vars[t][a]);
-        for (int a : adders_[p])
-            adds.push_back(hs.act_vars[t][a]);
+        for (const auto &ref : deleters_[p])
+            dels.push_back(effectVar(ref));
+        for (const auto &ref : adders_[p])
+            adds.push_back(effectVar(ref));
 
         addClause(hs, z3::implies(curr and not next,
                                   dels.empty() ? hs.ctx->bool_val(false) : z3::mk_or(dels)));

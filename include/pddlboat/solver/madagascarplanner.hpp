@@ -6,15 +6,19 @@
  *     linear order, enforced with disabling-graph SCC implication chains
  *     (Rintanen, Heljanko, Niemelä, "Planning as satisfiability: parallel plans and
  *     algorithms for plan search", AIJ 2006).
+ *   - Conditional effects carry their own encoding variable, equivalent to the action being
+ *     taken with the effect's antecedent holding, which then explains the effect's literals in
+ *     the frame axioms. An action is order dependent on the actions that may change the atoms
+ *     of its antecedents, in either direction, since those decide whether the effect fires.
  *   - Invariant synthesis by iterative weakening from the initial state.
  *   - Algorithm B horizon scheduling: several horizons are solved concurrently with
  *     geometrically distributed effort; the first satisfiable horizon wins, so plans are
  *     not guaranteed to be makespan-optimal. Peak memory is roughly
  *     `window` × (size of the largest active encoding).
  *
- * Supports boolean STRIPS/ADL domains without conditional effects. Problems using numeric
- * or object fluents, domain axioms, derived predicates, or conditional effects (`when`)
- * are rejected at construction.
+ * Supports boolean STRIPS/ADL domains, including quantified preconditions and both conditional
+ * and universally quantified effects. Problems using numeric or object fluents, domain axioms,
+ * or derived predicates are rejected at construction.
  */
 
 #ifndef PDDLBOAT_MADAGASCARPLANNER_
