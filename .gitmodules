@@ -1,12 +1,12 @@
 [submodule "submodules/downward"]
 	path = submodules/downward
-	url = git@github.com:aibasel/downward.git
+	url = https://github.com/aibasel/downward.git
 	shallow = True
 [submodule "submodules/symk"]
 	path = submodules/symk
-	url = git@github.com:CoMMALab/symk.git
+	url = https://github.com/CoMMALab/symk.git
 	branch = update
 	shallow = True
 [submodule "resources/icaps"]
 	path = resources/icaps
-	url = git@github.com:AI-Planning/classical-domains.git
+	url = https://github.com/AI-Planning/classical-domains.git
