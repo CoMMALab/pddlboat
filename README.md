@@ -210,7 +210,7 @@ sudo apt-get install libz3-dev
 You will need to clone the submodules (Fast Downward, FF, Symk).
 Either clone this repo with:
 ```
-git clone --recursive git@github.com:KavrakiLab/pddlboat.git
+git clone --recursive https://github.com/CoMMALab/pddlboat.git
 ```
 
 Or initialize after the fact:
@@ -262,3 +262,8 @@ On the horizon:
 - Basic uncertainty (e.g., `oneof`, etc.).
 - Durative actions.
 - Support for additional planners.
+
+## License
+
+_PDDLboat_ is released under the [BSD 2-Clause License](LICENSE).
+Fast Downward and SymK are separate programs under the GPLv3; _PDDLboat_ builds their executables from the submodules and invokes them, but does not link against them.
